@@ -31,6 +31,8 @@ Place your `.safetensors` model files in:
 backend/assets/models/
 ```
 
+#### For v-pred models need to include any of these in the name: "v-prediction", "v-pred", "v_pred"
+
 ### 3. Add Test Data
 
 You have **two options** for test data:
