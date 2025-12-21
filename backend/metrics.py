@@ -53,7 +53,7 @@ class MetricsCalculator:
             return
         if self.lpips_model is None:
             print("Loading LPIPS model (alex)...")
-            self.lpips_model = lpips.LPIPS(net='alex').to(self.device)
+            self.lpips_model = lpips.LPIPS(net='vgg').to(self.device)
     
     def calculate_clip_score(self, images: List[Any], prompts: List[str]) -> float:
         """

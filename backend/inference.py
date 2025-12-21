@@ -13,7 +13,7 @@ class SDXLInferencer:
         # but we need to know where the sd-scripts env is.
         self.base_dir = Path(__file__).parent
         self.sd_scripts_dir = self.base_dir / "sd-scripts"
-        self.venv_python = self.sd_scripts_dir / "venv" / "Scripts" / "python.exe"
+        self.venv_python = self.base_dir / "venv" / "Scripts" / "python.exe"
         self.script_path = self.sd_scripts_dir / "sdxl_gen_img.py"
         
         if not self.venv_python.exists():

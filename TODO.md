@@ -35,6 +35,15 @@ Working prototype with:
 
 ### Aesthetic Scorers or other stuff maybe
 
+### DINOv3 smalL/large semantic consistency score, dino lpips instead of alex/vgg, object halo (saliency sparsity)
+
+|Metric Name|Using Model...|Tells|
+|---|---|---|
+Semantic  Match|vitl16 (Global)|"""Is this actually what I asked for visually?"""|
+Deep Diversity|vitb16 (Layers)|"""Is the model just repeating itself?"""|
+Object Integrity|vitl16 (Attention)|"""Did the AI mess up the body/structure?"""|
+Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"""|
+
 ---
 
 ## Features To Add
