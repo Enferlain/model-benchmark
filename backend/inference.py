@@ -26,27 +26,31 @@ class SDXLInferencer:
         # No-op for subprocess method, just storing key info if needed
         self.ckpt_path = str(ckpt_path)
 
-    def generate(self, prompts: List[str], negative_prompt="", steps=20, guidance_scale=7.0, width=1024, height=1024, seed=42, sampler="euler_a", images_per_prompt=1, extra_args=None):
+    def generate(self, prompts: List[str], negative_prompt="", steps=20, guidance_scale=7.0, width=1024, height=1024, seed=42, sampler="euler_a", images_per_prompt=1, extra_args=None, per_prompt_seeds=None):
+        """
+        Generate images from prompts.
+        
+        Args:
+            per_prompt_seeds: Optional list of seeds, one per prompt. If provided, each prompt
+                             uses its specific seed (embedded via --d syntax in prompt file).
+                             If None, uses the global seed argument.
+        """
         if not hasattr(self, 'ckpt_path'):
              raise RuntimeError("Model path not set. Call load_model() first.")
 
         # 1. Write prompts to temp file
         import tempfile
         
-        # sdxl_gen_img.py expects line-separated prompts
-        # It also supports --negative_scale etc, but for per-prompt negative, 
-        # usually it's "prompt --n negative_prompt" or similar if using weird parsers,
-        # but the script argument --prompt takes a string or file.
-        # If using --from_file, it reads lines.
-        # It normally doesn't support per-line negative prompt in simple from_file mode easily 
-        # unless formatted specifically.
-        # However, it has --negative_prompt arg which applies to all.
-        
-        # We will apply the same negative prompt to all for now.
+        # sdxl_gen_img.py supports per-line seeds using "--d 123" syntax in the prompt
+        # Format: "prompt text --d 123" where 123 is the seed
         
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as f:
-            for p in prompts:
-                f.write(p.replace('\n', ' ') + "\n")
+            for i, p in enumerate(prompts):
+                prompt_line = p.replace('\n', ' ')
+                # Add per-prompt seed if provided
+                if per_prompt_seeds is not None and i < len(per_prompt_seeds):
+                    prompt_line += f" --d {per_prompt_seeds[i]}"
+                f.write(prompt_line + "\n")
             prompt_file = f.name
 
         # 2. Prepare Output Directory
@@ -106,31 +110,67 @@ class SDXLInferencer:
 
             print(f"Running subprocess: {' '.join(cmd)}")
             
-            # 4. Execute
+            # 4. Execute and yield images as they're saved
+            from PIL import Image
+            import time
+            
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                universal_newlines=True
+                universal_newlines=True,
+                bufsize=1  # Line buffered
             )
             
-            # Stream output
-            for line in process.stdout:
-                print(f"[SDXL] {line.strip()}")
+            yielded_files = set()
+            expected_count = len(prompts) * images_per_prompt
             
-            process.wait()
+            # Process output while watching for new files
+            while True:
+                # Check if process is still running
+                retcode = process.poll()
+                
+                # Read available output (non-blocking check)
+                line = process.stdout.readline()
+                if line:
+                    print(f"[SDXL] {line.strip()}")
+                
+                # Check for new files in output directory
+                current_files = set(temp_out_dir.glob("*.png")) | set(temp_out_dir.glob("*.jpg"))
+                new_files = current_files - yielded_files
+                
+                for img_path in sorted(new_files):
+                    try:
+                        # Try to open - might still be writing
+                        img = Image.open(img_path)
+                        img.load()  # Force full load
+                        yielded_files.add(img_path)
+                        yield img
+                    except Exception:
+                        # File still being written, skip for now
+                        pass
+                
+                # Exit conditions
+                if retcode is not None:
+                    # Process finished, drain remaining output
+                    for remaining_line in process.stdout:
+                        print(f"[SDXL] {remaining_line.strip()}")
+                    break
+                
+                # Small sleep to avoid busy loop
+                if not new_files and not line:
+                    time.sleep(0.1)
             
             if process.returncode != 0:
                 print(f"Error: Process finished with exit code {process.returncode}")
-                
-            # 5. Collect Images
-            from PIL import Image
-            generated_files = sorted(list(temp_out_dir.glob("*.png")) + list(temp_out_dir.glob("*.jpg")))
             
-            for img_path in generated_files:
+            # Yield any remaining files we might have missed
+            final_files = set(temp_out_dir.glob("*.png")) | set(temp_out_dir.glob("*.jpg"))
+            remaining = final_files - yielded_files
+            for img_path in sorted(remaining):
                 try:
                     img = Image.open(img_path)
-                    img.load() # Force load so we can delete file
+                    img.load()
                     yield img
                 except Exception as e:
                     print(f"Failed to load generated image {img_path}: {e}")

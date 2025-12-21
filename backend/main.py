@@ -6,6 +6,10 @@ import time
 import random
 import os
 import torch
+import logging
+
+# Suppress uvicorn access log spam for polling endpoints
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 # Import backend modules
 from metrics import MetricsCalculator
@@ -293,24 +297,31 @@ def generate_images_only(options: ScanOptions):
             output_dir.mkdir(parents=True, exist_ok=True)
             
             existing_images = list(output_dir.glob("p*_i*_s*.png"))
-            prompt_image_counts = {}
+            # Track which specific image indices exist for each prompt (handles gaps)
+            prompt_existing_indices = {}  # prompt_idx -> set of image indices
             for img_path in existing_images:
                 try:
-                    name = img_path.stem
-                    prompt_idx = int(name.split('_')[0][1:])
-                    prompt_image_counts[prompt_idx] = prompt_image_counts.get(prompt_idx, 0) + 1
+                    name = img_path.stem  # e.g., p001_i02_s218
+                    parts = name.split('_')
+                    prompt_idx = int(parts[0][1:])  # Extract number after 'p'
+                    image_idx = int(parts[1][1:])   # Extract number after 'i'
+                    if prompt_idx not in prompt_existing_indices:
+                        prompt_existing_indices[prompt_idx] = set()
+                    prompt_existing_indices[prompt_idx].add(image_idx)
                 except:
                     pass
             
             target_prompts = prompts[:options.num_prompts]
             prompts_needing_images = []
-            images_needed_per_prompt = []
+            missing_indices_per_prompt = []  # List of sets of missing indices
             
             for i, prompt in enumerate(target_prompts):
-                current_count = prompt_image_counts.get(i, 0)
-                if current_count < options.images_per_prompt:
+                existing_indices = prompt_existing_indices.get(i, set())
+                needed_indices = set(range(options.images_per_prompt))
+                missing_indices = needed_indices - existing_indices
+                if missing_indices:
                     prompts_needing_images.append((i, prompt))
-                    images_needed_per_prompt.append(options.images_per_prompt - current_count)
+                    missing_indices_per_prompt.append(sorted(missing_indices))
             
             if not prompts_needing_images:
                 continue
@@ -326,39 +337,55 @@ def generate_images_only(options: ScanOptions):
                 if any(x in lower_name for x in ["v-prediction", "v-pred", "v_pred", "_v2"]):
                     extra_args.append("--v_parameterization")
                 
-                for (prompt_idx, prompt), needed_count in zip(prompts_needing_images, images_needed_per_prompt):
+                # Batch ALL prompts into a single generate() call (model loads only once!)
+                # Build list of (prompt, image_idx) pairs for all missing images
+                generation_queue = []  # [(prompt_idx, prompt_text, image_idx), ...]
+                
+                for (prompt_idx, prompt), missing_indices in zip(prompts_needing_images, missing_indices_per_prompt):
+                    for image_idx in missing_indices:
+                        generation_queue.append((prompt_idx, prompt, image_idx))
+                
+                if not generation_queue or check_cancelled():
+                    continue
+                
+                # Group by prompt for batching (script needs unique prompts)
+                # We'll repeat each prompt for how many images it needs
+                prompts_to_gen = [item[1] for item in generation_queue]
+                # Calculate per-prompt seeds (seed + image_idx for each)
+                per_prompt_seeds = [options.seed + item[2] for item in generation_queue]
+                
+                # Single subprocess call - model loads once!
+                # Each line gets its specific seed via --d syntax in the prompt file
+                gen_iterator = inferencer.generate(
+                    prompts=prompts_to_gen,
+                    negative_prompt="worst quality, low quality, lowres, artist name, signature, bad anatomy",
+                    steps=options.steps,
+                    guidance_scale=options.guidance_scale,
+                    width=options.width,
+                    height=options.height,
+                    seed=options.seed,  # Fallback, per_prompt_seeds takes precedence
+                    sampler=options.sampler,
+                    images_per_prompt=1,  # Each prompt line = 1 image
+                    extra_args=extra_args,
+                    per_prompt_seeds=per_prompt_seeds
+                )
+                
+                # Save images with exact indices from queue
+                for idx, img in enumerate(gen_iterator):
                     if check_cancelled():
                         break
-                        
-                    existing_for_prompt = prompt_image_counts.get(prompt_idx, 0)
                     
-                    for img_num in range(needed_count):
-                        if check_cancelled():
-                            break
-                            
-                        image_idx = existing_for_prompt + img_num
-                        current_seed = options.seed + prompt_idx * 1000 + image_idx
-                        
-                        gen_iterator = inferencer.generate(
-                            prompts=[prompt],
-                            negative_prompt="worst quality, low quality, lowres, artist name, signature, bad anatomy",
-                            steps=options.steps,
-                            guidance_scale=options.guidance_scale,
-                            width=options.width,
-                            height=options.height,
-                            seed=current_seed,
-                            sampler=options.sampler,
-                            images_per_prompt=1,
-                            extra_args=extra_args
-                        )
-                        
-                        for img in gen_iterator:
-                            if img:
-                                save_path = output_dir / f"p{prompt_idx:03d}_i{image_idx:02d}_s{current_seed}.png"
-                                img.save(save_path)
-                                images_generated += 1
-                                generation_state["progress"]["current"] = images_generated
-                                print(f"[{images_generated}/{total_images_needed}] Saved {save_path}")
+                    if idx >= len(generation_queue):
+                        break
+                    
+                    if img:
+                        prompt_idx, _, image_idx = generation_queue[idx]
+                        actual_seed = options.seed + image_idx  # Seed matches the image index
+                        save_path = output_dir / f"p{prompt_idx:03d}_i{image_idx:02d}_s{actual_seed}.png"
+                        img.save(save_path)
+                        images_generated += 1
+                        generation_state["progress"]["current"] = images_generated
+                        print(f"[{images_generated}/{total_images_needed}] Saved {save_path}")
                                 
             except Exception as e:
                 print(f"Failed to generate for {model_id}: {e}")

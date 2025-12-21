@@ -2739,6 +2739,11 @@ def main(args):
                     # 数が足りないなら前のをそのまま使う
                     if len(seeds) > 0:
                         seed = seeds.pop(0)
+                # --- Per-prompt seed reset: seed = base + image_index (pi) ---
+                elif args.seed is not None:
+                    # Force seed to reset for each prompt, incrementing by image index
+                    seed = args.seed + pi
+                # --- End modification ---
                 else:
                     if predefined_seeds is not None:
                         if len(predefined_seeds) > 0:
