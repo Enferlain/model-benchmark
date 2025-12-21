@@ -1,4 +1,4 @@
-# Model Benchmark Explorer
+# Model Benchmark Explorer WIP
 
 A tool for benchmarking and comparing SDXL models by generating images from test prompts and calculating quality metrics.
 
