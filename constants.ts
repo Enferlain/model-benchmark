@@ -131,7 +131,7 @@ Currently uses a placeholder/mock value. Full implementation would:
   { 
     value: 'lpips_loss', 
     label: 'LPIPS Diversity', 
-    description: 'Intra-prompt variety (higher = more diverse outputs for same prompt)', 
+    description: 'Intra-prompt variety (higher = more varied outputs for same prompt)', 
     direction: 'higher',
     extendedDescription: `**LPIPS Diversity** measures how varied the model's outputs are when generating the same prompt multiple times.
 
@@ -144,10 +144,15 @@ Uses LPIPS (Learned Perceptual Image Patch Similarity) to compute perceptual dis
 - Computes pairwise LPIPS distance within each group
 - Returns average LPIPS score across all groups
 
-**What it means for the model:**
-- **Higher is better** (0-1 scale)
-- High LPIPS = Creative model that produces varied outputs
-- Low LPIPS = Model produces similar/repetitive images ("same face syndrome")
-- Requires \`images_per_prompt > 1\` in scan options to get meaningful results`
+**Interpretation (context-dependent):**
+- **High LPIPS** = Model produces visually different outputs for the same prompt
+- **Low LPIPS** = Model produces consistent/similar outputs
+
+**Important:** Whether high or low is "better" depends on your use case:
+- For **character consistency**, LOW diversity may be desirable
+- For **creative exploration**, HIGH diversity may be preferred
+- For **complex scenes**, moderate diversity is often expected
+
+**Requires:** \`images_per_prompt > 1\` in scan options to get meaningful results`
   },
 ];
