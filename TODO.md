@@ -51,9 +51,11 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 ### UI/UX
 
 - [ ] **Image gallery viewer** - View generated images per model
+- [ ] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
 - [ ] **Prompt editor** - Edit/manage test prompts in UI
-- [ ] **Model comparison view** - Side-by-side image comparison
+- [ ] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
 - [ ] **Export results** - CSV/JSON export of benchmark data
+- [ ] **Model fetching** - Fix model fetch/downloader
 
 ### Backend
 
