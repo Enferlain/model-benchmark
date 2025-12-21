@@ -2,6 +2,12 @@
 
 A tool for benchmarking and comparing SDXL models by generating images from test prompts and calculating quality metrics.
 
+<img width="1893" height="962" alt="image" src="https://github.com/user-attachments/assets/84bd7ac2-f10f-4ef0-9b53-784e62af5b76" />
+
+<img width="1354" height="679" alt="image" src="https://github.com/user-attachments/assets/ceb852b9-4a27-466d-8a37-3888ee347ad4" />
+
+<img width="1333" height="371" alt="image" src="https://github.com/user-attachments/assets/1ff081b3-21d8-4fb3-b633-05ffc83b3859" />
+
 ## Quick Start
 
 ### 1. Install Dependencies
