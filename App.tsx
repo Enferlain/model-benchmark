@@ -61,26 +61,77 @@ export default function App() {
     fetchModels();
   }, [fetchModels]);
 
-  const handleScan = useCallback(async () => {
+  // Status for generation progress (polled from backend)
+  const [generationStatus, setGenerationStatus] = useState({
+    is_running: false,
+    current_model: null as string | null,
+    progress: { current: 0, total: 0 }
+  });
+
+  // Poll status when scanning
+  useEffect(() => {
+    if (!isScanning) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE}/status`);
+        if (response.ok) {
+          const status = await response.json();
+          setGenerationStatus(status);
+          if (!status.is_running) {
+            setIsScanning(false);
+          }
+        }
+      } catch (e) {
+        console.error('Status poll error:', e);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isScanning]);
+
+  const handleGenerate = useCallback(async () => {
+    setIsScanning(true);
+    setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
+    try {
+      await fetch(`${API_BASE}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scanOptions),
+      });
+    } catch (error) {
+      console.error('Generate error:', error);
+    } finally {
+      setIsScanning(false);
+      setGenerationStatus(prev => ({ ...prev, is_running: false }));
+    }
+  }, [scanOptions]);
+
+  const handleAnalyze = useCallback(async () => {
     setIsScanning(true);
     try {
-      const response = await fetch(`${API_BASE}/scan`, {
+      const response = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scanOptions),
       });
       if (response.ok) {
-        // Refresh models after scan
         await fetchModels();
-      } else {
-        console.error('Scan failed:', await response.text());
       }
     } catch (error) {
-      console.error('Scan error:', error);
+      console.error('Analyze error:', error);
     } finally {
       setIsScanning(false);
     }
   }, [scanOptions, fetchModels]);
+
+  const handleCancel = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/cancel`, { method: 'POST' });
+    } catch (error) {
+      console.error('Cancel error:', error);
+    }
+  }, []);
 
   const parseUrl = (
     url: string
@@ -250,12 +301,15 @@ export default function App() {
               </div>
             </div>
 
-            {/* Scan Settings Panel */}
+            {/* Sample Settings Panel */}
             <ScanSettingsPanel
               options={scanOptions}
               onChange={setScanOptions}
-              onScan={handleScan}
-              isScanning={isScanning}
+              onGenerate={handleGenerate}
+              onAnalyze={handleAnalyze}
+              onCancel={handleCancel}
+              status={generationStatus}
+              onRefreshModels={fetchModels}
             />
 
             {/* Plot Settings Glass Card */}
