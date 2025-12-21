@@ -1,0 +1,5 @@
+{
+  "name": "Model Benchmark Explorer",
+  "description": "A visualization tool to compare AI models based on prompt adherence, visual diversity, and user ratings using interactive scatter plots.",
+  "requestFramePermissions": []
+}
