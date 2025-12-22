@@ -9,9 +9,6 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Check local storage or system preference on mount if desired
-    // For now, defaulting to false as per original App.tsx,
-    // but you might want to persist this in localStorage.
     return localStorage.getItem('theme') === 'dark';
   });
 

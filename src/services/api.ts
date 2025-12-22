@@ -1,4 +1,17 @@
-export const API_BASE = "http://localhost:8000/api";
+// Use environment variable for API base, or default to localhost
+export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
+
+export interface ScanOptions {
+  sampler?: string;
+  steps?: number;
+  guidance_scale?: number;
+  seed?: number;
+  images_per_prompt?: number;
+  num_prompts?: number;
+  width?: number;
+  height?: number;
+  [key: string]: any;
+}
 
 export async function fetchModels() {
   const response = await fetch(`${API_BASE}/models`);
@@ -12,7 +25,7 @@ export async function getStatus() {
   return response.json();
 }
 
-export async function generateImages(options: any) {
+export async function generateImages(options: ScanOptions) {
   const response = await fetch(`${API_BASE}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -22,7 +35,7 @@ export async function generateImages(options: any) {
   return response;
 }
 
-export async function analyzeImages(options: any) {
+export async function analyzeImages(options: ScanOptions) {
   const response = await fetch(`${API_BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

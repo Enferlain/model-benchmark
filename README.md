@@ -23,7 +23,12 @@ pip install -r requirements.txt
 npm install
 ```
 
-### 2. Add Models
+### 2. Assets Migration (Important!)
+
+**Note:** The `assets` directory has been moved from the project root to `backend/assets`.
+If you are upgrading from an older version, please move your existing `assets` folder into `backend/`.
+
+### 3. Add Models
 
 Place your `.safetensors` model files in:
 
@@ -33,7 +38,7 @@ backend/assets/models/
 
 #### For v-pred models need to include any of these in the name: "v-prediction", "v-pred", "v_pred"
 
-### 3. Add Test Data
+### 4. Add Test Data
 
 You have **two options** for test data:
 
@@ -62,7 +67,7 @@ backend/assets/prompts/    # Text files with prompts (one prompt per file)
 
 Note: These are loaded independently without pairing.
 
-### 4. Run
+### 5. Run
 
 ```bash
 # Terminal 1: Backend

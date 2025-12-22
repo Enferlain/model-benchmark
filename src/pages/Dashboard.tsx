@@ -26,6 +26,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ models, setModels, isLoading, fetchModels }: DashboardProps) {
+  const { isDarkMode } = useTheme();
   const [urlInput, setUrlInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -162,15 +163,21 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
   }, [urlInput, setModels]);
 
   const handleDeleteModel = useCallback(async (id: string) => {
+    // Save previous state for revert
+    const previousModels = [...models];
+
     // Optimistic update
     setModels((prev) => prev.filter((m) => m.id !== id));
+
     try {
       await deleteModel(id);
     } catch (error) {
       console.error("Error deleting model:", error);
-      // Could revert state here
+      // Revert state on error
+      setModels(previousModels);
+      alert("Failed to delete model.");
     }
-  }, [setModels]);
+  }, [models, setModels]);
 
   return (
       <div className="max-w-[1800px] mx-auto px-6 py-8">
@@ -339,7 +346,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                   data={models}
                   xMetric={xMetric}
                   yMetric={yMetric}
-                  isDarkMode={useTheme().isDarkMode}
+                  isDarkMode={isDarkMode}
                 />
               )}
             </div>
