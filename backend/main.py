@@ -9,6 +9,8 @@ import torch
 import logging
 import requests
 import re
+import threading
+import traceback
 from pathlib import Path
 
 # Suppress uvicorn access log spam for polling endpoints
@@ -76,23 +78,27 @@ download_state = {
     "status": "idle", # idle, downloading, completed, error
     "error": None
 }
+download_state_lock = threading.Lock()
 
 def download_model_task(url: str, name: str, source: str):
     global download_state
-    download_state["is_downloading"] = True
-    download_state["current_file"] = name
-    download_state["progress"] = 0
-    download_state["total"] = 0
-    download_state["status"] = "downloading"
-    download_state["error"] = None
+
+    with download_state_lock:
+        download_state["current_file"] = name
+        download_state["progress"] = 0
+        download_state["total"] = 0
+        download_state["status"] = "downloading"
+        download_state["error"] = None
 
     try:
         print(f"Starting download: {url}")
-        response = requests.get(url, stream=True, allow_redirects=True)
+        timeout = int(os.environ.get("REQUEST_TIMEOUT", 30))
+        response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout)
         response.raise_for_status()
 
         total_size = int(response.headers.get('content-length', 0))
-        download_state["total"] = total_size
+        with download_state_lock:
+            download_state["total"] = total_size
 
         # Determine filename
         filename = None
@@ -107,24 +113,49 @@ def download_model_task(url: str, name: str, source: str):
             if "?" in filename:
                 filename = filename.split("?")[0]
 
+        # Basic sanitization for extension check
         if not filename or (not filename.endswith(".safetensors") and not filename.endswith(".ckpt")):
              filename = f"{name or 'model'}.safetensors"
 
-        # Sanitize filename
+        # Safe filename generation (path traversal prevention)
+        filename = os.path.basename(filename) # Strip directory components
+        # Whitelist safe characters only
         filename = "".join([c for c in filename if c.isalnum() or c in "._- "])
+        # Ensure it has a valid extension (again, after sanitization)
+        if not (filename.endswith(".safetensors") or filename.endswith(".ckpt")):
+             filename += ".safetensors"
 
         save_path = data_loader.MODELS_DIR / filename
+
+        # Verify save path is within MODELS_DIR
+        try:
+             save_path = save_path.resolve()
+             models_dir_resolved = data_loader.MODELS_DIR.resolve()
+             if not str(save_path).startswith(str(models_dir_resolved)):
+                 raise ValueError(f"Invalid path: {save_path}")
+        except Exception as e:
+             raise ValueError(f"Path verification failed: {e}") from e
+
         print(f"Saving to: {save_path}")
 
         downloaded = 0
+        last_update = 0
         with open(save_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
                     downloaded += len(chunk)
-                    download_state["progress"] = downloaded
+                    # Update progress every 1MB to reduce lock contention
+                    if downloaded - last_update > 1024 * 1024:
+                        with download_state_lock:
+                            download_state["progress"] = downloaded
+                        last_update = downloaded
 
-        download_state["status"] = "completed"
+        # Final update
+        with download_state_lock:
+            download_state["progress"] = downloaded
+            download_state["status"] = "completed"
+
         print("Download complete.")
 
         # Add to models_db
@@ -150,11 +181,14 @@ def download_model_task(url: str, name: str, source: str):
              models_db.append(ModelResult(**new_model))
 
     except Exception as e:
-        download_state["status"] = "error"
-        download_state["error"] = str(e)
+        print(f"Download error details: {traceback.format_exc()}")
+        with download_state_lock:
+            download_state["status"] = "error"
+            download_state["error"] = str(e)
         print(f"Download error: {e}")
     finally:
-        download_state["is_downloading"] = False
+        with download_state_lock:
+            download_state["is_downloading"] = False
 
 def check_cancelled():
     """Check if generation should be cancelled. Call this in generation loops."""
@@ -621,27 +655,42 @@ def delete_model(model_id: str, delete_file: bool = False):
 
     if delete_file and target_model and target_model.path:
         try:
-            file_path = Path(target_model.path)
+            file_path = Path(target_model.path).resolve()
+            models_dir_resolved = data_loader.MODELS_DIR.resolve()
+
+            # Security check: Ensure file is within MODELS_DIR
+            if not str(file_path).startswith(str(models_dir_resolved)):
+                 raise HTTPException(status_code=403, detail="Cannot delete file outside models directory")
+
             if file_path.exists():
+                if file_path.is_dir() or file_path.is_symlink():
+                     raise HTTPException(status_code=403, detail="Cannot delete directories or symlinks")
+
                 file_path.unlink()
                 print(f"Deleted file: {file_path}")
             else:
                 print(f"File not found for deletion: {file_path}")
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Error deleting file: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
     models_db = [m for m in models_db if m.id != model_id]
     return {"status": "ok"}
 
 @app.post("/api/models/download")
 def download_model(request: ModelRequest, background_tasks: BackgroundTasks):
-    if download_state["is_downloading"]:
-        raise HTTPException(status_code=400, detail="Download already in progress")
+    # TOCTOU protection
+    with download_state_lock:
+        if download_state["is_downloading"]:
+            raise HTTPException(status_code=400, detail="Download already in progress")
+        download_state["is_downloading"] = True
 
     background_tasks.add_task(download_model_task, request.url, request.name, request.source)
     return {"status": "started"}
 
 @app.get("/api/models/download/status")
 def get_download_status():
-    return download_state
+    with download_state_lock:
+        return download_state.copy()

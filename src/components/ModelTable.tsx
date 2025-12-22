@@ -71,6 +71,13 @@ const DeleteConfirmModal: React.FC<{
 }> = ({ isOpen, onClose, onConfirm, modelName }) => {
   const [deleteFile, setDeleteFile] = useState(false);
 
+  // Reset checkbox when modal opens/closes
+  React.useEffect(() => {
+    if (isOpen) {
+      setDeleteFile(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
