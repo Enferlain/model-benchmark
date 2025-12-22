@@ -10,8 +10,9 @@ import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "../com
 import { METRIC_OPTIONS } from "../constants";
 import { ModelData, MetricKey } from "../types";
 import { useOutletContext } from "react-router-dom";
-import { analyzeModelUrl, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus } from "../services/api";
+import { downloadModel, getDownloadStatus, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
+import { Download, HardDrive } from "lucide-react";
 
 // Context type from the MainLayout if we were using context for shared state,
 // but currently props are passed down or managed here.
@@ -28,9 +29,16 @@ interface DashboardProps {
 export default function Dashboard({ models, setModels, isLoading, fetchModels }: DashboardProps) {
   const { isDarkMode } = useTheme();
   const [urlInput, setUrlInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanOptions, setScanOptions] = useState<ScanOptionsType>(DEFAULT_SCAN_OPTIONS);
+
+  const [downloadProgress, setDownloadProgress] = useState({
+     current: 0,
+     total: 0,
+     status: 'idle',
+     filename: ''
+  });
 
   const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
   const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
@@ -46,6 +54,37 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     current_model: null as string | null,
     progress: { current: 0, total: 0 }
   });
+
+  // Poll download status
+  useEffect(() => {
+    if (!isDownloading) return;
+
+    const interval = setInterval(async () => {
+        try {
+            const status = await getDownloadStatus();
+            setDownloadProgress({
+                current: status.progress,
+                total: status.total,
+                status: status.status,
+                filename: status.current_file
+            });
+
+            if (status.status === 'completed' || status.status === 'error') {
+                setIsDownloading(false);
+                if (status.status === 'completed') {
+                    await fetchModels();
+                    setUrlInput("");
+                } else {
+                    alert(`Download failed: ${status.error}`);
+                }
+            }
+        } catch (e) {
+            console.error('Download status poll error:', e);
+        }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isDownloading, fetchModels]);
 
   // Poll status when scanning
   useEffect(() => {
@@ -138,7 +177,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     }
   };
 
-  const handleAddModel = useCallback(async () => {
+  const handleDownloadModel = useCallback(async () => {
     const trimmedUrl = urlInput.trim();
     if (!trimmedUrl) return;
 
@@ -148,21 +187,19 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
       return;
     }
 
-    setIsProcessing(true);
+    setIsDownloading(true);
+    setDownloadProgress({ current: 0, total: 0, status: 'downloading', filename: info.name });
 
     try {
-      const newModel = await analyzeModelUrl(trimmedUrl, info.name, info.source);
-      setModels((prev) => [...prev, newModel]);
-      setUrlInput("");
+      await downloadModel(trimmedUrl, info.name, info.source);
     } catch (error) {
-      console.error("Error analyzing model:", error);
-      alert("Error connecting to backend or analyzing model.");
-    } finally {
-      setIsProcessing(false);
+      console.error("Error starting download:", error);
+      alert("Error connecting to backend or starting download.");
+      setIsDownloading(false);
     }
-  }, [urlInput, setModels]);
+  }, [urlInput]);
 
-  const handleDeleteModel = useCallback(async (id: string) => {
+  const handleDeleteModel = useCallback(async (id: string, deleteFile: boolean) => {
     // Save previous state for revert
     const previousModels = [...models];
 
@@ -170,7 +207,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     setModels((prev) => prev.filter((m) => m.id !== id));
 
     try {
-      await deleteModel(id);
+      await deleteModel(id, deleteFile);
     } catch (error) {
       console.error("Error deleting model:", error);
       // Revert state on error
@@ -200,20 +237,38 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="https://..."
                     className="w-full px-4 py-3 border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-black/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 transition-all placeholder:text-slate-400/70 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-200 backdrop-blur-sm"
-                    onKeyDown={(e) => e.key === "Enter" && handleAddModel()}
+                    onKeyDown={(e) => e.key === "Enter" && handleDownloadModel()}
                   />
                 </div>
+                {isDownloading && downloadProgress.total > 0 && (
+                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mb-1 overflow-hidden">
+                      <div
+                         className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                         style={{ width: `${Math.min(100, (downloadProgress.current / downloadProgress.total) * 100)}%` }}
+                      ></div>
+                   </div>
+                )}
+                {isDownloading && (
+                    <p className="text-[10px] text-slate-400 text-center mb-2">
+                        {downloadProgress.total > 0
+                            ? `${(downloadProgress.current / 1024 / 1024).toFixed(1)} / ${(downloadProgress.total / 1024 / 1024).toFixed(1)} MB`
+                            : "Starting download..."
+                        }
+                    </p>
+                )}
                 <button
-                  onClick={handleAddModel}
-                  disabled={!urlInput || isProcessing}
+                  onClick={handleDownloadModel}
+                  disabled={!urlInput || isDownloading}
                   className="w-full bg-blue-600/90 hover:bg-blue-600 dark:bg-blue-500/80 dark:hover:bg-blue-500 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800/50 disabled:text-slate-400 disabled:cursor-not-allowed font-medium py-3 px-4 rounded-xl transition-all duration-300 text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 dark:shadow-blue-900/20 backdrop-blur-sm"
                 >
-                  {isProcessing ? (
+                  {isDownloading ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" /> Processing
+                      <Loader2 size={16} className="animate-spin" /> Downloading...
                     </>
                   ) : (
-                    <>Fetch & Analyze</>
+                    <>
+                      <Download size={16} /> Download Model
+                    </>
                   )}
                 </button>
               </div>

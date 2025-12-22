@@ -5,7 +5,7 @@ import { METRIC_OPTIONS } from '../constants';
 
 interface ModelTableProps {
   models: ModelData[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string, deleteFile: boolean) => void;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -62,10 +62,70 @@ const MetricInfoModal: React.FC<{ metric: MetricOption | null; onClose: () => vo
   );
 };
 
+// Delete Confirmation Modal
+const DeleteConfirmModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (deleteFile: boolean) => void;
+  modelName: string;
+}> = ({ isOpen, onClose, onConfirm, modelName }) => {
+  const [deleteFile, setDeleteFile] = useState(false);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
+          Delete Model?
+        </h3>
+        <p className="text-slate-600 dark:text-slate-300 mb-4">
+          Are you sure you want to remove <span className="font-semibold">{modelName}</span>?
+        </p>
+
+        <div className="flex items-center gap-2 mb-6 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/20">
+            <input
+                type="checkbox"
+                id="deleteFile"
+                checked={deleteFile}
+                onChange={(e) => setDeleteFile(e.target.checked)}
+                className="w-4 h-4 text-red-600 rounded focus:ring-red-500 cursor-pointer"
+            />
+            <label htmlFor="deleteFile" className="text-sm font-medium text-red-700 dark:text-red-300 cursor-pointer select-none">
+                Permanently delete file from disk
+            </label>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(deleteFile)}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-lg shadow-red-500/30 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
   const [sortKey, setSortKey] = useState<MetricKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [selectedMetric, setSelectedMetric] = useState<MetricOption | null>(null);
+
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; modelId: string; modelName: string }>({
+     isOpen: false,
+     modelId: '',
+     modelName: ''
+  });
 
   const getMetricValue = (model: ModelData, key: MetricKey): number => {
     // Prefer metrics dict, fallback to direct properties for backwards compatibility
@@ -184,7 +244,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
                   ))}
                   <td className="px-6 py-4 text-center">
                     <button 
-                      onClick={() => onDelete(model.id)}
+                      onClick={() => setDeleteModal({ isOpen: true, modelId: model.id, modelName: model.name })}
                       className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:hover:text-red-400 rounded-full transition-all"
                       title="Remove model"
                     >
@@ -207,6 +267,17 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
 
       {/* Metric Info Modal */}
       <MetricInfoModal metric={selectedMetric} onClose={() => setSelectedMetric(null)} />
+
+      {/* Delete Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
+        modelName={deleteModal.modelName}
+        onConfirm={(deleteFile) => {
+           onDelete(deleteModal.modelId, deleteFile);
+           setDeleteModal({ ...deleteModal, isOpen: false });
+        }}
+      />
     </>
   );
 };
