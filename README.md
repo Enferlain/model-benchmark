@@ -23,7 +23,12 @@ pip install -r requirements.txt
 npm install
 ```
 
-### 2. Add Models
+### 2. Assets Migration (Important!)
+
+**Note:** The `assets` directory has been moved from the project root to `backend/assets`.
+If you are upgrading from an older version, please move your existing `assets` folder into `backend/`.
+
+### 3. Add Models
 
 Place your `.safetensors` model files in:
 
@@ -33,7 +38,7 @@ backend/assets/models/
 
 #### For v-pred models need to include any of these in the name: "v-prediction", "v-pred", "v_pred"
 
-### 3. Add Test Data
+### 4. Add Test Data
 
 You have **two options** for test data:
 
@@ -62,7 +67,7 @@ backend/assets/prompts/    # Text files with prompts (one prompt per file)
 
 Note: These are loaded independently without pairing.
 
-### 4. Run
+### 5. Run
 
 ```bash
 # Terminal 1: Backend
@@ -74,7 +79,7 @@ uvicorn main:app --reload --port 8000
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` (or `http://localhost:3000` depending on config) in your browser.
 
 ---
 
@@ -165,6 +170,12 @@ model-benchmark-explorer/
 │   ├── data_loader.py    # Model/prompt discovery
 │   ├── sd-scripts/       # Self-contained sd-scripts library
 │   └── requirements.txt
-├── src/                  # Vite frontend
+├── src/                  # React Frontend
+│   ├── components/       # Reusable UI components
+│   ├── pages/            # View components (Dashboard, Gallery, etc.)
+│   ├── layouts/          # Main application wrapper
+│   ├── context/          # React Context (Theme, etc.)
+│   ├── services/         # API calls
+│   └── App.tsx           # Router setup
 └── package.json
 ```

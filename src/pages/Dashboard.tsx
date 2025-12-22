@@ -1,27 +1,34 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
   Plus,
-  BarChart2,
   Info,
   Loader2,
-  Moon,
-  Sun,
-  Sparkles,
 } from "lucide-react";
-import { ScatterPlot } from "./components/ScatterPlot";
-import { ModelTable } from "./components/ModelTable";
-import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "./components/ScanSettingsPanel";
-import { METRIC_OPTIONS } from "./constants";
-import { ModelData, MetricKey, MetricOption, ModelSource } from "./types";
+import { ScatterPlot } from "../components/ScatterPlot";
+import { ModelTable } from "../components/ModelTable";
+import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "../components/ScanSettingsPanel";
+import { METRIC_OPTIONS } from "../constants";
+import { ModelData, MetricKey } from "../types";
+import { useOutletContext } from "react-router-dom";
+import { analyzeModelUrl, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus } from "../services/api";
+import { useTheme } from "../context/ThemeContext";
 
-const API_BASE = "http://localhost:8000/api";
+// Context type from the MainLayout if we were using context for shared state,
+// but currently props are passed down or managed here.
+// For now, we'll manage model state here or lift it up if needed.
+// Since Dashboard is the main viewer, it can own the data for now.
 
-export default function App() {
-  const [models, setModels] = useState<ModelData[]>([]);
+interface DashboardProps {
+  models: ModelData[];
+  setModels: React.Dispatch<React.SetStateAction<ModelData[]>>;
+  isLoading: boolean;
+  fetchModels: () => Promise<void>;
+}
+
+export default function Dashboard({ models, setModels, isLoading, fetchModels }: DashboardProps) {
+  const { isDarkMode } = useTheme();
   const [urlInput, setUrlInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
   const [scanOptions, setScanOptions] = useState<ScanOptionsType>(DEFAULT_SCAN_OPTIONS);
 
@@ -32,34 +39,6 @@ export default function App() {
     METRIC_OPTIONS.find((m) => m.value === xMetricKey) || METRIC_OPTIONS[0];
   const yMetric =
     METRIC_OPTIONS.find((m) => m.value === yMetricKey) || METRIC_OPTIONS[1];
-
-  // Handle Dark Mode Toggle
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDarkMode]);
-
-  // Fetch models on mount
-  const fetchModels = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE}/models`);
-      if (response.ok) {
-        const data = await response.json();
-        setModels(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch models:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchModels();
-  }, [fetchModels]);
 
   // Status for generation progress (polled from backend)
   const [generationStatus, setGenerationStatus] = useState({
@@ -74,13 +53,10 @@ export default function App() {
     
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`${API_BASE}/status`);
-        if (response.ok) {
-          const status = await response.json();
-          setGenerationStatus(status);
-          if (!status.is_running) {
-            setIsScanning(false);
-          }
+        const status = await getStatus();
+        setGenerationStatus(status);
+        if (!status.is_running) {
+          setIsScanning(false);
         }
       } catch (e) {
         console.error('Status poll error:', e);
@@ -94,11 +70,7 @@ export default function App() {
     setIsScanning(true);
     setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
     try {
-      await fetch(`${API_BASE}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scanOptions),
-      });
+      await generateImages(scanOptions);
     } catch (error) {
       console.error('Generate error:', error);
     } finally {
@@ -110,14 +82,8 @@ export default function App() {
   const handleAnalyze = useCallback(async () => {
     setIsScanning(true);
     try {
-      const response = await fetch(`${API_BASE}/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scanOptions),
-      });
-      if (response.ok) {
-        await fetchModels();
-      }
+      await analyzeImages(scanOptions);
+      await fetchModels();
     } catch (error) {
       console.error('Analyze error:', error);
     } finally {
@@ -127,7 +93,7 @@ export default function App() {
 
   const handleCancel = useCallback(async () => {
     try {
-      await fetch(`${API_BASE}/cancel`, { method: 'POST' });
+      await cancelOperation();
     } catch (error) {
       console.error('Cancel error:', error);
     }
@@ -135,7 +101,7 @@ export default function App() {
 
   const parseUrl = (
     url: string
-  ): { name: string; source: ModelSource } | null => {
+  ): { name: string; source: "Civitai" | "HuggingFace" | "Unknown" } | null => {
     try {
       const urlObj = new URL(url);
 
@@ -185,83 +151,35 @@ export default function App() {
     setIsProcessing(true);
 
     try {
-      const response = await fetch(`${API_BASE}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: trimmedUrl,
-          name: info.name,
-          source: info.source,
-        }),
-      });
-
-      if (response.ok) {
-        const newModel = await response.json();
-        setModels((prev) => [...prev, newModel]);
-        setUrlInput("");
-      } else {
-        alert("Failed to analyze model.");
-      }
+      const newModel = await analyzeModelUrl(trimmedUrl, info.name, info.source);
+      setModels((prev) => [...prev, newModel]);
+      setUrlInput("");
     } catch (error) {
       console.error("Error analyzing model:", error);
-      alert("Error connecting to backend.");
+      alert("Error connecting to backend or analyzing model.");
     } finally {
       setIsProcessing(false);
     }
-  }, [urlInput]);
+  }, [urlInput, setModels]);
 
   const handleDeleteModel = useCallback(async (id: string) => {
+    // Save previous state for revert
+    const previousModels = [...models];
+
     // Optimistic update
     setModels((prev) => prev.filter((m) => m.id !== id));
+
     try {
-      await fetch(`${API_BASE}/models/${id}`, { method: "DELETE" });
+      await deleteModel(id);
     } catch (error) {
       console.error("Error deleting model:", error);
-      // Could revert state here
+      // Revert state on error
+      setModels(previousModels);
+      alert("Failed to delete model.");
     }
-  }, []);
+  }, [models, setModels]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-white dark:from-slate-900 dark:via-[#1e293b] dark:to-slate-900 font-sans text-slate-900 dark:text-slate-100 pb-10 transition-all duration-500">
-      {/* Glass Header */}
-      <header className="sticky top-0 z-30 transition-all duration-300 border-b border-white/20 dark:border-white/5 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl supports-[backdrop-filter]:bg-white/60">
-        <div className="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 backdrop-blur-sm">
-              <Sparkles size={20} />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight text-slate-800 dark:text-slate-100">
-                Benchmark Explorer
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:block">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-300 bg-white/50 dark:bg-white/5 px-3 py-1.5 rounded-full border border-slate-200/50 dark:border-white/10 backdrop-blur-sm shadow-sm flex items-center gap-2">
-                {isLoading ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  models.length
-                )}{" "}
-                Models tracked
-              </span>
-            </div>
-
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-blue-200 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-transparent hover:border-slate-200 dark:hover:border-white/10 rounded-full transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
-              title={
-                isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"
-              }
-            >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
-        </div>
-      </header>
-
       <div className="max-w-[1800px] mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Sidebar / Controls */}
@@ -440,6 +358,5 @@ export default function App() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

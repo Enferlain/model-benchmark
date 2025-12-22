@@ -1,13 +1,22 @@
 import os
+import sys
 from pathlib import Path
 from PIL import Image
 from typing import List, Tuple
 
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
+ASSETS_DIR = Path(__file__).parent / "assets"
 MODELS_DIR = ASSETS_DIR / "models"
 IMAGES_DIR = ASSETS_DIR / "images"
 PROMPTS_DIR = ASSETS_DIR / "prompts"
 PAIRED_DIR = ASSETS_DIR / "image_prompts"
+
+# Migration check
+OLD_ASSETS_DIR = Path(__file__).parent.parent / "assets"
+if OLD_ASSETS_DIR.exists() and not ASSETS_DIR.exists():
+    print("WARNING: It looks like you have assets in the old location:", file=sys.stderr)
+    print(f"  Old: {OLD_ASSETS_DIR}", file=sys.stderr)
+    print(f"  New: {ASSETS_DIR}", file=sys.stderr)
+    print("Please move your 'assets' folder into the 'backend' directory.", file=sys.stderr)
 
 def get_available_models_from_disk():
     models = []
