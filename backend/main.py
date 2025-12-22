@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Literal, Dict
@@ -7,6 +7,11 @@ import random
 import os
 import torch
 import logging
+import requests
+import re
+import threading
+import traceback
+from pathlib import Path
 
 # Suppress uvicorn access log spam for polling endpoints
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -47,6 +52,7 @@ class ModelResult(BaseModel):
     lpips_loss: Optional[float] = 0.0
     metrics: Dict[str, float] = {}
     url: str
+    path: Optional[str] = None
 
 # In-memory database
 models_db: List[ModelResult] = []
@@ -62,6 +68,127 @@ generation_state = {
     "current_model": None,
     "progress": {"current": 0, "total": 0}
 }
+
+# Download state management
+download_state = {
+    "is_downloading": False,
+    "current_file": None,
+    "progress": 0,
+    "total": 0,
+    "status": "idle", # idle, downloading, completed, error
+    "error": None
+}
+download_state_lock = threading.Lock()
+
+def download_model_task(url: str, name: str, source: str):
+    global download_state
+
+    with download_state_lock:
+        download_state["current_file"] = name
+        download_state["progress"] = 0
+        download_state["total"] = 0
+        download_state["status"] = "downloading"
+        download_state["error"] = None
+
+    try:
+        print(f"Starting download: {url}")
+        timeout = int(os.environ.get("REQUEST_TIMEOUT", 30))
+        response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get('content-length', 0))
+        with download_state_lock:
+            download_state["total"] = total_size
+
+        # Determine filename
+        filename = None
+        if "content-disposition" in response.headers:
+             cd = response.headers["content-disposition"]
+             fname = re.findall("filename=(.+)", cd)
+             if len(fname) > 0:
+                 filename = fname[0].strip('"').strip("'")
+
+        if not filename:
+            filename = url.split("/")[-1]
+            if "?" in filename:
+                filename = filename.split("?")[0]
+
+        # Basic sanitization for extension check
+        if not filename or (not filename.endswith(".safetensors") and not filename.endswith(".ckpt")):
+             filename = f"{name or 'model'}.safetensors"
+
+        # Safe filename generation (path traversal prevention)
+        filename = os.path.basename(filename) # Strip directory components
+        # Whitelist safe characters only
+        filename = "".join([c for c in filename if c.isalnum() or c in "._- "])
+        # Ensure it has a valid extension (again, after sanitization)
+        if not (filename.endswith(".safetensors") or filename.endswith(".ckpt")):
+             filename += ".safetensors"
+
+        save_path = data_loader.MODELS_DIR / filename
+
+        # Verify save path is within MODELS_DIR
+        try:
+             save_path = save_path.resolve()
+             models_dir_resolved = data_loader.MODELS_DIR.resolve()
+             if not str(save_path).startswith(str(models_dir_resolved)):
+                 raise ValueError(f"Invalid path: {save_path}")
+        except Exception as e:
+             raise ValueError(f"Path verification failed: {e}") from e
+
+        print(f"Saving to: {save_path}")
+
+        downloaded = 0
+        last_update = 0
+        with open(save_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    # Update progress every 1MB to reduce lock contention
+                    if downloaded - last_update > 1024 * 1024:
+                        with download_state_lock:
+                            download_state["progress"] = downloaded
+                        last_update = downloaded
+
+        # Final update
+        with download_state_lock:
+            download_state["progress"] = downloaded
+            download_state["status"] = "completed"
+
+        print("Download complete.")
+
+        # Add to models_db
+        new_model = {
+            "id": save_path.stem,
+            "name": name or save_path.stem.replace("-", " ").title(),
+            "source": source,
+            "url": url,
+            "path": str(save_path),
+            "accuracy": 0.0,
+            "diversity": 0.0,
+            "rating": 0.0,
+            "metrics": {"accuracy": 0.0, "diversity": 0.0}
+        }
+
+        # Check if exists
+        exists = False
+        for m in models_db:
+             if m.id == new_model["id"]:
+                 exists = True
+                 break
+        if not exists:
+             models_db.append(ModelResult(**new_model))
+
+    except Exception as e:
+        print(f"Download error details: {traceback.format_exc()}")
+        with download_state_lock:
+            download_state["status"] = "error"
+            download_state["error"] = str(e)
+        print(f"Download error: {e}")
+    finally:
+        with download_state_lock:
+            download_state["is_downloading"] = False
 
 def check_cancelled():
     """Check if generation should be cancelled. Call this in generation loops."""
@@ -521,7 +648,49 @@ def get_status():
     }
 
 @app.delete("/api/models/{model_id}")
-def delete_model(model_id: str):
+def delete_model(model_id: str, delete_file: bool = False):
     global models_db
+
+    target_model = next((m for m in models_db if m.id == model_id), None)
+
+    if delete_file and target_model and target_model.path:
+        try:
+            file_path = Path(target_model.path).resolve()
+            models_dir_resolved = data_loader.MODELS_DIR.resolve()
+
+            # Security check: Ensure file is within MODELS_DIR
+            if not str(file_path).startswith(str(models_dir_resolved)):
+                 raise HTTPException(status_code=403, detail="Cannot delete file outside models directory")
+
+            if file_path.exists():
+                if file_path.is_dir() or file_path.is_symlink():
+                     raise HTTPException(status_code=403, detail="Cannot delete directories or symlinks")
+
+                file_path.unlink()
+                print(f"Deleted file: {file_path}")
+            else:
+                print(f"File not found for deletion: {file_path}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error deleting file: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
+
     models_db = [m for m in models_db if m.id != model_id]
     return {"status": "ok"}
+
+@app.post("/api/models/download")
+def download_model(request: ModelRequest, background_tasks: BackgroundTasks):
+    # TOCTOU protection
+    with download_state_lock:
+        if download_state["is_downloading"]:
+            raise HTTPException(status_code=400, detail="Download already in progress")
+        download_state["is_downloading"] = True
+
+    background_tasks.add_task(download_model_task, request.url, request.name, request.source)
+    return {"status": "started"}
+
+@app.get("/api/models/download/status")
+def get_download_status():
+    with download_state_lock:
+        return download_state.copy()

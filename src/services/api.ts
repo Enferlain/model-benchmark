@@ -51,8 +51,8 @@ export async function cancelOperation() {
   return response;
 }
 
-export async function analyzeModelUrl(url: string, name: string, source: string) {
-  const response = await fetch(`${API_BASE}/analyze`, {
+export async function downloadModel(url: string, name: string, source: string) {
+  const response = await fetch(`${API_BASE}/models/download`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -61,12 +61,18 @@ export async function analyzeModelUrl(url: string, name: string, source: string)
       source,
     }),
   });
-  if (!response.ok) throw new Error('Failed to analyze model URL');
+  if (!response.ok) throw new Error('Failed to start download');
   return response.json();
 }
 
-export async function deleteModel(id: string) {
-  const response = await fetch(`${API_BASE}/models/${id}`, { method: "DELETE" });
+export async function getDownloadStatus() {
+  const response = await fetch(`${API_BASE}/models/download/status`);
+  if (!response.ok) throw new Error('Failed to get download status');
+  return response.json();
+}
+
+export async function deleteModel(id: string, deleteFile: boolean = false) {
+  const response = await fetch(`${API_BASE}/models/${id}?delete_file=${deleteFile}`, { method: "DELETE" });
   if (!response.ok) throw new Error('Failed to delete model');
   return response;
 }
