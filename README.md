@@ -74,7 +74,7 @@ uvicorn main:app --reload --port 8000
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` (or `http://localhost:3000` depending on config) in your browser.
 
 ---
 
@@ -165,6 +165,12 @@ model-benchmark-explorer/
 │   ├── data_loader.py    # Model/prompt discovery
 │   ├── sd-scripts/       # Self-contained sd-scripts library
 │   └── requirements.txt
-├── src/                  # Vite frontend
+├── src/                  # React Frontend
+│   ├── components/       # Reusable UI components
+│   ├── pages/            # View components (Dashboard, Gallery, etc.)
+│   ├── layouts/          # Main application wrapper
+│   ├── context/          # React Context (Theme, etc.)
+│   ├── services/         # API calls
+│   └── App.tsx           # Router setup
 └── package.json
 ```
