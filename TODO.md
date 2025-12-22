@@ -54,7 +54,7 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 - [ ] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
 - [ ] **Prompt editor** - Edit/manage test prompts in UI
 - [ ] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
-- [ ] **img arena** - conoyare random gens fo same seed and prompt between two models to compute user score 
+- [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score 
 - [ ] **Export results** - CSV/JSON export of benchmark data
 - [ ] **Model fetching** - Fix model fetch/downloader
 
