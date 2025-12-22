@@ -3,7 +3,7 @@ from pathlib import Path
 from PIL import Image
 from typing import List, Tuple
 
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
+ASSETS_DIR = Path(__file__).parent / "assets"
 MODELS_DIR = ASSETS_DIR / "models"
 IMAGES_DIR = ASSETS_DIR / "images"
 PROMPTS_DIR = ASSETS_DIR / "prompts"

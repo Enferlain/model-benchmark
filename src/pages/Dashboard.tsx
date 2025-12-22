@@ -11,6 +11,7 @@ import { METRIC_OPTIONS } from "../constants";
 import { ModelData, MetricKey } from "../types";
 import { useOutletContext } from "react-router-dom";
 import { analyzeModelUrl, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus } from "../services/api";
+import { useTheme } from "../context/ThemeContext";
 
 // Context type from the MainLayout if we were using context for shared state,
 // but currently props are passed down or managed here.
@@ -338,12 +339,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                   data={models}
                   xMetric={xMetric}
                   yMetric={yMetric}
-                  // isDarkMode is now handled by CSS classes mainly, but if ScatterPlot needs it,
-                  // we can check document class or pass it.
-                  // Original passed `isDarkMode`. We can get it from document for now if needed,
-                  // or ignore if ScatterPlot uses CSS vars.
-                  // Let's assume we need to pass it for Recharts themes if logic existed.
-                  isDarkMode={document.documentElement.classList.contains('dark')}
+                  isDarkMode={useTheme().isDarkMode}
                 />
               )}
             </div>
