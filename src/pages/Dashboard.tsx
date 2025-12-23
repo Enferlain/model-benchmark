@@ -192,9 +192,9 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
 
     try {
       await downloadModel(trimmedUrl, info.name, info.source);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting download:", error);
-      alert("Error connecting to backend or starting download.");
+      alert(error.message || "Error connecting to backend or starting download.");
       setIsDownloading(false);
     }
   }, [urlInput]);
