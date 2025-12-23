@@ -120,8 +120,20 @@ def download_model_task(url: str, name: str, source: str, api_token: Optional[st
                     if api_resp.ok:
                         data = api_resp.json()
                         if "modelVersions" in data and len(data["modelVersions"]) > 0:
+                            # Sort by createdAt descending to ensure we get the latest
+                            try:
+                                from datetime import datetime
+                                versions = sorted(
+                                    data["modelVersions"],
+                                    key=lambda x: datetime.fromisoformat(x["createdAt"].replace("Z", "+00:00")),
+                                    reverse=True
+                                )
+                            except (ValueError, TypeError):
+                                print("Warning: Could not parse createdAt for version sorting. Using default order.")
+                                versions = data["modelVersions"]
+
                             # Use the first (latest) version's download URL
-                            download_url = data["modelVersions"][0].get("downloadUrl")
+                            download_url = versions[0].get("downloadUrl")
                             if download_url:
                                 print(f"Resolved to: {download_url}")
                                 url = download_url
@@ -131,7 +143,7 @@ def download_model_task(url: str, name: str, source: str, api_token: Optional[st
                             print("No modelVersions found in API response.")
                     else:
                         print(f"Civitai API lookup failed: {api_resp.status_code}")
-            except Exception as e:
+            except (requests.RequestException, ValueError, KeyError, IndexError) as e:
                 print(f"Error resolving Civitai URL: {e}")
 
         response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout, headers=headers)
