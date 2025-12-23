@@ -26,6 +26,17 @@ interface DashboardProps {
   fetchModels: () => Promise<void>;
 }
 
+/**
+ * Renders the Dashboard UI for managing models, including adding/downloading models by URL, starting/canceling generation and analysis jobs, selecting plot metrics, and viewing a scatter plot and model table.
+ *
+ * Provides controls and status for downloads (with progress and error display), scan/generation operations (with polling), metric selection for the scatter plot, and an optimistic-delete model action.
+ *
+ * @param models - Array of models to display in the chart and table.
+ * @param setModels - Setter to update the local models state (used for optimistic updates and reverts).
+ * @param isLoading - When true, shows a loading placeholder instead of the scatter plot.
+ * @param fetchModels - Function to refresh the models list from the backend after operations like download or analysis.
+ * @returns The Dashboard component's JSX element.
+ */
 export default function Dashboard({ models, setModels, isLoading, fetchModels }: DashboardProps) {
   const { isDarkMode } = useTheme();
   const [urlInput, setUrlInput] = useState("");
