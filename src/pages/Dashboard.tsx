@@ -161,6 +161,16 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
 
       if (url.includes("huggingface.co")) {
         const parts = urlObj.pathname.split("/").filter(Boolean);
+        const lastPart = parts[parts.length - 1];
+
+        // Check if the URL points directly to a model file
+        if (lastPart && /\.(safetensors|ckpt|pt|bin|pth)$/i.test(lastPart)) {
+             return {
+                 name: lastPart,
+                 source: "HuggingFace"
+             };
+        }
+
         const namePart =
           parts.length >= 2 ? `${parts[0]}/${parts[1]}` : "HF Model";
         return {
