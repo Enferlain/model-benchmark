@@ -30,10 +30,54 @@ If you are upgrading from an older version, please move your existing `assets` f
 
 ### 3. Add Models
 
-Place your `.safetensors` model files in:
+You can add models in two ways:
+
+#### Option A: Manual Placement (Local)
+
+Place your `.safetensors` model files directly in:
 
 ```
 backend/assets/models/
+```
+
+#### Option B: Download via UI (Hugging Face / CivitAI)
+
+The easiest way to add models is via the Dashboard UI:
+
+1.  Navigate to the **Dashboard**.
+2.  Locate the **"Add Model"** panel on the left sidebar.
+3.  Paste a **Direct Download Link** (e.g., from Hugging Face or CivitAI) into the "MODEL URL" input field.
+4.  Click **"Download Model"**.
+
+*   Supported Sources: Hugging Face (resolve/main links), CivitAI (model download links).
+*   **Note:** Only public models are supported. Authentication (API keys) for private or gated models is not currently implemented.
+*   The system will automatically attempt to parse the model name from the URL, or you can use the API (Option C) for custom naming.
+*   A progress bar will show the download status.
+
+#### Option C: Download via API (Advanced)
+
+For automated or headless setups, you can trigger downloads via the API:
+
+**Example (cURL):**
+
+```bash
+curl -X POST "http://localhost:8000/api/models/download" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "url": "https://huggingface.co/author/repo/resolve/main/model.safetensors",
+           "name": "MyModel",
+           "source": "HuggingFace"
+         }'
+```
+
+*   **URL**: Direct download link to the model file.
+*   **Name**: Desired filename (without extension).
+*   **Source**: Metadata tag (e.g., "HuggingFace", "CivitAI").
+
+You can check the download status via:
+
+```bash
+curl "http://localhost:8000/api/models/download/status"
 ```
 
 #### For v-pred models need to include any of these in the name: "v-prediction", "v-pred", "v_pred"
