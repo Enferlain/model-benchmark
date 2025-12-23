@@ -82,6 +82,25 @@ download_state = {
 download_state_lock = threading.Lock()
 
 def download_model_task(url: str, name: str, source: str, api_token: Optional[str] = None):
+    """
+    Download a model file from a URL, save it safely into the local models directory, and register it in the in-memory models database.
+    
+    Parameters:
+        url (str): Remote URL to download. Supports HuggingFace blob URLs (converted to /resolve/) and attempts to resolve Civitai model pages to a direct download URL.
+        name (str): Human-readable name to use for the downloaded model; used to construct a safe filename if the response lacks one.
+        source (str): Source label stored with the model entry.
+        api_token (Optional[str]): Optional bearer token to include in the request Authorization header.
+    
+    Behavior:
+        - Streams the download to disk while updating the global download_state (progress, total, status, error) under download_state_lock.
+        - Sanitizes and enforces a safe filename and ensures the saved path is within data_loader.MODELS_DIR to prevent path traversal.
+        - Attempts simple Civitai API resolution when the URL matches a Civitai model page.
+        - On successful completion, appends a new ModelResult to models_db if an entry with the same id does not already exist.
+        - On failure, records the error in download_state and resets is_downloading.
+    
+    Raises:
+        ValueError: If the resolved save path is invalid or fails verification.
+    """
     global download_state
 
     with download_state_lock:
