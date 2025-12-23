@@ -2,11 +2,6 @@ import re
 from playwright.sync_api import sync_playwright, expect
 
 def run():
-    """
-    Performs an automated UI/UX check of the frontend's model URL validation and saves a verification screenshot.
-    
-    Opens a headless Chromium browser, navigates to http://localhost:3001, enters an invalid model URL into the URL input, clicks the "Download Model" button, and verifies that the validation message "Please enter a valid Civitai or HuggingFace model URL." appears. Prints success/failure messages to stdout, captures a screenshot to verification/ux_validation.png, and closes the browser. If the page fails to load, the function prints the navigation error and returns early.
-    """
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context()
