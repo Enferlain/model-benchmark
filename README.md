@@ -30,10 +30,40 @@ If you are upgrading from an older version, please move your existing `assets` f
 
 ### 3. Add Models
 
-Place your `.safetensors` model files in:
+You can add models in two ways:
+
+#### Option A: Manual Placement (Local)
+
+Place your `.safetensors` model files directly in:
 
 ```
 backend/assets/models/
+```
+
+#### Option B: Download via API (Hugging Face / CivitAI)
+
+You can trigger model downloads directly via the API. This supports direct download links, including those from Hugging Face and CivitAI.
+
+**Example (cURL):**
+
+```bash
+curl -X POST "http://localhost:8000/api/models/download" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "url": "https://huggingface.co/author/repo/resolve/main/model.safetensors",
+           "name": "MyModel",
+           "source": "HuggingFace"
+         }'
+```
+
+*   **URL**: Direct download link to the model file.
+*   **Name**: Desired filename (without extension).
+*   **Source**: Metadata tag (e.g., "HuggingFace", "CivitAI").
+
+You can check the download status via:
+
+```bash
+curl "http://localhost:8000/api/models/download/status"
 ```
 
 #### For v-pred models need to include any of these in the name: "v-prediction", "v-pred", "v_pred"
