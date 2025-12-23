@@ -50,6 +50,7 @@ The easiest way to add models is via the Dashboard UI:
 4.  Click **"Download Model"**.
 
 *   Supported Sources: Hugging Face (resolve/main links), CivitAI (model download links).
+*   **Note:** Only public models are supported. Authentication (API keys) for private or gated models is not currently implemented.
 *   The system will automatically attempt to parse the model name from the URL, or you can use the API (Option C) for custom naming.
 *   A progress bar will show the download status.
 
