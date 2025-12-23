@@ -30,6 +30,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
   const { isDarkMode } = useTheme();
   const [urlInput, setUrlInput] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanOptions, setScanOptions] = useState<ScanOptionsType>(DEFAULT_SCAN_OPTIONS);
 
@@ -75,11 +76,13 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                     await fetchModels();
                     setUrlInput("");
                 } else {
-                    alert(`Download failed: ${status.error}`);
+                    setDownloadError(status.error || "Download failed");
                 }
             }
         } catch (e) {
             console.error('Download status poll error:', e);
+            setDownloadError("Error polling download status");
+            setIsDownloading(false);
         }
     }, 1000);
 
@@ -178,12 +181,13 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
   };
 
   const handleDownloadModel = useCallback(async () => {
+    setDownloadError(null);
     const trimmedUrl = urlInput.trim();
     if (!trimmedUrl) return;
 
     const info = parseUrl(trimmedUrl);
     if (!info) {
-      alert("Please enter a valid Civitai or HuggingFace model URL.");
+      setDownloadError("Please enter a valid Civitai or HuggingFace model URL.");
       return;
     }
 
@@ -194,7 +198,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
       await downloadModel(trimmedUrl, info.name, info.source);
     } catch (error: any) {
       console.error("Error starting download:", error);
-      alert(error.message || "Error connecting to backend or starting download.");
+      setDownloadError(error.message || "Error connecting to backend or starting download.");
       setIsDownloading(false);
     }
   }, [urlInput]);
@@ -234,11 +238,19 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                   <input
                     type="text"
                     value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
+                    onChange={(e) => {
+                      setUrlInput(e.target.value);
+                      if (downloadError) setDownloadError(null);
+                    }}
                     placeholder="https://..."
-                    className="w-full px-4 py-3 border border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-black/20 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 transition-all placeholder:text-slate-400/70 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-200 backdrop-blur-sm"
+                    className={`w-full px-4 py-3 border ${downloadError ? 'border-red-500/50 bg-red-500/5' : 'border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-black/20'} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 transition-all placeholder:text-slate-400/70 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-200 backdrop-blur-sm`}
                     onKeyDown={(e) => e.key === "Enter" && handleDownloadModel()}
                   />
+                  {downloadError && (
+                    <p className="text-red-500 text-[10px] mt-1 ml-1 animate-pulse">
+                      {downloadError}
+                    </p>
+                  )}
                 </div>
                 {isDownloading && downloadProgress.total > 0 && (
                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mb-1 overflow-hidden">

@@ -95,9 +95,44 @@ def download_model_task(url: str, name: str, source: str, api_token: Optional[st
         print(f"Starting download: {url}")
         timeout = int(os.environ.get("REQUEST_TIMEOUT", 30))
 
-        headers = {}
+        # Helper: Transform URL for HuggingFace blob -> resolve
+        if "huggingface.co" in url and "/blob/" in url:
+            print("Detected HuggingFace /blob/ URL, converting to /resolve/...")
+            url = url.replace("/blob/", "/resolve/")
+
+        headers = {
+            "User-Agent": "ModelBenchmarkExplorer/1.0"
+        }
         if api_token:
             headers["Authorization"] = f"Bearer {api_token}"
+
+        # Helper: Resolve Civitai Model ID to Download URL
+        if "civitai.com/models/" in url and "api/download" not in url:
+            try:
+                # Extract potential ID
+                match = re.search(r"civitai\.com/models/(\d+)", url)
+                if match:
+                    model_id = match.group(1)
+                    print(f"Detected Civitai Model ID {model_id}, attempting to resolve download URL via API...")
+                    api_url = f"https://civitai.com/api/v1/models/{model_id}"
+
+                    api_resp = requests.get(api_url, headers=headers, timeout=10)
+                    if api_resp.ok:
+                        data = api_resp.json()
+                        if "modelVersions" in data and len(data["modelVersions"]) > 0:
+                            # Use the first (latest) version's download URL
+                            download_url = data["modelVersions"][0].get("downloadUrl")
+                            if download_url:
+                                print(f"Resolved to: {download_url}")
+                                url = download_url
+                            else:
+                                print("No downloadUrl found in API response.")
+                        else:
+                            print("No modelVersions found in API response.")
+                    else:
+                        print(f"Civitai API lookup failed: {api_resp.status_code}")
+            except Exception as e:
+                print(f"Error resolving Civitai URL: {e}")
 
         response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout, headers=headers)
         response.raise_for_status()
