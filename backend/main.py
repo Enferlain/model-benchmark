@@ -40,6 +40,7 @@ class ModelRequest(BaseModel):
     url: str
     name: Optional[str] = None
     source: Optional[str] = "Unknown"
+    api_token: Optional[str] = None
 
 class ModelResult(BaseModel):
     id: str
@@ -80,7 +81,7 @@ download_state = {
 }
 download_state_lock = threading.Lock()
 
-def download_model_task(url: str, name: str, source: str):
+def download_model_task(url: str, name: str, source: str, api_token: Optional[str] = None):
     global download_state
 
     with download_state_lock:
@@ -93,7 +94,12 @@ def download_model_task(url: str, name: str, source: str):
     try:
         print(f"Starting download: {url}")
         timeout = int(os.environ.get("REQUEST_TIMEOUT", 30))
-        response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout)
+
+        headers = {}
+        if api_token:
+            headers["Authorization"] = f"Bearer {api_token}"
+
+        response = requests.get(url, stream=True, allow_redirects=True, timeout=timeout, headers=headers)
         response.raise_for_status()
 
         total_size = int(response.headers.get('content-length', 0))
@@ -687,7 +693,7 @@ def download_model(request: ModelRequest, background_tasks: BackgroundTasks):
             raise HTTPException(status_code=400, detail="Download already in progress")
         download_state["is_downloading"] = True
 
-    background_tasks.add_task(download_model_task, request.url, request.name, request.source)
+    background_tasks.add_task(download_model_task, request.url, request.name, request.source, request.api_token)
     return {"status": "started"}
 
 @app.get("/api/models/download/status")
