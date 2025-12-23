@@ -40,9 +40,22 @@ Place your `.safetensors` model files directly in:
 backend/assets/models/
 ```
 
-#### Option B: Download via API (Hugging Face / CivitAI)
+#### Option B: Download via UI (Hugging Face / CivitAI)
 
-You can trigger model downloads directly via the API. This supports direct download links, including those from Hugging Face and CivitAI.
+The easiest way to add models is via the Dashboard UI:
+
+1.  Navigate to the **Dashboard**.
+2.  Locate the **"Add Model"** panel on the left sidebar.
+3.  Paste a **Direct Download Link** (e.g., from Hugging Face or CivitAI) into the "MODEL URL" input field.
+4.  Click **"Download Model"**.
+
+*   Supported Sources: Hugging Face (resolve/main links), CivitAI (model download links).
+*   The system will automatically attempt to parse the model name from the URL, or you can use the API (Option C) for custom naming.
+*   A progress bar will show the download status.
+
+#### Option C: Download via API (Advanced)
+
+For automated or headless setups, you can trigger downloads via the API:
 
 **Example (cURL):**
 
