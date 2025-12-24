@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional, Literal, Dict
 import time
@@ -22,6 +23,11 @@ import data_loader
 import inference
 
 app = FastAPI()
+
+# Mount assets directory for serving images
+# Ensure the directory exists to avoid errors on startup if it's missing
+data_loader.ASSETS_DIR.mkdir(exist_ok=True)
+app.mount("/assets", StaticFiles(directory=data_loader.ASSETS_DIR), name="assets")
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -666,6 +672,53 @@ def analyze_models_only(options: ScanOptions):
 @app.get("/api/models")
 def get_models():
     return models_db
+
+@app.get("/api/models/{model_id}/outputs")
+def get_model_outputs(model_id: str):
+    output_dir = data_loader.ASSETS_DIR / "outputs" / model_id
+    if not output_dir.exists():
+        return []
+
+    # Get prompts (cached or reloaded)
+    _, prompts = data_loader.load_test_data()
+
+    images = []
+    # Filename format: p{prompt_idx:03d}_i{image_idx:02d}_s{seed}.png
+    # We sort by filename to keep them in order
+    for img_path in sorted(list(output_dir.glob("p*_i*_s*.png"))):
+        try:
+            name = img_path.stem
+            parts = name.split('_')
+            # robust parsing
+            prompt_idx = -1
+            seed = -1
+
+            for part in parts:
+                if part.startswith('p') and part[1:].isdigit():
+                    prompt_idx = int(part[1:])
+                elif part.startswith('s') and part[1:].isdigit():
+                    seed = int(part[1:])
+
+            if prompt_idx != -1:
+                prompt_text = prompts[prompt_idx] if prompt_idx < len(prompts) else "Unknown prompt"
+
+                # Construct URL: mounted /assets points to backend/assets
+                # Output dir is backend/assets/outputs/{model_id}
+                # So URL is /assets/outputs/{model_id}/{filename}
+                # Use standard forward slashes for URLs
+                url = f"/assets/outputs/{model_id}/{img_path.name}"
+
+                images.append({
+                    "filename": img_path.name,
+                    "url": url,
+                    "prompt": prompt_text,
+                    "seed": seed,
+                    "prompt_idx": prompt_idx
+                })
+        except Exception as e:
+            print(f"Error parsing metadata for {img_path}: {e}")
+
+    return images
 
 @app.post("/api/generate")
 def generate_endpoint(options: ScanOptions = Body(default=ScanOptions())):
