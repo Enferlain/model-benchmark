@@ -49,10 +49,10 @@ The easiest way to add models is via the Dashboard UI:
 3.  Paste a **Direct Download Link** (e.g., from Hugging Face or CivitAI) into the "MODEL URL" input field.
 4.  Click **"Download Model"**.
 
-*   Supported Sources: Hugging Face (resolve/main links), CivitAI (model download links).
-*   **Note:** Only public models are supported. Authentication (API keys) for private or gated models is not currently implemented.
-*   The system will automatically attempt to parse the model name from the URL, or you can use the API (Option C) for custom naming.
-*   A progress bar will show the download status.
+- Supported Sources: Hugging Face (resolve/main links), CivitAI (model download links).
+- **Note:** Only public models are supported. Authentication (API keys) for private or gated models is not currently implemented.
+- The system will automatically attempt to parse the model name from the URL, or you can use the API (Option C) for custom naming.
+- A progress bar will show the download status.
 
 #### Option C: Download via API (Advanced)
 
@@ -70,9 +70,9 @@ curl -X POST "http://localhost:8000/api/models/download" \
          }'
 ```
 
-*   **URL**: Direct download link to the model file.
-*   **Name**: Desired filename (without extension).
-*   **Source**: Metadata tag (e.g., "HuggingFace", "CivitAI").
+- **URL**: Direct download link to the model file.
+- **Name**: Desired filename (without extension).
+- **Source**: Metadata tag (e.g., "HuggingFace", "CivitAI").
 
 You can check the download status via:
 
@@ -80,11 +80,16 @@ You can check the download status via:
 curl "http://localhost:8000/api/models/download/status"
 ```
 
-#### For v-pred models need to include any of these in the name: "v-prediction", "v-pred", "v_pred"
+### 4. Manage Prompts (New!)
 
-### 4. Add Test Data
+The application now features a full **Prompt Manager** tab.
 
-You have **two options** for test data:
+- **Interactive Queue**: Toggle prompts ON/OFF. Only enabled prompts are used for benchmarking.
+- **CRUD**: Create, Edit, Delete prompts directly in the UI.
+- **Reference Images**: Upload reference images for specific prompts (useful for Img2Img or visual comparison).
+- **Organization**: Search and index tracking.
+
+_Alternatively, you can still place files manually:_
 
 #### Option A: Paired Image+Prompt (Preferred)
 
@@ -94,22 +99,14 @@ Place images and matching `.txt` files in:
 backend/assets/image_prompts/
 ├── example1.png     # Reference image
 ├── example1.txt     # Prompt for that image
-├── example2.jpg
-└── example2.txt
 ```
-
-This links each prompt to a reference image for quality comparison.
 
 #### Option B: Separate Folders (Fallback)
 
-If no paired data exists, the system uses:
-
 ```
 backend/assets/images/     # Reference images (optional)
-backend/assets/prompts/    # Text files with prompts (one prompt per file)
+backend/assets/prompts/    # Text files with prompts
 ```
-
-Note: These are loaded independently without pairing.
 
 ### 5. Run
 
@@ -158,6 +155,11 @@ backend/assets/
   - Prompt 0: seeds 218, 219
   - Prompt 1: seeds 218, 219 (same!)
 
+### Interactive Queue
+
+- The backend respects the **Enabled/Disabled** status set in the Prompt Manager.
+- Disabled prompts are skipped entirely during generation.
+
 ### Gap Handling
 
 If an image is missing (e.g., `p001_i01` doesn't exist), the system:
@@ -165,6 +167,17 @@ If an image is missing (e.g., `p001_i01` doesn't exist), the system:
 1. Detects the exact missing indices
 2. Regenerates only those with the correct seed
 3. Won't duplicate existing images
+
+---
+
+## Key Features
+
+- **Stable Model Identification**: Uses Blake3 content hashing to identify models reliably, even if filenames change.
+- **Visual Dashboard**:
+  - **Identity Colors**: Models are assigned a unique, deterministic color based on their hash.
+  - **Linked Selection**: Clicking a dot in the scatter plot highlights the model in the table (and vice-versa).
+- **Prompt Manager**: Full control over your benchmark dataset.
+- **Gallery**: Filter by Prompt, Seed, and Model to analyze results.
 
 ---
 

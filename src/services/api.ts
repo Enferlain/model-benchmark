@@ -102,11 +102,13 @@ export const createPrompt = async (formData: FormData) => {
   return response.json();
 };
 
-export const updatePromptText = async (filename: string, text: string) => {
+export const updatePromptText = async (filename: string, textOrPayload: string | any) => {
+  const body = typeof textOrPayload === 'string' ? { text: textOrPayload } : textOrPayload;
+  
   const response = await fetch(`${API_BASE}/prompts/${filename}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error('Failed to update prompt');
   return response.json();

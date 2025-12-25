@@ -39,4 +39,6 @@ export interface PromptData {
   text: string;
   image?: string;
   type: 'paired' | 'text_only';
+  enabled?: boolean;
 }
+

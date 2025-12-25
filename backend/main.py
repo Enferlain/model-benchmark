@@ -179,9 +179,13 @@ async def create_prompt_multipart(
 
 @app.put("/api/prompts/{filename}")
 def update_prompt(filename: str, payload: dict = Body(...)):
+    if "enabled" in payload:
+        data_loader.toggle_prompt_active(filename, payload["enabled"])
+        return {"status": "success"}
+
     new_text = payload.get("text")
     if not new_text:
-        raise HTTPException(status_code=400, detail="Text is required")
+        raise HTTPException(status_code=400, detail="Text or enabled status is required")
     
     try:
         data_loader.update_prompt_text(filename, new_text)

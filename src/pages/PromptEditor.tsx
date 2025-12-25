@@ -2,6 +2,24 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Trash2, Save, X, Image as ImageIcon, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { fetchPrompts, createPrompt, updatePromptText, deletePrompt } from '../services/api';
 import { PromptData } from '../types';
+import { API_BASE } from '../services/api'; 
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export default function PromptEditor() {
   const [prompts, setPrompts] = useState<PromptData[]>([]);
@@ -115,6 +133,24 @@ export default function PromptEditor() {
     }
   };
   
+  // Handlers
+  const handleToggle = async (e: React.MouseEvent, prompt: PromptData) => {
+    e.stopPropagation();
+    try {
+        const newStatus = !prompt.enabled;
+        // Optimistic update
+        setPrompts(prev => prev.map(p => 
+            p.id === prompt.id ? { ...p, enabled: newStatus } : p
+        ));
+        
+        // Pass object directly, do NOT stringify, otherwise api.ts treats it as text update
+        await updatePromptText(prompt.filename, { enabled: newStatus });
+    } catch (err) {
+        alert("Failed to toggle prompt");
+        loadPrompts(); // Revert
+    }
+  };
+
   const filteredPrompts = useMemo(() => {
     if (!Array.isArray(prompts)) return [];
     
@@ -126,6 +162,41 @@ export default function PromptEditor() {
        return text.toLowerCase().includes(q) || id.toLowerCase().includes(q);
     });
   }, [prompts, searchQuery]);
+
+  // DnD Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+        activationConstraint: {
+            distance: 8,
+        },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const {active, over} = event;
+    
+    if (over && active.id !== over.id) {
+      setPrompts((items) => {
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        
+        // Persist order
+        const order = newItems.map(p => p.filename);
+        fetch(`${API_BASE}/prompts/reorder`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({order})
+        }).catch(err => console.error("Failed to save order", err));
+        
+        return newItems;
+      });
+    }
+  };
 
   return (
     <div className="max-w-[1800px] mx-auto h-[calc(100vh-100px)] pt-6 px-6 flex gap-6">
@@ -158,50 +229,28 @@ export default function PromptEditor() {
           ) : filteredPrompts.length === 0 ? (
              <div className="text-center p-8 text-slate-500 text-sm">No prompts found.</div>
           ) : (
-            filteredPrompts.map(prompt => (
-              <div 
-                key={prompt.id}
-                onClick={() => setSelectedId(prompt.id)}
-                className={`group p-3 rounded-xl cursor-pointer transition-all border border-transparent ${
-                  selectedId === prompt.id 
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 shadow-sm' 
-                    : 'hover:bg-white dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/10'
-                }`}
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext 
+                items={filteredPrompts.map(p => p.id)}
+                strategy={verticalListSortingStrategy}
               >
-                <div className="flex gap-3">
-                  <div className="w-16 h-16 shrink-0 bg-slate-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 flex items-center justify-center text-slate-300">
-                    {prompt.image ? (
-                      <img src={prompt.image} alt="ref" className="w-full h-full object-cover" />
-                    ) : (
-                      <FileText size={24} />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex justify-between items-center mb-0.5">
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-                         {prompt.id}
-                      </span>
-                      <button 
-                        onClick={(e) => handleDelete(e, prompt.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 rounded transition-all"
-                        title="Delete Prompt"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    {/* Filename sub-label */}
-                    <div className="text-[10px] font-mono text-slate-400 mb-1 truncate">
-                        {prompt.filename}
-                    </div>
-                    
-                    {/* Content Preview */}
-                    <p className={`text-xs line-clamp-1 leading-relaxed ${prompt.text ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400/50 italic'}`}>
-                      {prompt.text || "(No text content)"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))
+                {filteredPrompts.map((prompt, idx) => (
+                  <SortableItem
+                    key={prompt.id}
+                    prompt={prompt}
+                    idx={idx}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
@@ -325,6 +374,89 @@ export default function PromptEditor() {
              </div>
            </div>
          )}
+      </div>
+    </div>
+  );
+}
+
+// Sortable Item Component
+function SortableItem({ prompt, idx, selectedId, onSelect, onToggle, onDelete }: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({id: prompt.id});
+
+  const style = {
+    transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
+      {...listeners}
+      onClick={() => onSelect(prompt.id)}
+      className={`group p-3 rounded-xl cursor-pointer transition-colors border border-transparent relative select-none ${
+        selectedId === prompt.id 
+          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 shadow-sm' 
+          : 'hover:bg-white dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/10'
+      } ${!prompt.enabled ? 'opacity-50 grayscale' : ''}`}
+    >
+      {/* Index Badge */}
+      <div className="absolute top-2 left-2 z-10 w-6 h-6 rounded-full bg-black/50 text-white text-[10px] font-mono flex items-center justify-center backdrop-blur-sm">
+          {idx + 1}
+      </div>
+
+      <div className="flex gap-3">
+        <div className="w-16 h-16 shrink-0 bg-slate-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 flex items-center justify-center text-slate-300">
+          {prompt.image ? (
+            <img src={prompt.image} alt="ref" className="w-full h-full object-cover" />
+          ) : (
+            <FileText size={24} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <div className="flex justify-between items-center mb-0.5">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate pl-6">
+               {prompt.id}
+            </span>
+            <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+                {/* Toggle Switch */}
+                <div 
+                   onClick={(e) => onToggle(e, prompt)}
+                   className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${prompt.enabled ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                   title={prompt.enabled ? "Enabled" : "Disabled"}
+                >
+                   <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${prompt.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                
+                <button 
+                  onClick={(e) => onDelete(e, prompt.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 rounded transition-all ml-1"
+                  title="Delete Prompt"
+                >
+                  <Trash2 size={14} />
+                </button>
+            </div>
+          </div>
+          {/* Filename sub-label */}
+          <div className="text-[10px] font-mono text-slate-400 mb-1 truncate">
+              {prompt.filename}
+          </div>
+          
+          {/* Content Preview */}
+          <p className={`text-xs line-clamp-1 leading-relaxed ${prompt.text ? 'text-slate-600 dark:text-slate-400' : 'text-slate-400/50 italic'}`}>
+            {prompt.text || "(No text content)"}
+          </p>
+        </div>
       </div>
     </div>
   );

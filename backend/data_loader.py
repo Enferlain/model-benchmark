@@ -106,95 +106,63 @@ def get_available_models_from_disk():
         
     return models
 
-def load_test_data() -> Tuple[List[Image.Image], List[str]]:
-    images = []
-    prompts = []
-    
-    # Prefer paired directory
-    if PAIRED_DIR.exists():
-        # Get all images
-        image_files = sorted(
-            list(PAIRED_DIR.glob("*.png")) + 
-            list(PAIRED_DIR.glob("*.jpg")) + 
-            list(PAIRED_DIR.glob("*.jpeg"))
-        )
-        
-        print(f"Found {len(image_files)} images in {PAIRED_DIR}")
-        
-        for img_path in image_files:
-            # Try to find matching text file
-            txt_path = img_path.with_suffix(".txt")
-            if txt_path.exists():
-                try:
-                    img = Image.open(img_path).convert("RGB")
-                    with open(txt_path, "r", encoding="utf-8") as f:
-                        prompt = f.read().strip()
-                    
-                    images.append(img)
-                    prompts.append(prompt)
-                except Exception as e:
-                    print(f"Error loading pair {img_path}: {e}")
-    
-    # Fallback to separate folders if no pairs found
-    if not images and IMAGES_DIR.exists():
-        print("Fallback to separate folders")
-        for img_path in IMAGES_DIR.glob("*.png"):
-            try:
-                img = Image.open(img_path).convert("RGB")
-                images.append(img)
-            except Exception as e:
-                print(f"Error loading image {img_path}: {e}")
 
-        if PROMPTS_DIR.exists():
-            for txt_path in PROMPTS_DIR.glob("*.txt"):
-                try:
-                    with open(txt_path, "r", encoding="utf-8") as f:
-                        prompts.append(f.read().strip())
-                except Exception as e:
-                    print(f"Error loading prompt {txt_path}: {e}")
-                
-    return images, prompts
-
-def load_prompts_only() -> List[str]:
-    """Load only prompts without loading images for faster API response."""
-    prompts = []
-    
-    # Prefer paired directory
-    if PAIRED_DIR.exists():
-        # Get all images to find matching text files (mimic load_test_data logic)
-        image_files = sorted(
-            list(PAIRED_DIR.glob("*.png")) + 
-            list(PAIRED_DIR.glob("*.jpg")) + 
-            list(PAIRED_DIR.glob("*.jpeg"))
-        )
+    if not deleted:
+        raise FileNotFoundError(f"No files found to delete for {filename}")
         
-        for img_path in image_files:
-            txt_path = img_path.with_suffix(".txt")
-            if txt_path.exists():
-                try:
-                    with open(txt_path, "r", encoding="utf-8") as f:
-                        prompts.append(f.read().strip())
-                except Exception:
-                    pass
-    
-    # Fallback to separate folders
-    if not prompts and PROMPTS_DIR.exists():
-        # Check if we would have loaded images from IMAGES_DIR? 
-        # load_test_data only checks PROMPTS_DIR if IMAGES_DIR has images.
-        # But for just prompts, we probably just want the prompts regardless of images?
-        # Let's stick to the existing logic: if pairs found, use pairs. If not, check prompts dir.
-        for txt_path in PROMPTS_DIR.glob("*.txt"):
-            try:
-                with open(txt_path, "r", encoding="utf-8") as f:
-                    prompts.append(f.read().strip())
-            except Exception:
-                pass
-                
-    return prompts
+    return True
 
+
+
+CONFIG_PATH = ASSETS_DIR / "prompts_config.json"
+
+# Config Structure:
+# {
+#   "version": 2,
+#   "order": ["file1.png", "file2.txt", ...],
+#   "states": { "file1.png": true, "file2.txt": false }
+# }
+
+def load_prompt_config() -> dict:
+    if CONFIG_PATH.exists():
+        try:
+            with open(CONFIG_PATH, 'r') as f:
+                data = json.load(f)
+                # Migration from v1 (simple dict) to v2
+                if "version" not in data:
+                    return {"version": 2, "order": [], "states": data}
+                return data
+        except:
+            return {"version": 2, "order": [], "states": {}}
+    return {"version": 2, "order": [], "states": {}}
+
+def save_prompt_config(config: dict):
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(config, f, indent=2)
+
+def is_prompt_enabled(filename: str, config: dict = None) -> bool:
+    if config is None:
+        config = load_prompt_config()
+    return config.get("states", {}).get(filename, True)
+
+def toggle_prompt_active(filename: str, enabled: bool):
+    config = load_prompt_config()
+    if "states" not in config: config["states"] = {}
+    config["states"][filename] = enabled
+    save_prompt_config(config)
+    return True
+
+def save_prompt_order(filenames: List[str]):
+    config = load_prompt_config()
+    config["order"] = filenames
+    save_prompt_config(config)
+    return True
+
+# Override get_all_prompts_metadata to include enabled status and respect order
 def get_all_prompts_metadata():
     """Get rich metadata for all prompts for the Prompt Manager."""
     prompts_data = []
+    config = load_prompt_config()
     
     # helper to clean IDs
     def clean_id(path):
@@ -223,16 +191,13 @@ def get_all_prompts_metadata():
                 "filename": img_path.name,
                 "text": text_content,
                 "image": f"/assets/image_prompts/{img_path.name}",
-                "type": "paired"
+                "type": "paired",
+                "enabled": is_prompt_enabled(img_path.name, config)
             })
 
-    # 2. Scan Text-only Directory (if used)
-    # Note: Logic to avoid duplicates if needed, but for now just list them
+    # 2. Scan Text-only Directory
     if PROMPTS_DIR.exists():
         for txt_path in PROMPTS_DIR.glob("*.txt"):
-            # Check if we already added this ID from paired dir?
-            # Ideally filenames are unique across folders or we just treat them separately.
-            # Simple check: if ID not in existing list
             pid = clean_id(txt_path)
             if not any(p['id'] == pid for p in prompts_data):
                  try:
@@ -243,13 +208,127 @@ def get_all_prompts_metadata():
                         "filename": txt_path.name,
                         "text": content,
                         "image": None, 
-                        "type": "text_only"
+                        "type": "text_only",
+                        "enabled": is_prompt_enabled(txt_path.name, config)
                     })
                  except:
                      pass
                      
-    # Sort by ID
-    return sorted(prompts_data, key=lambda x: x['id'])
+    # Sort
+    # 1. If 'order' exists in config, use it to prioritize
+    order_list = config.get("order", [])
+    
+    def sort_key(p):
+        try:
+            return order_list.index(p['filename'])
+        except ValueError:
+            # If not in order list, put at the end, sorted by ID
+            return 999999
+            
+    # First sort by ID (fallback stability)
+    prompts_data.sort(key=lambda x: x['id'])
+    
+    # Then sort by order list if present
+    if order_list:
+        prompts_data.sort(key=sort_key)
+        
+    return prompts_data
+
+
+# Update filtering in load functions
+def load_test_data() -> Tuple[List[Image.Image], List[str]]:
+    images = []
+    prompts = []
+    config = load_prompt_config()
+    order_list = config.get("order", [])
+    
+    # helper
+    def sort_key(filename):
+        try:
+            return order_list.index(filename)
+        except ValueError:
+            return 999999
+
+    # Collect all candidates first
+    candidates = []
+
+    # Prefer paired directory
+    if PAIRED_DIR.exists():
+        image_files = sorted(
+            list(PAIRED_DIR.glob("*.png")) + 
+            list(PAIRED_DIR.glob("*.jpg")) + 
+            list(PAIRED_DIR.glob("*.jpeg"))
+        )
+        for img_path in image_files:
+            if not is_prompt_enabled(img_path.name, config):
+                continue
+            candidates.append((img_path, "paired"))
+            
+    # Sort candidates by order
+    # (For now only paired supported here as per original logic, though we can expand later)
+    candidates.sort(key=lambda x: sort_key(x[0].name))
+    
+    for img_path, _ in candidates:
+        txt_path = img_path.with_suffix(".txt")
+        if txt_path.exists():
+            try:
+                img = Image.open(img_path).convert("RGB")
+                with open(txt_path, "r", encoding="utf-8") as f:
+                    prompt = f.read().strip()
+                
+                images.append(img)
+                prompts.append(prompt)
+            except Exception as e:
+                pass
+    
+    return images, prompts
+
+def load_prompts_only() -> List[str]:
+    """Load only active prompts."""
+    # This one is tricky because it mixes two sources.
+    # We should gather all items, sort them, then extract content.
+    
+    prompts_map = {} # filename -> text
+    config = load_prompt_config()
+    order_list = config.get("order", [])
+    
+    # 1. Paired
+    if PAIRED_DIR.exists():
+        image_files = list(PAIRED_DIR.glob("*.png")) + list(PAIRED_DIR.glob("*.jpg")) + list(PAIRED_DIR.glob("*.jpeg"))
+        for img_path in image_files:
+            if not is_prompt_enabled(img_path.name, config): continue
+            txt_path = img_path.with_suffix(".txt")
+            if txt_path.exists():
+                try:
+                    with open(txt_path, "r", encoding="utf-8") as f:
+                        prompts_map[img_path.name] = f.read().strip()
+                except: pass
+                
+    # 2. Text Only
+    if PROMPTS_DIR.exists():
+         for txt_path in PROMPTS_DIR.glob("*.txt"):
+             if not is_prompt_enabled(txt_path.name, config): continue
+             # Avoid duplicates if paired already handled it? (Assuming filenames unique)
+             if txt_path.name not in prompts_map:
+                 try:
+                    with open(txt_path, "r", encoding="utf-8") as f:
+                        prompts_map[txt_path.name] = f.read().strip()
+                 except: pass
+
+    # Sort
+    filenames = list(prompts_map.keys())
+    
+    def sort_key(fname):
+        try:
+            return order_list.index(fname)
+        except ValueError:
+            return 999999 + hash(fname) # Deterministic fallback
+            
+    filenames.sort(key=sort_key)
+    
+    return [prompts_map[f] for f in filenames]
+
+
 
 def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = None):
     """Create a new prompt. If image provided, save to paired dir. Else text dir."""
