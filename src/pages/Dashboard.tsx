@@ -230,6 +230,9 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     }
   }, [models, setModels]);
 
+  // Shared selection state for Chart and Table
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+
   return (
       <div className="max-w-[1800px] mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -424,13 +427,20 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                   xMetric={xMetric}
                   yMetric={yMetric}
                   isDarkMode={isDarkMode}
+                  selectedId={selectedModelId}
+                  onSelect={setSelectedModelId}
                 />
               )}
             </div>
 
             {/* Table Area */}
             <div className="pt-2">
-              <ModelTable models={models} onDelete={handleDeleteModel} />
+              <ModelTable 
+                 models={models} 
+                 onDelete={handleDeleteModel}
+                 selectedId={selectedModelId}
+                 onSelect={setSelectedModelId}
+              />
             </div>
           </div>
         </div>

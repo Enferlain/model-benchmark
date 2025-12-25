@@ -2,10 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { Trash2, ExternalLink, ChevronUp, ChevronDown, Info, X } from 'lucide-react';
 import { ModelData, MetricKey, MetricOption } from '../types';
 import { METRIC_OPTIONS } from '../constants';
+import { stringToColor } from '../utils/colorUtils';
 
 interface ModelTableProps {
   models: ModelData[];
   onDelete: (id: string, deleteFile: boolean) => void;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
 }
 
 type SortDirection = 'asc' | 'desc' | null;
@@ -123,7 +126,7 @@ const DeleteConfirmModal: React.FC<{
   );
 };
 
-export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
+export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, selectedId, onSelect }) => {
   const [sortKey, setSortKey] = useState<MetricKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [selectedMetric, setSelectedMetric] = useState<MetricOption | null>(null);
@@ -181,6 +184,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50/50 dark:bg-slate-900/30 border-b border-slate-200/50 dark:border-white/5 text-slate-500 dark:text-slate-400 backdrop-blur-sm">
               <tr>
+                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px] text-center w-4"></th>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px]">Model Name</th>
                 <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[11px] text-center">Source</th>
                 {METRIC_OPTIONS.map((metric) => (
@@ -224,10 +228,26 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
             </thead>
             <tbody className="divide-y divide-slate-200/50 dark:divide-white/5">
               {sortedModels.map((model) => (
-                <tr key={model.id} className="hover:bg-white/50 dark:hover:bg-white/5 transition-colors group">
+                <tr 
+                  key={model.id} 
+                  className={`cursor-pointer transition-colors group ${
+                    selectedId === model.id 
+                      ? 'bg-blue-50 dark:bg-blue-900/20' 
+                      : 'hover:bg-white/50 dark:hover:bg-white/5'
+                  }`}
+                  onClick={() => onSelect(selectedId === model.id ? null : model.id)}
+                >
+                  <td className="px-6 py-4 text-center">
+                    <div 
+                      className="w-3 h-3 rounded-full mx-auto"
+                      style={{ backgroundColor: stringToColor(model.hash || model.id) }}
+                    ></div>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-800 dark:text-slate-200">{model.name}</span>
+                      <span className={`font-medium ${selectedId === model.id ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                        {model.name}
+                      </span>
                       <a href={model.url} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
                         <ExternalLink size={12} />
                       </a>
@@ -262,7 +282,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete }) => {
               ))}
               {models.length === 0 && (
                 <tr>
-                  <td colSpan={METRIC_OPTIONS.length + 3} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={METRIC_OPTIONS.length + 4} className="px-6 py-12 text-center text-slate-400">
                     No models added. Add a URL to see benchmarks.
                   </td>
                 </tr>

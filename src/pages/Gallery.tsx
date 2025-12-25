@@ -3,6 +3,8 @@ import { fetchModels, fetchModelOutputs } from '../services/api';
 import { useGalleryContext } from '../context/GalleryContext';
 import { ModelData, ModelOutput } from '../types';
 
+import { SkeletonGrid } from '../components/SkeletonGrid';
+
 export default function Gallery() {
   const [models, setModels] = useState<ModelData[]>([]);
   // Use global state for selection and caching
@@ -10,7 +12,8 @@ export default function Gallery() {
     selectedModel, setSelectedModel, 
     selectedPrompt, setSelectedPrompt,
     selectedSeed, setSelectedSeed,
-    outputCache, setOutputCache 
+    outputCache, setOutputCache,
+    allPrompts 
   } = useGalleryContext();
   
   const [outputs, setOutputs] = useState<ModelOutput[]>([]);
@@ -22,7 +25,8 @@ export default function Gallery() {
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
   // Derived state for filters
-  const uniquePrompts = Array.from(new Set(outputs.map(o => o.prompt))).sort();
+  // Use allPrompts for the dropdown, but we can still sort/filter if needed.
+  // uniqueSeeds still depends on outputs, as we don't have a master seed list.
   const uniqueSeeds = Array.from(new Set(outputs.map(o => o.seed))).sort((a, b) => a - b);
 
   // Filtered outputs
@@ -70,25 +74,18 @@ export default function Gallery() {
     // Check global cache first
     if (outputCache[modelId]) {
       setOutputs(outputCache[modelId]);
-      // Do NOT reset filters here, to persist them when switching back!
-      // or should we? The user might want filters reset per model.
-      // But typically "persistence" implies keeping state.
-      // Let's keep filters if they make sense (e.g. Prompt "All" or Seed "218" might exist in both)
-      // For now, let's NOT reset them as per "persistence" req.
       return;
     }
 
     setLoading(true);
+    setOutputs([]); // Clear previous data to avoid stale counts
     setError(null);
     try {
       const data = await fetchModelOutputs(modelId);
       setOutputs(data);
+      setOutputs(data);
       setOutputCache(prev => ({...prev, [modelId]: data}));
-      // New model loaded, maybe reset filters?
-      // For consistency with cache behavior, let's only reset if current selection is invalid?
-      // Simpler to just reset to "All" for a fresh model load
-      setSelectedPrompt("All");
-      setSelectedSeed("All");
+      // Persist filters across model switches (do not reset to "All")
     } catch (err) {
       console.error("Failed to load outputs", err);
       setError("Failed to load outputs");
@@ -160,17 +157,17 @@ export default function Gallery() {
              </select>
            </div>
 
-           {/* Prompt Filter */}
+           {/* Prompt Filter - Now uses allPrompts and is never disabled */}
            <div className="flex flex-col gap-1">
              <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Prompt</label>
              <select
                className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[300px]"
                value={selectedPrompt}
                onChange={(e) => setSelectedPrompt(e.target.value)}
-               disabled={outputs.length === 0}
+               disabled={allPrompts.length === 0}
              >
-               <option value="All">All Prompts ({uniquePrompts.length})</option>
-               {uniquePrompts.map((p, i) => (
+               <option value="All">All Prompts ({allPrompts.length})</option>
+               {allPrompts.map((p, i) => (
                  <option key={i} value={p}>{p.substring(0, 50)}{p.length > 50 ? '...' : ''}</option>
                ))}
              </select>
@@ -205,8 +202,8 @@ export default function Gallery() {
       )}
 
       {loading && (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="py-8 animate-fadeIn">
+          <SkeletonGrid />
         </div>
       )}
 

@@ -4,6 +4,8 @@ export type ModelSource = 'Civitai' | 'HuggingFace' | 'Unknown';
 
 export interface ModelData {
   id: string;
+  hash?: string; // Content hash for stable coloring
+  filename?: string;
   name: string;
   source: ModelSource;
   accuracy: number;

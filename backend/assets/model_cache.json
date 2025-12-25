@@ -1,0 +1,17 @@
+{
+  "catobs05_v-pred.safetensors": {
+    "mtime": 1736033994.4258778,
+    "size": 6938041942,
+    "hash": "17389cd0e1243c895d784743a442471c03553449fe2d331fc0778cef5e697b8c"
+  },
+  "Illustrious-XL-v2.0.safetensors": {
+    "mtime": 1748893082.602176,
+    "size": 6938040674,
+    "hash": "cd2180f1ab3dc85b5533ff1c471084d3da2126e905587ca6ffea641a46b41135"
+  },
+  "rw08_base_lol2025.safetensors": {
+    "mtime": 1752218985.649351,
+    "size": 6938040400,
+    "hash": "d6f7de558fd40a08a7d612b1f5efcfb6a8a9198f9bee75b011043ce7b010d92f"
+  }
+}

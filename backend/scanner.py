@@ -6,10 +6,16 @@ import inference
 from metrics import MetricsCalculator
 from state import models_db, generation_state, ScanOptions, ModelResult
 
-# Initialize metrics calculator
-metrics_calc = MetricsCalculator()
-metrics_calc.load_clip() # Load on startup since requirements are installed
-metrics_calc.load_lpips() # Load LPIPS for diversity calculation
+# Initialize metrics calculator lazily
+metrics_calc = None
+
+def get_metrics_calc():
+    global metrics_calc
+    if metrics_calc is None:
+        metrics_calc = MetricsCalculator()
+        metrics_calc.load_clip() # Load on startup since requirements are installed
+        metrics_calc.load_lpips() # Load LPIPS for diversity calculation
+    return metrics_calc
 
 def check_cancelled():
     """Check if generation should be cancelled. Call this in generation loops."""
@@ -151,7 +157,8 @@ def load_local_models(options: ScanOptions = ScanOptions()):
         if flat_images:
             try:
                 # Pass grouped_images for LPIPS diversity
-                metrics = metrics_calc.calculate_metrics(flat_images, flat_prompts, grouped_images)
+                mc = get_metrics_calc()
+                metrics = mc.calculate_metrics(flat_images, flat_prompts, grouped_images)
                 lm['accuracy'] = round(metrics['clip_score'], 3)
                 lm['diversity'] = round(metrics['diversity_score'], 3)
                 lm['vqa_score'] = round(random.uniform(0.7, 0.9), 2)  # Still mocked
@@ -389,7 +396,8 @@ def analyze_models_only(options: ScanOptions):
         
         if flat_images:
             try:
-                metrics = metrics_calc.calculate_metrics(flat_images, flat_prompts, grouped_images)
+                mc = get_metrics_calc()
+                metrics = mc.calculate_metrics(flat_images, flat_prompts, grouped_images)
                 lm['accuracy'] = round(metrics['clip_score'], 3)
                 lm['diversity'] = round(metrics['diversity_score'], 3)
                 lm['vqa_score'] = round(random.uniform(0.7, 0.9), 2)
@@ -414,4 +422,36 @@ def analyze_models_only(options: ScanOptions):
         
         models_db.append(ModelResult(**lm))
     
+    return models_db
+
+def scan_models_light(options: ScanOptions = ScanOptions()):
+    """
+    Fast scan of models on disk without loading images or calculating metrics.
+    Populates models_db with available models and file counts.
+    """
+    models_db.clear()
+    local_models = data_loader.get_available_models_from_disk()
+    
+    # Just need prompts for count, not for analysis
+    # Use optimized prompt loader
+    prompts = data_loader.load_prompts_only()
+    
+    for lm in local_models:
+        model_id = lm['id']
+        output_dir = data_loader.ASSETS_DIR / "outputs" / model_id
+        
+        # Count existing images
+        existing_images = list(output_dir.glob("p*_i*_s*.png"))
+        
+        # Basic stats
+        lm['accuracy'] = 0.0
+        lm['diversity'] = 0.0
+        lm['metrics'] = {'accuracy': 0.0, 'diversity': 0.0}
+        
+        # We could potentially store image count here if needed, 
+        # but the frontend fetches outputs separately anyway.
+        
+        models_db.append(ModelResult(**lm))
+        
+    print(f"Fast scan complete. Found {len(models_db)} models.")
     return models_db

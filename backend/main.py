@@ -33,9 +33,9 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     print("Starting up... (no auto-generation, use /api/generate or /api/analyze)")
-    # Populate models_db on startup
-    print("Scanning for local models and existing outputs...")
-    scanner.analyze_models_only(state.ScanOptions())
+    # Populate models_db on startup - FAST SCAN ONLY
+    print("Scanning for local models (fast mode)...")
+    scanner.scan_models_light(state.ScanOptions())
 
 # API Endpoints
 @app.get("/api/models")
@@ -49,7 +49,7 @@ def get_model_outputs(model_id: str):
         return []
 
     # Get prompts (cached or reloaded)
-    _, prompts = data_loader.load_test_data()
+    prompts = data_loader.load_prompts_only()
 
     images = []
     # Filename format: p{prompt_idx:03d}_i{image_idx:02d}_s{seed}.png
@@ -157,6 +157,12 @@ def delete_model(model_id: str, delete_file: bool = False):
     # Note: reassigning the list reference in state requires modifying the list in place or using the module attribute
     state.models_db[:] = [m for m in state.models_db if m.id != model_id]
     return {"status": "ok"}
+
+@app.get("/api/prompts")
+def get_prompts():
+    """Get list of all test prompts."""
+    prompts = data_loader.load_prompts_only()
+    return prompts
 
 @app.post("/api/models/download")
 def download_model(request: state.ModelRequest, background_tasks: BackgroundTasks):

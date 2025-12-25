@@ -79,6 +79,16 @@ export async function deleteModel(id: string, deleteFile: boolean = false) {
 
 export async function fetchModelOutputs(modelId: string) {
   const response = await fetch(`${API_BASE}/models/${modelId}/outputs`);
-  if (!response.ok) throw new Error('Failed to fetch model outputs');
+  if (!response.ok) {
+    throw new Error('Failed to fetch model outputs');
+  }
   return response.json();
-}
+};
+
+export const fetchPrompts = async (): Promise<string[]> => {
+  const response = await fetch(`${API_BASE}/prompts`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch prompts');
+  }
+  return response.json();
+};

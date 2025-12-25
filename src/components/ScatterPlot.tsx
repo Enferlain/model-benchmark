@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
   ScatterChart,
   Scatter,
@@ -12,13 +12,16 @@ import {
   ReferenceLine
 } from 'recharts';
 import { Maximize2, Minimize2 } from 'lucide-react';
-import { ModelData, MetricKey, MetricOption } from '../types';
+import { ModelData, MetricOption, MetricKey } from '../types';
+import { stringToColor } from '../utils/colorUtils';
 
 interface ScatterPlotProps {
   data: ModelData[];
   xMetric: MetricOption;
   yMetric: MetricOption;
   isDarkMode?: boolean;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
 }
 
 const CustomTooltip = ({ active, payload, isDarkMode }: any) => {
@@ -27,9 +30,14 @@ const CustomTooltip = ({ active, payload, isDarkMode }: any) => {
     
     if (!data || !data.name) return null;
 
+    const color = stringToColor(data.id);
+
     return (
       <div className={`p-4 border shadow-2xl rounded-2xl text-sm z-50 backdrop-blur-xl ${isDarkMode ? 'bg-slate-800/80 border-white/10 text-slate-200' : 'bg-white/80 border-white/50 text-slate-800'}`}>
-        <p className={`font-bold mb-1 ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>{data.name}</p>
+        <div className="flex items-center gap-2 mb-1">
+             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></div>
+            <p className={`font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>{data.name}</p>
+        </div>
         <p className={`text-xs mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{data.source}</p>
         <div className="space-y-1.5 font-mono text-xs">
           <p className={`${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -52,14 +60,59 @@ const calculateDistance = (p1: ModelData, p2: ModelData, xKey: string, yKey: str
     return Math.sqrt(dx * dx + dy * dy).toFixed(4);
 }
 
-export const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, xMetric, yMetric, isDarkMode = false }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+// Custom Shape Renderer
+const RenderNode = (props: any) => {
+    const { cx, cy, payload, selectedId, hoveredId, setHoveredId, isDarkMode, onSelect } = props;
+    const isSelected = selectedId === payload.id;
+    const isHovered = hoveredId === payload.id;
+    const isDimmed = (selectedId !== null && !isSelected) || (hoveredId !== null && !isHovered && !isSelected);
+    
+    // Stable color based on hash or id
+    const color = stringToColor(payload.hash || payload.id);
+
+    return (
+      <g 
+        transform={`translate(${cx},${cy})`} 
+        style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+        onClick={(e) => {
+            e.stopPropagation();
+            onSelect(payload.id);
+        }}
+        onMouseEnter={() => setHoveredId(payload.id)}
+        onMouseLeave={() => setHoveredId(null)}
+      >
+        {/* Outer Glow for selection */}
+        {isSelected && (
+           <circle r={14} fill={color} fillOpacity={0.2} />
+        )}
+        
+        {/* Main Circle */}
+        <circle 
+          r={isSelected ? 10 : (isHovered ? 8 : 6)} 
+          fill={color}
+          fillOpacity={isDimmed ? 0.3 : 1}
+          stroke={isDarkMode ? '#ffffff' : '#000000'}
+          strokeWidth={isSelected ? 3 : (isHovered ? 2 : 0)}
+          strokeOpacity={isSelected || isHovered ? 1 : 0}
+        />
+        
+        {/* Inner white dot for selected to make it pop like a target? Optional. 
+            Let's stick to the request: "visible". The large size + border should work.
+        */}
+      </g>
+    );
+};
+
+export const ScatterPlot: React.FC<ScatterPlotProps> = ({ 
+    data, xMetric, yMetric, isDarkMode = false, selectedId, onSelect 
+}) => {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [hoveredId, setHoveredId] = React.useState<string | null>(null);
   const clickProcessedRef = useRef(false);
 
   const selectedNode = useMemo(() => 
-    data.find(n => n.id === selectedNodeId), 
-  [data, selectedNodeId]);
+    data.find(n => n.id === selectedId), 
+  [data, selectedId]);
 
   // Define colors based on mode
   const gridColor = isDarkMode ? '#475569' : '#cbd5e1'; 
@@ -68,27 +121,13 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, xMetric, yMetric
   const textColor = isDarkMode ? '#e2e8f0' : '#475569';
   const linkColor = isDarkMode ? '#94a3b8' : '#64748b';
   
-  // Helper to cast for indexing
   const getX = (item: ModelData) => item[xMetric.value as MetricKey] as number;
   const getY = (item: ModelData) => item[yMetric.value as MetricKey] as number;
 
-  // Handler for clicking a specific point
-  const handlePointClick = (node: any) => {
-    clickProcessedRef.current = true;
-    const id = node.payload?.id || node.id;
-    if (id) {
-      setSelectedNodeId(prev => prev === id ? null : id);
-    }
-    setTimeout(() => {
-      clickProcessedRef.current = false;
-    }, 100);
-  };
-
-  // Handler for clicking the chart background
   const handleChartClick = (e: any) => {
-    if (clickProcessedRef.current) return;
-    if (!e || !e.activePayload || e.activePayload.length === 0) {
-      setSelectedNodeId(null);
+    // If we clicked the background (no activePayload usually means background)
+    if (!e || !e.activePayload) {
+        onSelect(null);
     }
   };
 
@@ -106,26 +145,25 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, xMetric, yMetric
         .recharts-wrapper, .recharts-surface { outline: none !important; }
         :focus { outline: none !important; }
       `}</style>
-
-      {/* Header / Controls */}
+      
+      {/* Controls */}
       <div className="flex justify-between items-center mb-2 h-8 shrink-0 px-2">
-        <div className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+         <div className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
              {isExpanded ? `${yMetric.label} vs ${xMetric.label}` : ''}
-        </div>
-        <button 
-           onClick={() => setIsExpanded(!isExpanded)}
-           className={`p-2 rounded-full transition-colors absolute right-6 top-6 z-10 ${
-             isDarkMode 
-               ? 'text-slate-400 hover:text-slate-200 bg-white/5 hover:bg-white/10' 
-               : 'text-slate-400 hover:text-slate-700 bg-black/5 hover:bg-black/10'
-           }`}
-           title={isExpanded ? "Exit Full Screen" : "Full Screen"}
-        >
-           {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-        </button>
+         </div>
+         <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`p-2 rounded-full transition-colors absolute right-6 top-6 z-10 ${
+              isDarkMode 
+                ? 'text-slate-400 hover:text-slate-200 bg-white/5 hover:bg-white/10' 
+                : 'text-slate-400 hover:text-slate-700 bg-black/5 hover:bg-black/10'
+            }`}
+            title={isExpanded ? "Exit Full Screen" : "Full Screen"}
+         >
+            {isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+         </button>
       </div>
 
-      {/* Chart Area */}
       <div className="flex-1 min-h-0 w-full select-none">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart
@@ -133,7 +171,6 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, xMetric, yMetric
             onClick={handleChartClick}
           >
             <CartesianGrid stroke={gridColor} strokeOpacity={isDarkMode ? 0.2 : 0.4} strokeDasharray="3 3" />
-            
             <XAxis 
               type="number" 
               dataKey={xMetric.value} 
@@ -160,18 +197,14 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, xMetric, yMetric
             >
               <Label value={yMetric.label} angle={-90} position="insideLeft" style={{ fill: textColor, fontSize: '12px', fontWeight: 500, opacity: 0.8 }} />
             </YAxis>
-            
             <Tooltip 
               content={<CustomTooltip isDarkMode={isDarkMode} />} 
               cursor={{ strokeDasharray: '3 3', stroke: isDarkMode ? '#94a3b8' : '#64748b', strokeOpacity: 0.5 }} 
               isAnimationActive={false}
             />
-            
             {selectedNode && data.map((model) => {
                if (model.id === selectedNode.id) return null;
-               
                const dist = calculateDistance(selectedNode, model, xMetric.value, yMetric.value);
-               
                return (
                  <ReferenceLine
                    key={`link-${selectedNode.id}-${model.id}`}
@@ -180,53 +213,35 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, xMetric, yMetric
                      { x: getX(model), y: getY(model) }
                    ]}
                    stroke={linkColor}
-                   strokeOpacity={0.3}
+                   strokeOpacity={0.2}
                    strokeDasharray="3 3"
                    label={{ 
                        value: `${dist}`, 
                        position: 'center', 
                        fill: textColor, 
                        fontSize: 10,
+                       fillOpacity: 0.7
                    }}
                  />
                );
             })}
-
             <Scatter 
                 name="Models" 
                 data={data}
-                cursor="pointer"
                 animationDuration={500}
-                onClick={handlePointClick}
-            >
-              {data.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={
-                    entry.source === 'Civitai' 
-                      ? (isDarkMode ? '#60A5FA' : '#3b82f6') 
-                      : (isDarkMode ? '#F472B6' : '#ec4899')
-                  } 
-                  fillOpacity={selectedNodeId && selectedNodeId !== entry.id ? 0.4 : 0.9}
-                  stroke={isDarkMode ? '#1e293b' : '#fff'}
-                  strokeWidth={2}
-                />
-              ))}
-            </Scatter>
+                shape={(props: any) => (
+                    <RenderNode 
+                        {...props} 
+                        selectedId={selectedId} 
+                        hoveredId={hoveredId} 
+                        setHoveredId={setHoveredId}
+                        isDarkMode={isDarkMode}
+                        onSelect={(id: string) => onSelect(selectedId === id ? null : id)}
+                    />
+                )}
+            />
           </ScatterChart>
         </ResponsiveContainer>
-      </div>
-
-      {/* Legend */}
-      <div className={`flex justify-center mt-4 gap-6 text-xs shrink-0 h-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-        <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-blue-400' : 'bg-blue-500'}`}></div>
-            <span>Civitai</span>
-        </div>
-        <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full ${isDarkMode ? 'bg-pink-400' : 'bg-pink-500'}`}></div>
-            <span>HuggingFace</span>
-        </div>
       </div>
     </div>
   );
