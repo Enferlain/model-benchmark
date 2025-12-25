@@ -1,35 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { fetchModels, fetchModelOutputs } from '../services/api';
-
-interface Model {
-  id: string;
-  name: string;
-  source: string;
-  url: string;
-  path: string;
-}
-
-interface ModelOutput {
-  filename: string;
-  url: string;
-  prompt: string;
-  seed: number;
-  prompt_idx: number;
-}
+import { useGalleryContext } from '../context/GalleryContext';
+import { ModelData, ModelOutput } from '../types';
 
 export default function Gallery() {
-  const [models, setModels] = useState<Model[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [models, setModels] = useState<ModelData[]>([]);
+  // Use global state for selection and caching
+  const { 
+    selectedModel, setSelectedModel, 
+    selectedPrompt, setSelectedPrompt,
+    selectedSeed, setSelectedSeed,
+    outputCache, setOutputCache 
+  } = useGalleryContext();
+  
   const [outputs, setOutputs] = useState<ModelOutput[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Filtering state
-  const [selectedPrompt, setSelectedPrompt] = useState<string>("All");
-  const [selectedSeed, setSelectedSeed] = useState<string>("All");
-
-  // Client-side cache
-  const [outputCache, setOutputCache] = useState<Record<string, ModelOutput[]>>({});
 
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
@@ -65,8 +51,14 @@ export default function Gallery() {
     try {
       const data = await fetchModels();
       setModels(data);
-      if (data.length > 0) {
+      // Only set selected model if none is currently selected in global state
+      if (data.length > 0 && !selectedModel) {
         setSelectedModel(data[0].id);
+      } else if (data.length > 0 && selectedModel) {
+        // Verify selected model still exists
+        if (!data.find(m => m.id === selectedModel)) {
+            setSelectedModel(data[0].id);
+        }
       }
     } catch (err) {
       console.error("Failed to load models", err);
@@ -75,11 +67,14 @@ export default function Gallery() {
   };
 
   const loadOutputs = async (modelId: string) => {
-    // Check cache first
+    // Check global cache first
     if (outputCache[modelId]) {
       setOutputs(outputCache[modelId]);
-      setSelectedPrompt("All");
-      setSelectedSeed("All");
+      // Do NOT reset filters here, to persist them when switching back!
+      // or should we? The user might want filters reset per model.
+      // But typically "persistence" implies keeping state.
+      // Let's keep filters if they make sense (e.g. Prompt "All" or Seed "218" might exist in both)
+      // For now, let's NOT reset them as per "persistence" req.
       return;
     }
 
@@ -89,7 +84,9 @@ export default function Gallery() {
       const data = await fetchModelOutputs(modelId);
       setOutputs(data);
       setOutputCache(prev => ({...prev, [modelId]: data}));
-      // Reset filters when model changes
+      // New model loaded, maybe reset filters?
+      // For consistency with cache behavior, let's only reset if current selection is invalid?
+      // Simpler to just reset to "All" for a fresh model load
       setSelectedPrompt("All");
       setSelectedSeed("All");
     } catch (err) {

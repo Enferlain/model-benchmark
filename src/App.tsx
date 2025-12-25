@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
+import { GalleryProvider } from "./context/GalleryContext";
 import { MainLayout } from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Gallery from "./pages/Gallery";
@@ -31,24 +32,26 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MainLayout isLoading={isLoading} modelCount={models.length} />}>
-            <Route index element={
-              <Dashboard
-                models={models}
-                setModels={setModels}
-                isLoading={isLoading}
-                fetchModels={fetchModels}
-              />
-            } />
-            <Route path="gallery" element={<Gallery />} />
-            <Route path="prompts" element={<PromptEditor />} />
-            <Route path="compare" element={<Compare />} />
-            <Route path="arena" element={<Arena />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <GalleryProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<MainLayout isLoading={isLoading} modelCount={models.length} />}>
+              <Route index element={
+                <Dashboard
+                  models={models}
+                  setModels={setModels}
+                  isLoading={isLoading}
+                  fetchModels={fetchModels}
+                />
+              } />
+              <Route path="gallery" element={<Gallery />} />
+              <Route path="prompts" element={<PromptEditor />} />
+              <Route path="compare" element={<Compare />} />
+              <Route path="arena" element={<Arena />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </GalleryProvider>
     </ThemeProvider>
   );
 }

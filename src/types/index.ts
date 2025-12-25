@@ -22,3 +22,11 @@ export interface MetricOption {
   direction?: 'higher' | 'lower';
   extendedDescription?: string;
 }
+
+export interface ModelOutput {
+  filename: string;
+  url: string;
+  prompt: string;
+  seed: number;
+  prompt_idx: number;
+}
