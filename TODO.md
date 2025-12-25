@@ -70,7 +70,8 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 - [ ] **Prompt categories** - Group prompts by type (portrait, landscape, etc.)
 - [ ] **Prompt difficulty** - Tag prompts as easy/medium/hard
 - [ ] **Reference images** - Compare against ground truth
-- [ ] **Model downloading** - Downloading models from hf and civit
+- [x] **Model downloading** - Downloading models from hf and civit
+- [ ] **Queue downloading models/list of models, cancel/interrupt downloading**
 
 ---
 
