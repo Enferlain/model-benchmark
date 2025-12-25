@@ -158,11 +158,44 @@ def delete_model(model_id: str, delete_file: bool = False):
     state.models_db[:] = [m for m in state.models_db if m.id != model_id]
     return {"status": "ok"}
 
+from fastapi import UploadFile, File, Form
+
 @app.get("/api/prompts")
 def get_prompts():
-    """Get list of all test prompts."""
-    prompts = data_loader.load_prompts_only()
-    return prompts
+    """Get all prompts with metadata for the manager."""
+    return data_loader.get_all_prompts_metadata()
+
+@app.post("/api/prompts/create")
+async def create_prompt_multipart(
+    text: str = Form(...),
+    image: UploadFile = File(None)
+):
+    image_bytes = None
+    if image:
+        image_bytes = await image.read()
+        
+    new_id = data_loader.save_new_prompt(text, image_bytes, image.filename if image else "text_prompt")
+    return {"status": "success", "id": new_id}
+
+@app.put("/api/prompts/{filename}")
+def update_prompt(filename: str, payload: dict = Body(...)):
+    new_text = payload.get("text")
+    if not new_text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    
+    try:
+        data_loader.update_prompt_text(filename, new_text)
+        return {"status": "success"}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+
+@app.delete("/api/prompts/{filename}")
+def delete_prompt(filename: str):
+    try:
+        data_loader.delete_prompt(filename)
+        return {"status": "success"}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Prompt not found")
 
 @app.post("/api/models/download")
 def download_model(request: state.ModelRequest, background_tasks: BackgroundTasks):

@@ -168,7 +168,7 @@ export default function Gallery() {
              >
                <option value="All">All Prompts ({allPrompts.length})</option>
                {allPrompts.map((p, i) => (
-                 <option key={i} value={p}>{p.substring(0, 50)}{p.length > 50 ? '...' : ''}</option>
+                 <option key={p.id || i} value={p.text}>{p.text.substring(0, 50)}{p.text.length > 50 ? '...' : ''}</option>
                ))}
              </select>
            </div>

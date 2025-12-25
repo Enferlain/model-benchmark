@@ -191,3 +191,140 @@ def load_prompts_only() -> List[str]:
                 pass
                 
     return prompts
+
+def get_all_prompts_metadata():
+    """Get rich metadata for all prompts for the Prompt Manager."""
+    prompts_data = []
+    
+    # helper to clean IDs
+    def clean_id(path):
+        return path.stem
+
+    # 1. Scan Paired Directory (Images + Text)
+    if PAIRED_DIR.exists():
+        image_files = sorted(
+            list(PAIRED_DIR.glob("*.png")) + 
+            list(PAIRED_DIR.glob("*.jpg")) + 
+            list(PAIRED_DIR.glob("*.jpeg"))
+        )
+        
+        for img_path in image_files:
+            txt_path = img_path.with_suffix(".txt")
+            text_content = ""
+            if txt_path.exists():
+                try:
+                    with open(txt_path, "r", encoding="utf-8") as f:
+                        text_content = f.read().strip()
+                except:
+                    pass
+            
+            prompts_data.append({
+                "id": clean_id(img_path),
+                "filename": img_path.name,
+                "text": text_content,
+                "image": f"/assets/image_prompts/{img_path.name}",
+                "type": "paired"
+            })
+
+    # 2. Scan Text-only Directory (if used)
+    # Note: Logic to avoid duplicates if needed, but for now just list them
+    if PROMPTS_DIR.exists():
+        for txt_path in PROMPTS_DIR.glob("*.txt"):
+            # Check if we already added this ID from paired dir?
+            # Ideally filenames are unique across folders or we just treat them separately.
+            # Simple check: if ID not in existing list
+            pid = clean_id(txt_path)
+            if not any(p['id'] == pid for p in prompts_data):
+                 try:
+                    with open(txt_path, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                    prompts_data.append({
+                        "id": pid,
+                        "filename": txt_path.name,
+                        "text": content,
+                        "image": None, 
+                        "type": "text_only"
+                    })
+                 except:
+                     pass
+                     
+    # Sort by ID
+    return sorted(prompts_data, key=lambda x: x['id'])
+
+def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = None):
+    """Create a new prompt. If image provided, save to paired dir. Else text dir."""
+    import time
+    
+    # Generate ID/Filename
+    if filename_hint:
+        base_name = Path(filename_hint).stem
+    else:
+        base_name = f"prompt_{int(time.time())}"
+        
+    # Ensure unique
+    counter = 0
+    while True:
+        suffix = f"_{counter}" if counter > 0 else ""
+        candidate = base_name + suffix
+        # Check both dirs
+        if not (PAIRED_DIR / f"{candidate}.png").exists() and \
+           not (PROMPTS_DIR / f"{candidate}.txt").exists():
+            base_name = candidate
+            break
+        counter += 1
+        
+    target_dir = PAIRED_DIR if image_bytes else PROMPTS_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save Image
+    if image_bytes:
+        img_path = target_dir / f"{base_name}.png"
+        with open(img_path, "wb") as f:
+            f.write(image_bytes)
+            
+    # Save Text
+    txt_path = target_dir / f"{base_name}.txt"
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(text)
+        
+    return base_name
+
+def update_prompt_text(filename: str, new_text: str):
+    """Update text content of an existing prompt."""
+    # Find file
+    # Check PAIRED first
+    txt_path = PAIRED_DIR / Path(filename).with_suffix(".txt").name
+    if not txt_path.exists():
+        txt_path = PROMPTS_DIR / Path(filename).with_suffix(".txt").name
+        
+    if not txt_path.exists():
+        raise FileNotFoundError(f"Prompt text file not found for {filename}")
+        
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(new_text)
+        
+    return True
+
+def delete_prompt(filename: str):
+    """Delete prompt files (image and text)."""
+    base_name = Path(filename).stem
+    
+    deleted = False
+    
+    # Try Paired
+    for ext in ['.png', '.jpg', '.jpeg', '.txt']:
+        p = PAIRED_DIR / f"{base_name}{ext}"
+        if p.exists():
+            p.unlink()
+            deleted = True
+            
+    # Try Text Only
+    p = PROMPTS_DIR / f"{base_name}.txt"
+    if p.exists():
+        p.unlink()
+        deleted = True
+        
+    if not deleted:
+        raise FileNotFoundError(f"No files found to delete for {filename}")
+        
+    return True

@@ -85,10 +85,37 @@ export async function fetchModelOutputs(modelId: string) {
   return response.json();
 };
 
-export const fetchPrompts = async (): Promise<string[]> => {
+export const fetchPrompts = async (): Promise<any[]> => {
   const response = await fetch(`${API_BASE}/prompts`);
   if (!response.ok) {
     throw new Error('Failed to fetch prompts');
   }
+  return response.json();
+};
+
+export const createPrompt = async (formData: FormData) => {
+  const response = await fetch(`${API_BASE}/prompts/create`, {
+    method: 'POST',
+    body: formData, // Auto-sets Content-Type to multipart/form-data
+  });
+  if (!response.ok) throw new Error('Failed to create prompt');
+  return response.json();
+};
+
+export const updatePromptText = async (filename: string, text: string) => {
+  const response = await fetch(`${API_BASE}/prompts/${filename}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) throw new Error('Failed to update prompt');
+  return response.json();
+};
+
+export const deletePrompt = async (filename: string) => {
+  const response = await fetch(`${API_BASE}/prompts/${filename}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete prompt');
   return response.json();
 };

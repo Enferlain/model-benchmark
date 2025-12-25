@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ModelOutput } from '../types';
+import { ModelOutput, PromptData } from '../types';
 
 import { fetchPrompts } from '../services/api';
 
@@ -9,7 +9,7 @@ interface GalleryContextType {
   setOutputCache: React.Dispatch<React.SetStateAction<Record<string, ModelOutput[]>>>;
   
   // Prompts Data
-  allPrompts: string[];
+  allPrompts: PromptData[];
   
   // Selection State
   selectedModel: string;
@@ -27,7 +27,7 @@ const GalleryContext = createContext<GalleryContextType | undefined>(undefined);
 export function GalleryProvider({ children }: { children: ReactNode }) {
   // Initialize from localStorage or defaults
   const [outputCache, setOutputCache] = useState<Record<string, ModelOutput[]>>({});
-  const [allPrompts, setAllPrompts] = useState<string[]>([]);
+  const [allPrompts, setAllPrompts] = useState<PromptData[]>([]);
   
   const [selectedModel, setSelectedModel] = useState<string>(() => 
     localStorage.getItem('gallery_selectedModel') || ""
@@ -54,7 +54,14 @@ export function GalleryProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Fetch/cache prompts on startup
-    fetchPrompts().then(setAllPrompts).catch(err => console.error("Failed to fetch prompts", err));
+    fetchPrompts().then(data => {
+        if (Array.isArray(data)) {
+            setAllPrompts(data);
+        } else {
+            console.error("Prompts is not array", data);
+            setAllPrompts([]);
+        }
+    }).catch(err => console.error("Failed to fetch prompts", err));
   }, []);
 
   return (

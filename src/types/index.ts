@@ -32,3 +32,11 @@ export interface ModelOutput {
   seed: number;
   prompt_idx: number;
 }
+
+export interface PromptData {
+  id: string;
+  filename: string;
+  text: string;
+  image?: string;
+  type: 'paired' | 'text_only';
+}
