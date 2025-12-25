@@ -76,3 +76,9 @@ export async function deleteModel(id: string, deleteFile: boolean = false) {
   if (!response.ok) throw new Error('Failed to delete model');
   return response;
 }
+
+export async function fetchModelOutputs(modelId: string) {
+  const response = await fetch(`${API_BASE}/models/${modelId}/outputs`);
+  if (!response.ok) throw new Error('Failed to fetch model outputs');
+  return response.json();
+}
