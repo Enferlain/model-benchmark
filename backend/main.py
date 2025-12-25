@@ -30,12 +30,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Startup/Shutdown Events
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+class ModelFileHandler(FileSystemEventHandler):
+    def __init__(self):
+        self._timer = None
+        self.debounce_seconds = 2.0
+
+    def on_any_event(self, event):
+        if event.is_directory:
+            return
+        # Only care about changes in the models dir specifically
+        # (Though watchdog usually watches recursively by default or not, we'll set recursive=False)
+        self._trigger_scan()
+
+    def _trigger_scan(self):
+        if self._timer:
+            self._timer.cancel()
+        self._timer = threading.Timer(self.debounce_seconds, self._run_scan)
+        self._timer.start()
+
+    def _run_scan(self):
+        print("Detected file changes in models directory. Rescanning...")
+        # Run scan in thread-safe way? 
+        # scan_models_light modifies the global list in place.
+        # It's relatively fast.
+        try:
+            scanner.scan_models_light(state.ScanOptions())
+            print("Auto-scan complete.")
+        except Exception as e:
+            print(f"Auto-scan failed: {e}")
+
+_observer = None
+
 @app.on_event("startup")
 async def startup_event():
     print("Starting up... (no auto-generation, use /api/generate or /api/analyze)")
-    # Populate models_db on startup - FAST SCAN ONLY
+    
+    # 1. Initial Scan
     print("Scanning for local models (fast mode)...")
     scanner.scan_models_light(state.ScanOptions())
+    
+    # 2. Start Watcher
+    global _observer
+    # Ensure models dir exists
+    data_loader.MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    event_handler = ModelFileHandler()
+    _observer = Observer()
+    _observer.schedule(event_handler, str(data_loader.MODELS_DIR), recursive=False)
+    _observer.start()
+    print(f"Started watching {data_loader.MODELS_DIR} for changes.")
+
+@app.on_event("shutdown")
+def shutdown_event():
+    global _observer
+    if _observer:
+        _observer.stop()
+        _observer.join()
 
 # API Endpoints
 @app.get("/api/models")
@@ -174,7 +228,7 @@ async def create_prompt_multipart(
     if image:
         image_bytes = await image.read()
         
-    new_id = data_loader.save_new_prompt(text, image_bytes, image.filename if image else "text_prompt")
+    new_id = data_loader.save_new_prompt(text, image_bytes, image.filename if image else None)
     return {"status": "success", "id": new_id}
 
 @app.put("/api/prompts/{filename}")
@@ -200,6 +254,15 @@ def delete_prompt(filename: str):
         return {"status": "success"}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Prompt not found")
+
+@app.post("/api/prompts/reorder")
+def reorder_prompts(payload: dict = Body(...)):
+    order = payload.get("order")
+    if not order or not isinstance(order, list):
+        raise HTTPException(status_code=400, detail="Order list is required")
+        
+    data_loader.save_prompt_order(order)
+    return {"status": "success"}
 
 @app.post("/api/models/download")
 def download_model(request: state.ModelRequest, background_tasks: BackgroundTasks):

@@ -27,7 +27,8 @@ def load_local_models(options: ScanOptions = ScanOptions()):
     print(f"Found {len(local_models)} local models.")
     
     # Get prompts (we only need the text prompts)
-    _, prompts = data_loader.load_test_data()
+    # Get prompts (we only need the text prompts)
+    prompts = data_loader.load_prompts_only()
     if not prompts:
         print("No prompts found in assets. Skipping inference.")
         return
@@ -62,6 +63,7 @@ def load_local_models(options: ScanOptions = ScanOptions()):
         
         # Determine which prompts need more images
         target_prompts = prompts[:options.num_prompts]
+        
         prompts_needing_images = []
         images_needed_per_prompt = []
         
@@ -199,7 +201,7 @@ def generate_images_only(options: ScanOptions):
     
     try:
         local_models = data_loader.get_available_models_from_disk()
-        _, prompts = data_loader.load_test_data()
+        prompts = data_loader.load_prompts_only()
         
         if not prompts:
             return {"status": "error", "message": "No prompts found"}
@@ -356,7 +358,7 @@ def analyze_models_only(options: ScanOptions):
     models_db.clear()
     
     local_models = data_loader.get_available_models_from_disk()
-    _, prompts = data_loader.load_test_data()
+    prompts = data_loader.load_prompts_only()
     
     if not prompts:
         return {"status": "error", "message": "No prompts found"}

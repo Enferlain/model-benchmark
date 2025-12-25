@@ -13,5 +13,30 @@
     "mtime": 1752218985.649351,
     "size": 6938040400,
     "hash": "d6f7de558fd40a08a7d612b1f5efcfb6a8a9198f9bee75b011043ce7b010d92f"
+  },
+  "21862-seele_pop3_v-pred.safetensors": {
+    "mtime": 1756397274.4127164,
+    "size": 6938046572,
+    "hash": "1ce13802c271fbe38c9ccecc278e9a7ffcd85b75f95992469bd1a8d21d0df583"
+  },
+  "chenkinNoobXLCKXL_v02.safetensors": {
+    "mtime": 1766699222.0582352,
+    "size": 7105349958,
+    "hash": "d7c69cac16f1021e39d94fcb40ea20a1cc6a18f96e1933c2af71310e072c6f37"
+  },
+  "JANKUTrainedNoobaiRouwei_v60.safetensors": {
+    "mtime": 1766699178.6779656,
+    "size": 6938040674,
+    "hash": "4882a29634fa411f9d6a98848c7a77339d2873ae9eb634755c5be268c2ee3237"
+  },
+  "JANKUTrainedNoobaiRouwei_v60_v-pred.safetensors": {
+    "mtime": 1766699178.6779656,
+    "size": 6938040674,
+    "hash": "4882a29634fa411f9d6a98848c7a77339d2873ae9eb634755c5be268c2ee3237"
+  },
+  "JANKUTrainedNoobaiRouwei_v60d.safetensors": {
+    "mtime": 1766699178.6779656,
+    "size": 6938040674,
+    "hash": "4882a29634fa411f9d6a98848c7a77339d2873ae9eb634755c5be268c2ee3237"
   }
 }

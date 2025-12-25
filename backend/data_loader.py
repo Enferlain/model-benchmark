@@ -333,12 +333,18 @@ def load_prompts_only() -> List[str]:
 def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = None):
     """Create a new prompt. If image provided, save to paired dir. Else text dir."""
     import time
+    import re
     
     # Generate ID/Filename
     if filename_hint:
         base_name = Path(filename_hint).stem
     else:
-        base_name = f"prompt_{int(time.time())}"
+        # Create slug from text
+        # Take first 30 chars, remove non-alphanumeric, replace spaces with underscores
+        slug = re.sub(r'[^a-zA-Z0-9\s]', '', text[:30]).strip().replace(' ', '_').lower()
+        if not slug:
+            slug = "untitled"
+        base_name = f"{slug}_{int(time.time())}"
         
     # Ensure unique
     counter = 0
@@ -355,16 +361,29 @@ def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = N
     target_dir = PAIRED_DIR if image_bytes else PROMPTS_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
     
+    final_filename = f"{base_name}.png" if image_bytes else f"{base_name}.txt"
+    
     # Save Image
     if image_bytes:
-        img_path = target_dir / f"{base_name}.png"
+        img_path = target_dir / final_filename
         with open(img_path, "wb") as f:
             f.write(image_bytes)
+    else:
+        # For text only, filename is .txt
+        final_filename = f"{base_name}.txt"
             
     # Save Text
     txt_path = target_dir / f"{base_name}.txt"
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(text)
+        
+    # Update Order (Prepend)
+    config = load_prompt_config()
+    current_order = config.get("order", [])
+    # If using ID tracking, we need the filename
+    if final_filename not in current_order:
+        config["order"] = [final_filename] + current_order
+        save_prompt_config(config)
         
     return base_name
 

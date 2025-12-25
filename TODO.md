@@ -50,13 +50,15 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 
 ### UI/UX
 
-- [ ] **Image gallery viewer** - View generated images per model
+- [x] **Image gallery viewer** - View generated images per model
 - [ ] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
-- [ ] **Prompt editor** - Edit/manage test prompts in UI
+- [x] **Prompt editor** - Edit/manage test prompts in UI
+- [ ] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
 - [ ] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
 - [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score 
 - [ ] **Export results** - CSV/JSON export of benchmark data
-- [ ] **Model fetching** - Fix model fetch/downloader
+- [x] **Model fetching** - Fix model fetch/downloader
+- [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
 
 ### Backend
 
@@ -64,6 +66,7 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 - [ ] **Batch generation** - Queue multiple models for overnight runs
 - [ ] **Cache metrics** - Don't recompute if images haven't changed
 - [ ] **LoRA support** - Test LoRA models (not just checkpoints)
+- [ ] **Unique identifiers for prompts** - Track image prompts by an identifier so we never regenerate or mess with existing images when generating new ones
 
 ### Data Management
 
