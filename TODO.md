@@ -51,9 +51,9 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 ### UI/UX
 
 - [x] **Image gallery viewer** - View generated images per model
-- [ ] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
+- [x] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
 - [x] **Prompt editor** - Edit/manage test prompts in UI
-- [ ] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
+- [x] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
 - [ ] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
 - [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score 
 - [ ] **Export results** - CSV/JSON export of benchmark data
