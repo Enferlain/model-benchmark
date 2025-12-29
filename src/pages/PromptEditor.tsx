@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Trash2, Save, X, Image as ImageIcon, FileText, AlertCircle, Loader2 } from 'lucide-react';
-import { fetchPrompts, createPrompt, updatePromptText, deletePrompt } from '../services/api';
+import { Plus, Search, Trash2, Save, X, Image as ImageIcon, FileText, AlertCircle, Loader2, Shuffle, CheckSquare, Square, Type } from 'lucide-react';
+import { fetchPrompts, createPrompt, updatePromptText, deletePrompt, shufflePrompts, setAllPromptsEnabled } from '../services/api';
 import { PromptData } from '../types';
 import { API_BASE } from '../services/api'; 
 import {
@@ -29,6 +29,7 @@ export default function PromptEditor() {
   
   // Editor State
   const [editText, setEditText] = useState('');
+  const [editAlias, setEditAlias] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   
@@ -68,6 +69,7 @@ export default function PromptEditor() {
   useEffect(() => {
     if (selectedPrompt) {
       setEditText(selectedPrompt.text);
+      setEditAlias(selectedPrompt.alias || '');
       setIsDirty(false);
     }
   }, [selectedPrompt]);
@@ -77,16 +79,45 @@ export default function PromptEditor() {
     if (!selectedPrompt) return;
     setIsSaving(true);
     try {
-      await updatePromptText(selectedPrompt.filename, editText);
+      // Send both text and alias
+      await updatePromptText(selectedPrompt.filename, {
+          text: editText,
+          alias: editAlias
+      });
       setIsDirty(false);
       // Update local state without refetching for speed
       setPrompts(prev => prev.map(p => 
-        p.id === selectedId ? { ...p, text: editText } : p
+        p.id === selectedId ? { ...p, text: editText, alias: editAlias } : p
       ));
     } catch (err) {
       alert("Failed to save prompt");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleShuffle = async () => {
+    setIsLoading(true);
+    try {
+        await shufflePrompts();
+        await loadPrompts();
+    } catch (err) {
+        alert("Failed to shuffle prompts");
+        setIsLoading(false);
+    }
+  };
+
+  const handleEnableAll = async (enabled: boolean) => {
+    setIsLoading(true);
+    try {
+        await setAllPromptsEnabled(enabled);
+        // Optimistic update
+        setPrompts(prev => prev.map(p => ({ ...p, enabled })));
+    } catch (err) {
+        alert("Failed to update prompts");
+        await loadPrompts();
+    } finally {
+        setIsLoading(false);
     }
   };
   
@@ -223,6 +254,28 @@ export default function PromptEditor() {
           </button>
         </div>
         
+        {/* Bulk Actions Bar */}
+        <div className="px-4 py-2 border-b border-slate-200 dark:border-white/5 flex gap-2 overflow-x-auto">
+             <button
+                onClick={handleShuffle}
+                className="p-1.5 px-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap"
+             >
+                <Shuffle size={12} /> Shuffle
+             </button>
+             <button
+                onClick={() => handleEnableAll(true)}
+                className="p-1.5 px-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap"
+             >
+                <CheckSquare size={12} /> Enable All
+             </button>
+             <button
+                onClick={() => handleEnableAll(false)}
+                className="p-1.5 px-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap"
+             >
+                <Square size={12} /> Disable All
+             </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
           {isLoading ? (
             <div className="flex justify-center p-8 text-slate-400"><Loader2 className="animate-spin" /></div>
@@ -288,6 +341,26 @@ export default function PromptEditor() {
                  </div>
                )}
                
+               {/* Alias Input */}
+               <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                     <Type size={14} /> Alias / Nickname
+                  </h3>
+                  <input
+                    type="text"
+                    value={editAlias}
+                    onChange={e => {
+                      setEditAlias(e.target.value);
+                      setIsDirty(true);
+                    }}
+                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 font-medium text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-400"
+                    placeholder="E.g. 'Red Car' (Used for display and filenames)"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-2 ml-1">
+                      This alias will be used in the UI and can be used for output filenames instead of the raw ID.
+                  </p>
+               </div>
+
                <div className="flex-1 flex flex-col min-h-[200px]">
                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Prompt Text</h3>
                  <textarea
@@ -426,7 +499,7 @@ function SortableItem({ prompt, idx, selectedId, onSelect, onToggle, onDelete }:
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           <div className="flex justify-between items-center mb-0.5">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate pl-6">
-               {prompt.id}
+               {prompt.alias ? prompt.alias : prompt.id}
             </span>
             <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
                 {/* Toggle Switch */}

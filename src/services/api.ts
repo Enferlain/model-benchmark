@@ -121,3 +121,21 @@ export const deletePrompt = async (filename: string) => {
   if (!response.ok) throw new Error('Failed to delete prompt');
   return response.json();
 };
+
+export const shufflePrompts = async () => {
+  const response = await fetch(`${API_BASE}/prompts/shuffle`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to shuffle prompts');
+  return response.json();
+};
+
+export const setAllPromptsEnabled = async (enabled: boolean) => {
+  const response = await fetch(`${API_BASE}/prompts/bulk/enable`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!response.ok) throw new Error('Failed to update all prompts');
+  return response.json();
+};

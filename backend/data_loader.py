@@ -120,7 +120,8 @@ CONFIG_PATH = ASSETS_DIR / "prompts_config.json"
 # {
 #   "version": 2,
 #   "order": ["file1.png", "file2.txt", ...],
-#   "states": { "file1.png": true, "file2.txt": false }
+#   "states": { "file1.png": true, "file2.txt": false },
+#   "aliases": { "file1.png": "My Cool Prompt" }
 # }
 
 def load_prompt_config() -> dict:
@@ -130,11 +131,11 @@ def load_prompt_config() -> dict:
                 data = json.load(f)
                 # Migration from v1 (simple dict) to v2
                 if "version" not in data:
-                    return {"version": 2, "order": [], "states": data}
+                    return {"version": 2, "order": [], "states": data, "aliases": {}}
                 return data
         except:
-            return {"version": 2, "order": [], "states": {}}
-    return {"version": 2, "order": [], "states": {}}
+            return {"version": 2, "order": [], "states": {}, "aliases": {}}
+    return {"version": 2, "order": [], "states": {}, "aliases": {}}
 
 def save_prompt_config(config: dict):
     with open(CONFIG_PATH, 'w') as f:
@@ -145,6 +146,11 @@ def is_prompt_enabled(filename: str, config: dict = None) -> bool:
         config = load_prompt_config()
     return config.get("states", {}).get(filename, True)
 
+def get_prompt_alias(filename: str, config: dict = None) -> str:
+    if config is None:
+        config = load_prompt_config()
+    return config.get("aliases", {}).get(filename, "")
+
 def toggle_prompt_active(filename: str, enabled: bool):
     config = load_prompt_config()
     if "states" not in config: config["states"] = {}
@@ -152,7 +158,38 @@ def toggle_prompt_active(filename: str, enabled: bool):
     save_prompt_config(config)
     return True
 
+def set_prompt_alias(filename: str, alias: str):
+    config = load_prompt_config()
+    if "aliases" not in config: config["aliases"] = {}
+    config["aliases"][filename] = alias
+    save_prompt_config(config)
+    return True
+
 def save_prompt_order(filenames: List[str]):
+    config = load_prompt_config()
+    config["order"] = filenames
+    save_prompt_config(config)
+    return True
+
+def set_all_prompts_enabled(enabled: bool):
+    """Enable or disable all prompts currently known."""
+    prompts = get_all_prompts_metadata()
+    config = load_prompt_config()
+    if "states" not in config: config["states"] = {}
+
+    for p in prompts:
+        config["states"][p['filename']] = enabled
+
+    save_prompt_config(config)
+    return True
+
+def shuffle_prompts_order():
+    """Randomize the order of prompts."""
+    import random
+    prompts = get_all_prompts_metadata()
+    filenames = [p['filename'] for p in prompts]
+    random.shuffle(filenames)
+
     config = load_prompt_config()
     config["order"] = filenames
     save_prompt_config(config)
@@ -192,7 +229,8 @@ def get_all_prompts_metadata():
                 "text": text_content,
                 "image": f"/assets/image_prompts/{img_path.name}",
                 "type": "paired",
-                "enabled": is_prompt_enabled(img_path.name, config)
+                "enabled": is_prompt_enabled(img_path.name, config),
+                "alias": get_prompt_alias(img_path.name, config)
             })
 
     # 2. Scan Text-only Directory
@@ -209,7 +247,8 @@ def get_all_prompts_metadata():
                         "text": content,
                         "image": None, 
                         "type": "text_only",
-                        "enabled": is_prompt_enabled(txt_path.name, config)
+                        "enabled": is_prompt_enabled(txt_path.name, config),
+                        "alias": get_prompt_alias(txt_path.name, config)
                     })
                  except:
                      pass
