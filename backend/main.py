@@ -249,7 +249,7 @@ def update_prompt(filename: str, payload: dict = Body(...)):
             data_loader.update_prompt_text(filename, payload["text"])
             updated = True
         except FileNotFoundError:
-            raise HTTPException(status_code=404, detail="Prompt not found")
+            raise HTTPException(status_code=404, detail="Prompt not found") from None
 
     if not updated:
         raise HTTPException(status_code=400, detail="No valid fields to update")
