@@ -125,6 +125,19 @@ CONFIG_PATH = ASSETS_DIR / "prompts_config.json"
 # }
 
 def load_prompt_config() -> dict:
+    """
+    Load the prompts configuration, migrating older formats and returning a stable v2 structure.
+    
+    Reads JSON from CONFIG_PATH and returns a config dict with keys:
+    - "version" (int): configuration version, set to 2 for generated or migrated data.
+    - "order" (list[str]): ordered list of prompt filenames (may be empty).
+    - "states" (dict): mapping of prompt filename to enabled state.
+    - "aliases" (dict): mapping of prompt filename to alias string.
+    
+    Behavior:
+    - If the file is missing or contains invalid JSON, returns a default v2 config with empty order, states, and aliases.
+    - If the file exists and lacks a "version" key (legacy v1 shape where the top-level dict represents states), returns a migrated v2 config that preserves the existing mapping as "states" and initializes "order" and "aliases" as empty.
+    """
     if CONFIG_PATH.exists():
         try:
             with open(CONFIG_PATH, 'r') as f:
@@ -138,20 +151,58 @@ def load_prompt_config() -> dict:
     return {"version": 2, "order": [], "states": {}, "aliases": {}}
 
 def save_prompt_config(config: dict):
+    """
+    Persist the prompt configuration dictionary to the configured prompts file.
+    
+    Writes the provided `config` as indented JSON to the module's configured CONFIG_PATH, replacing any existing file.
+    
+    Parameters:
+        config (dict): Prompt configuration structure to save (expected keys: version, order, states, aliases).
+    """
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=2)
 
 def is_prompt_enabled(filename: str, config: dict = None) -> bool:
+    """
+    Determine whether a prompt identified by its filename is enabled according to the prompt configuration.
+    
+    Parameters:
+        filename (str): Base filename (without directory) used to look up the prompt's enabled state in the config.
+        config (dict, optional): Prompt configuration mapping; if omitted, the current saved prompt configuration is used.
+    
+    Returns:
+        `true` if the prompt is enabled, `false` otherwise.
+    """
     if config is None:
         config = load_prompt_config()
     return config.get("states", {}).get(filename, True)
 
 def get_prompt_alias(filename: str, config: dict = None) -> str:
+    """
+    Get the user-defined alias for a prompt filename.
+    
+    Parameters:
+        filename (str): Base prompt filename (without extension) whose alias to retrieve.
+        config (dict, optional): Prompt configuration dictionary; if omitted, the stored config is loaded.
+    
+    Returns:
+        str: The alias for `filename` if present, otherwise an empty string.
+    """
     if config is None:
         config = load_prompt_config()
     return config.get("aliases", {}).get(filename, "")
 
 def toggle_prompt_active(filename: str, enabled: bool):
+    """
+    Set the enabled state for a prompt and persist the change to the prompt configuration.
+    
+    Parameters:
+        filename (str): Base prompt identifier (filename without extension) to update.
+        enabled (bool): Desired enabled state for the prompt (`True` to enable, `False` to disable).
+    
+    Returns:
+        bool: `True` if the configuration was saved successfully.
+    """
     config = load_prompt_config()
     if "states" not in config: config["states"] = {}
     config["states"][filename] = enabled
@@ -159,6 +210,16 @@ def toggle_prompt_active(filename: str, enabled: bool):
     return True
 
 def set_prompt_alias(filename: str, alias: str):
+    """
+    Set the display alias for a prompt and persist it in the prompt configuration.
+    
+    Parameters:
+        filename (str): Base prompt filename (identifier without extension) to assign the alias to.
+        alias (str): Alias string to store for the prompt; an empty string clears any existing alias.
+    
+    Returns:
+        bool: `True` when the alias was saved successfully.
+    """
     config = load_prompt_config()
     if "aliases" not in config: config["aliases"] = {}
     config["aliases"][filename] = alias
@@ -166,13 +227,30 @@ def set_prompt_alias(filename: str, alias: str):
     return True
 
 def save_prompt_order(filenames: List[str]):
+    """
+    Overwrite the stored prompt ordering with the provided list of prompt filenames.
+    
+    Parameters:
+        filenames (List[str]): List of prompt base filenames (without extensions) in the desired order.
+    
+    Returns:
+        bool: `True` if the new order was saved successfully.
+    """
     config = load_prompt_config()
     config["order"] = filenames
     save_prompt_config(config)
     return True
 
 def set_all_prompts_enabled(enabled: bool):
-    """Enable or disable all prompts currently known."""
+    """
+    Set every known prompt's enabled state to the given value and persist the change to disk.
+    
+    Parameters:
+        enabled (bool): `True` to mark all prompts enabled, `False` to mark all prompts disabled.
+    
+    Returns:
+        `True` if the configuration was saved successfully.
+    """
     prompts = get_all_prompts_metadata()
     config = load_prompt_config()
     if "states" not in config: config["states"] = {}
@@ -184,7 +262,14 @@ def set_all_prompts_enabled(enabled: bool):
     return True
 
 def shuffle_prompts_order():
-    """Randomize the order of prompts."""
+    """
+    Shuffle and persist the configured prompt order.
+    
+    This updates the prompts order in persistent config so subsequent loads use the new randomized order.
+    
+    Returns:
+        bool: `True` if the new order was saved successfully.
+    """
     import random
     prompts = get_all_prompts_metadata()
     filenames = [p['filename'] for p in prompts]
@@ -197,7 +282,21 @@ def shuffle_prompts_order():
 
 # Override get_all_prompts_metadata to include enabled status and respect order
 def get_all_prompts_metadata():
-    """Get rich metadata for all prompts for the Prompt Manager."""
+    """
+    Collects metadata for all prompts (paired image+text and text-only) available to the Prompt Manager.
+    
+    Scans the paired prompts directory for image files (with optional same-named .txt) and the text-only prompts directory, building one metadata entry per prompt. Each entry includes whether the prompt is enabled and any configured alias. Results are ordered according to the prompt config's "order" list; items not present in that list follow in ascending id order to provide a stable fallback.
+    
+    Returns:
+        List[dict]: A list of prompt metadata dictionaries. Each dictionary contains:
+            - id (str): Base filename without extension, used as the stable identifier.
+            - filename (str): The filename found on disk (including extension).
+            - text (str): Prompt text (empty string if missing).
+            - image (str|None): Public asset path for the image (e.g. "/assets/image_prompts/<file>") or None for text-only prompts.
+            - type (str): Either "paired" for image+text prompts or "text_only".
+            - enabled (bool): `true` if the prompt is enabled in the prompt config, `false` otherwise.
+            - alias (str): User-configured alias for the prompt (empty string if none).
+    """
     prompts_data = []
     config = load_prompt_config()
     

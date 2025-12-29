@@ -234,6 +234,23 @@ async def create_prompt_multipart(
 @app.put("/api/prompts/{filename}")
 def update_prompt(filename: str, payload: dict = Body(...)):
     # Handle partial updates
+    """
+    Update one or more fields of an existing prompt.
+    
+    Parameters:
+    	filename (str): The prompt filename to update.
+    	payload (dict): A mapping of fields to update. Supported optional keys:
+    		- "enabled" (bool): Enable or disable the prompt.
+    		- "alias" (str): New alias for the prompt.
+    		- "text" (str): New prompt text to replace the file contents.
+    
+    Returns:
+    	dict: {"status": "success"} on successful update.
+    
+    Raises:
+    	HTTPException: 404 if the prompt file is not found when updating "text".
+    	HTTPException: 400 if no supported fields are present in `payload`.
+    """
     updated = False
 
     if "enabled" in payload:
@@ -258,6 +275,18 @@ def update_prompt(filename: str, payload: dict = Body(...)):
 
 @app.delete("/api/prompts/{filename}")
 def delete_prompt(filename: str):
+    """
+    Delete a saved prompt by filename.
+    
+    Parameters:
+        filename (str): The prompt's filename to remove.
+    
+    Returns:
+        dict: {"status": "success"} when the prompt was deleted.
+    
+    Raises:
+        HTTPException: 404 if the prompt does not exist.
+    """
     try:
         data_loader.delete_prompt(filename)
         return {"status": "success"}
@@ -266,6 +295,18 @@ def delete_prompt(filename: str):
 
 @app.post("/api/prompts/reorder")
 def reorder_prompts(payload: dict = Body(...)):
+    """
+    Reorders the stored prompts according to the provided ordering.
+    
+    Parameters:
+        payload (dict): Request body containing the key `"order"` with a list of prompt identifiers or filenames in the desired order.
+    
+    Returns:
+        dict: `{"status": "success"}` on successful reorder.
+    
+    Raises:
+        HTTPException: 400 if `order` is missing or is not a list.
+    """
     order = payload.get("order")
     if not order or not isinstance(order, list):
         raise HTTPException(status_code=400, detail="Order list is required")
@@ -275,11 +316,29 @@ def reorder_prompts(payload: dict = Body(...)):
 
 @app.post("/api/prompts/shuffle")
 def shuffle_prompts():
+    """
+    Shuffle the stored prompts order.
+    
+    Returns:
+        dict: A response object with {"status": "success"} when the prompts have been reordered.
+    """
     data_loader.shuffle_prompts_order()
     return {"status": "success"}
 
 @app.post("/api/prompts/bulk/enable")
 def bulk_enable_prompts(payload: dict = Body(...)):
+    """
+    Set the enabled state for all prompts.
+    
+    Parameters:
+        payload (dict): JSON body containing the key `"enabled"` (bool) that specifies whether prompts should be enabled.
+    
+    Returns:
+        dict: {"status": "success"} when the operation completes.
+    
+    Raises:
+        HTTPException: 400 Bad Request if the `enabled` field is missing from `payload`.
+    """
     enabled = payload.get("enabled")
     if enabled is None:
         raise HTTPException(status_code=400, detail="enabled field is required")
@@ -290,6 +349,17 @@ def bulk_enable_prompts(payload: dict = Body(...)):
 @app.post("/api/models/download")
 def download_model(request: state.ModelRequest, background_tasks: BackgroundTasks):
     # TOCTOU protection
+    """
+    Start a background download of a model if no other download is currently in progress.
+    
+    Checks and prevents concurrent downloads, then schedules the downloader.download_model_task with the request's parameters.
+    
+    Parameters:
+        request (state.ModelRequest): Model download request containing `url`, `name`, `source`, and optional `api_token`.
+    
+    Returns:
+        dict: {"status": "started"} when the download task was scheduled.
+    """
     with state.download_state_lock:
         if state.download_state["is_downloading"]:
             raise HTTPException(status_code=400, detail="Download already in progress")
