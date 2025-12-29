@@ -10,6 +10,7 @@ import data_loader
 import state
 import scanner
 import downloader
+import notes_manager
 
 app = FastAPI()
 
@@ -302,3 +303,13 @@ def download_model(request: state.ModelRequest, background_tasks: BackgroundTask
 def get_download_status():
     with state.download_state_lock:
         return state.download_state.copy()
+
+
+@app.get("/api/notes/{note_id}")
+def get_note(note_id: str):
+    return notes_manager.get_note(note_id)
+
+
+@app.post("/api/notes/{note_id}")
+def update_note(note_id: str, payload: dict = Body(...)):
+    return notes_manager.update_note(note_id, payload)
