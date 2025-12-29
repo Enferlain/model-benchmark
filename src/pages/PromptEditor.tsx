@@ -44,14 +44,18 @@ export default function PromptEditor() {
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsDraggingOver(true);
+      // Only show overlay if dragging files
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDraggingOver(true);
+      }
     };
 
     const handleDragLeave = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      // Only set to false if we're leaving the window/document
-      if (e.clientX === 0 && e.clientY === 0) {
+
+      const relatedTarget = e.relatedTarget as (EventTarget | null);
+      if (!relatedTarget || !document.contains(relatedTarget as Node)) {
         setIsDraggingOver(false);
       }
     };
@@ -59,7 +63,10 @@ export default function PromptEditor() {
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsDraggingOver(true);
+      // Only show overlay if dragging files
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDraggingOver(true);
+      }
     };
 
     const handleDrop = (e: DragEvent) => {
