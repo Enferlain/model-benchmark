@@ -233,19 +233,28 @@ async def create_prompt_multipart(
 
 @app.put("/api/prompts/{filename}")
 def update_prompt(filename: str, payload: dict = Body(...)):
+    # Handle partial updates
+    updated = False
+
     if "enabled" in payload:
         data_loader.toggle_prompt_active(filename, payload["enabled"])
-        return {"status": "success"}
+        updated = True
 
-    new_text = payload.get("text")
-    if not new_text:
-        raise HTTPException(status_code=400, detail="Text or enabled status is required")
-    
-    try:
-        data_loader.update_prompt_text(filename, new_text)
-        return {"status": "success"}
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+    if "alias" in payload:
+        data_loader.set_prompt_alias(filename, payload["alias"])
+        updated = True
+
+    if "text" in payload:
+        try:
+            data_loader.update_prompt_text(filename, payload["text"])
+            updated = True
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Prompt not found") from None
+
+    if not updated:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    return {"status": "success"}
 
 @app.delete("/api/prompts/{filename}")
 def delete_prompt(filename: str):
@@ -262,6 +271,20 @@ def reorder_prompts(payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="Order list is required")
         
     data_loader.save_prompt_order(order)
+    return {"status": "success"}
+
+@app.post("/api/prompts/shuffle")
+def shuffle_prompts():
+    data_loader.shuffle_prompts_order()
+    return {"status": "success"}
+
+@app.post("/api/prompts/bulk/enable")
+def bulk_enable_prompts(payload: dict = Body(...)):
+    enabled = payload.get("enabled")
+    if enabled is None:
+        raise HTTPException(status_code=400, detail="enabled field is required")
+
+    data_loader.set_all_prompts_enabled(enabled)
     return {"status": "success"}
 
 @app.post("/api/models/download")
