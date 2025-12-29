@@ -37,7 +37,58 @@ export default function PromptEditor() {
   const [isCreating, setIsCreating] = useState(false);
   const [newPromptText, setNewPromptText] = useState('');
   const [newPromptImage, setNewPromptImage] = useState<File | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   
+  // Global Drag and Drop
+  useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Only set to false if we're leaving the window/document
+      if (e.clientX === 0 && e.clientY === 0) {
+        setIsDraggingOver(false);
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith('image/')) {
+           setNewPromptImage(file);
+           setIsCreating(true);
+        }
+      }
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, []);
+
   // Fetch on mount
   useEffect(() => {
     loadPrompts();
@@ -384,6 +435,17 @@ export default function PromptEditor() {
           </div>
         )}
         
+         {/* Drag Overlay */}
+         {isDraggingOver && (
+            <div className="fixed inset-0 z-[60] bg-blue-500/20 backdrop-blur-sm flex items-center justify-center pointer-events-none border-4 border-blue-500 border-dashed m-4 rounded-3xl">
+               <div className="bg-white/90 dark:bg-slate-900/90 p-8 rounded-2xl shadow-2xl text-center">
+                  <ImageIcon size={64} className="mx-auto text-blue-500 mb-4" />
+                  <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Drop Image to Interrogate</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mt-2">Release to create a new prompt from this image</p>
+               </div>
+            </div>
+         )}
+
          {/* Creation Modal Overlay */}
          {isCreating && (
            <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-8">
@@ -406,7 +468,7 @@ export default function PromptEditor() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Reference Image (Optional)</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Image to Prompt (Drag to Interrogate)</label>
                       <div className="border-2 border-dashed border-slate-200 dark:border-white/10 rounded-xl p-8 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 transition-colors relative">
                         <input 
                           type="file" 
