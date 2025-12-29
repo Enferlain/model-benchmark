@@ -21,6 +21,19 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+/**
+ * Render a two-pane prompt management UI with a searchable, draggable list and an editor.
+ *
+ * Provides:
+ * - Loading and displaying prompts with search/filtering.
+ * - Selecting a prompt to edit its text and alias.
+ * - Creating prompts with optional reference image via a modal.
+ * - Per-prompt enable/disable toggle and deletion.
+ * - Bulk actions: shuffle prompts and enable/disable all.
+ * - Drag-and-drop reordering with server-side persistence and optimistic UI updates for some actions.
+ *
+ * @returns The rendered PromptEditor React element.
+ */
 export default function PromptEditor() {
   const [prompts, setPrompts] = useState<PromptData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -452,7 +465,19 @@ export default function PromptEditor() {
   );
 }
 
-// Sortable Item Component
+/**
+ * Renders a draggable, selectable list item representing a prompt for use inside a sortable list.
+ *
+ * Displays index, thumbnail (image or icon), title (alias or id), filename, a one-line preview of the prompt text, an enabled toggle, and a delete control. Supports drag visuals and highlights when selected.
+ *
+ * @param prompt - Prompt object; expected fields: `id`, `alias` (optional), `filename`, `image` (optional URL), `text` (optional), and `enabled` (boolean).
+ * @param idx - Zero-based index of the item in the list (used for the index badge).
+ * @param selectedId - Currently selected prompt id; used to apply selected styling when equal to `prompt.id`.
+ * @param onSelect - Called when the item is clicked: receives the prompt `id`.
+ * @param onToggle - Called when the enabled switch is clicked: receives the click `event` and the full `prompt` object.
+ * @param onDelete - Called when the delete button is clicked: receives the click `event` and the prompt `id`.
+ * @returns The JSX element for the sortable prompt item.
+ */
 function SortableItem({ prompt, idx, selectedId, onSelect, onToggle, onDelete }: any) {
   const {
     attributes,
