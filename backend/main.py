@@ -7,6 +7,7 @@ from pathlib import Path
 
 # Import backend modules
 import data_loader
+import notes_manager
 import state
 import scanner
 import downloader
@@ -302,3 +303,14 @@ def download_model(request: state.ModelRequest, background_tasks: BackgroundTask
 def get_download_status():
     with state.download_state_lock:
         return state.download_state.copy()
+
+# Notes API
+@app.get("/api/notes/{note_id}")
+def get_note(note_id: str):
+    return {"content": notes_manager.get_note(note_id)}
+
+@app.post("/api/notes/{note_id}")
+def save_note(note_id: str, payload: dict = Body(...)):
+    content = payload.get("content", "")
+    notes_manager.set_note(note_id, content)
+    return {"status": "success"}
