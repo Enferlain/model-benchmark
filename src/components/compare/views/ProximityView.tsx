@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ModelOutput } from '../../../types';
 import { getImageUrl } from '../utils';
 
@@ -7,69 +7,177 @@ interface Props {
   modelNames: string[];
 }
 
-export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+interface ScatteredImage extends ModelOutput {
+  modelName: string;
+  scatterX: number;
+  scatterY: number;
+  rotation: number;
+  originalIndex: number;
+}
 
-  // This view works by dividing the container width into N segments.
-  // Hovering a segment shows that model's image.
+export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
+  const [radius, setRadius] = useState(450);
+  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+  const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!workspaceRef.current) return;
+
+    const updateSize = () => {
+      if (workspaceRef.current) {
+        setWorkspaceSize({
+          width: workspaceRef.current.clientWidth,
+          height: workspaceRef.current.clientHeight
+        });
+      }
+    };
+
+    // Initial size
+    updateSize();
+
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+
+    observer.observe(workspaceRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Generate stable scatter coordinates for the images
+  const scatteredImages = useMemo(() => {
+    // Simple deterministic pseudo-random based on index
+    const seededRandom = (seed: number, offset: number) => {
+        const x = Math.sin(seed * 9999 + offset) * 10000;
+        return x - Math.floor(x);
+    };
+
+    return images.map((img, idx) => {
+      if (!img) return null;
+      return {
+        ...img,
+        modelName: modelNames[idx] ?? `Model ${idx}`,
+        originalIndex: idx,
+        // Percentage-based coordinates for better responsiveness
+        scatterX: 5 + seededRandom(idx, 1) * 80,
+        scatterY: 10 + seededRandom(idx, 2) * 70,
+        rotation: (seededRandom(idx, 3) - 0.5) * 12
+      };
+    }).filter((item): item is ScatteredImage => item !== null);
+  }, [images, modelNames]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!containerRef.current || images.length === 0) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
-
-    // Calculate index based on X position
-    const segmentWidth = width / images.length;
-    const index = Math.min(Math.floor(x / segmentWidth), images.length - 1);
-
-    if (index !== activeIndex && index >= 0) {
-      setActiveIndex(index);
-    }
+    if (!workspaceRef.current) return;
+    const rect = workspaceRef.current.getBoundingClientRect();
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
-  const activeImage = images[activeIndex];
+  const handleMouseLeave = () => {
+    setMousePos({ x: -1000, y: -1000 });
+  };
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-4">
-       <div className="mb-4 text-center">
-         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-            Interactive Lens
-         </h3>
-         <p className="text-sm text-slate-500">Move your mouse horizontally to switch models</p>
-       </div>
+    <div className="flex flex-col h-full w-full bg-zinc-100 dark:bg-zinc-900/20 rounded-xl overflow-hidden">
+      {/* Main Workspace */}
+      <div
+        ref={workspaceRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="relative flex-grow min-h-[600px] overflow-hidden shadow-inner cursor-crosshair"
+      >
+        {scatteredImages.map((out) => {
+          // Use state dimensions, default to 0 to prevent jumps before mount/measure
+          const w = workspaceSize.width;
+          const h = workspaceSize.height;
 
-       <div
-         ref={containerRef}
-         onMouseMove={handleMouseMove}
-         onMouseLeave={() => setActiveIndex(0)} // Reset? Or keep last?
-         className="relative w-full max-w-[800px] aspect-square bg-black rounded-lg overflow-hidden shadow-xl cursor-crosshair border border-slate-300 dark:border-slate-700"
-       >
-          {activeImage ? (
-            <img
-              src={getImageUrl(activeImage.url)}
-              alt={modelNames[activeIndex]}
-              className="w-full h-full object-contain pointer-events-none"
-            />
-          ) : (
-             <div className="w-full h-full flex items-center justify-center text-slate-500">
-               No image for {modelNames[activeIndex]}
-             </div>
-          )}
+          // Don't render or position until we have dimensions to avoid layout jumps
+          if (w === 0 || h === 0) return null;
 
-          {/* Overlay Label */}
-          <div className="absolute top-4 left-4 bg-black/70 text-white px-4 py-2 rounded-full text-lg font-bold backdrop-blur-md pointer-events-none transition-all">
-             {modelNames[activeIndex]}
+          const centerX = (out.scatterX / 100) * w;
+          const centerY = (out.scatterY / 100) * h;
+
+          const dx = mousePos.x - centerX;
+          const dy = mousePos.y - centerY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // IMPROVED MATH: S-Curve influence
+          let influence = Math.max(0, 1 - (distance / radius));
+          influence = Math.pow(influence, 3); // Steeper curve for more "snap"
+
+          const scale = 1 + (influence * 1.6); // Massive scale-up
+          const zIndex = Math.floor(out.originalIndex + (influence * 2000));
+
+          // Move slightly toward cursor to "look at you"
+          const moveX = dx * influence * 0.12;
+          const moveY = dy * influence * 0.12;
+
+          return (
+            <div
+              key={out.originalIndex}
+              className="absolute w-44 aspect-square bg-white dark:bg-zinc-800 rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 transition-transform duration-150 ease-out pointer-events-none"
+              style={{
+                left: `${out.scatterX}%`,
+                top: `${out.scatterY}%`,
+                zIndex: zIndex,
+                // Solid opacity, varying shadow depth instead
+                boxShadow: influence > 0.1
+                  ? `0 ${20 * influence}px ${50 * influence}px -10px rgba(0,0,0,0.5), 0 0 ${15 * influence}px rgba(99,102,241, 0.4)`
+                  : '0 4px 12px rgba(0,0,0,0.1)',
+                transform: `translate(${moveX}px, ${moveY}px) scale(${scale}) rotate(${out.rotation * (1 - influence)}deg)`,
+                borderColor: influence > 0.2 ? '#6366f1' : '',
+                borderWidth: influence > 0.2 ? '3px' : '2px'
+              }}
+            >
+              <img
+                src={getImageUrl(out.url)}
+                className="w-full h-full object-cover"
+                alt={out.modelName}
+                loading="lazy"
+              />
+              <div className={`absolute bottom-0 w-full bg-zinc-900/90 p-2 text-[10px] text-white font-bold transition-opacity ${influence > 0.3 ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="truncate">{out.modelName}</div>
+                <div className="text-zinc-500 text-[8px] uppercase tracking-widest">Seed: {out.seed}</div>
+              </div>
+            </div>
+          );
+        })}
+
+        {scatteredImages.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 gap-3">
+             <div className="w-12 h-12 border-4 border-zinc-200 dark:border-zinc-800 border-t-indigo-500 rounded-full animate-spin"></div>
+             <p className="text-sm font-bold uppercase tracking-widest">Gathering Latents...</p>
           </div>
+        )}
+      </div>
 
-          {/* Visual Guides (optional) */}
-          <div className="absolute inset-0 flex pointer-events-none opacity-20">
-             {images.map((_, i) => (
-               <div key={i} className="flex-1 border-r border-white/50 last:border-0" />
-             ))}
+      {/* Footer Controls */}
+      <footer className="mt-auto flex flex-wrap items-center gap-8 p-5 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="flex flex-col min-w-[200px]">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Magnet Strength</span>
+            <span className="text-[10px] font-mono text-zinc-400">{radius}px</span>
           </div>
-       </div>
+          <input
+            type="range" min="200" max="1200" step="10" value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+            aria-label="Magnet Strength"
+            className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
+          />
+        </div>
+
+        <div className="hidden lg:block h-10 w-[1px] bg-zinc-200 dark:bg-zinc-800"></div>
+
+        <div className="flex flex-grow justify-end gap-4">
+             <div className="text-right">
+                <p className="text-[10px] font-black text-zinc-400 uppercase leading-none">Status</p>
+                <p className="text-xs font-black text-green-500 leading-none mt-1">Ready</p>
+            </div>
+            <div className="bg-zinc-100 dark:bg-zinc-800 h-8 w-8 rounded-full flex items-center justify-center font-black text-[10px] text-indigo-500">
+                {scatteredImages.length}
+            </div>
+        </div>
+      </footer>
     </div>
   );
 };
