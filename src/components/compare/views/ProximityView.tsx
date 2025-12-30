@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ModelOutput } from '../../../types';
 import { getImageUrl } from '../utils';
 
@@ -18,20 +18,51 @@ interface ScatteredImage extends ModelOutput {
 export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
   const [radius, setRadius] = useState(450);
   const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+  const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
   const workspaceRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!workspaceRef.current) return;
+
+    const updateSize = () => {
+      if (workspaceRef.current) {
+        setWorkspaceSize({
+          width: workspaceRef.current.clientWidth,
+          height: workspaceRef.current.clientHeight
+        });
+      }
+    };
+
+    // Initial size
+    updateSize();
+
+    const observer = new ResizeObserver(() => {
+      updateSize();
+    });
+
+    observer.observe(workspaceRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // Generate stable scatter coordinates for the images
   const scatteredImages = useMemo(() => {
+    // Simple deterministic pseudo-random based on index
+    const seededRandom = (seed: number, offset: number) => {
+        const x = Math.sin(seed * 9999 + offset) * 10000;
+        return x - Math.floor(x);
+    };
+
     return images.map((img, idx) => {
       if (!img) return null;
       return {
         ...img,
-        modelName: modelNames[idx],
+        modelName: modelNames[idx] ?? `Model ${idx}`,
         originalIndex: idx,
         // Percentage-based coordinates for better responsiveness
-        scatterX: 5 + Math.random() * 80,
-        scatterY: 10 + Math.random() * 70,
-        rotation: (Math.random() - 0.5) * 12
+        scatterX: 5 + seededRandom(idx, 1) * 80,
+        scatterY: 10 + seededRandom(idx, 2) * 70,
+        rotation: (seededRandom(idx, 3) - 0.5) * 12
       };
     }).filter((item): item is ScatteredImage => item !== null);
   }, [images, modelNames]);
@@ -56,8 +87,12 @@ export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
         className="relative flex-grow min-h-[600px] overflow-hidden shadow-inner cursor-crosshair"
       >
         {scatteredImages.map((out) => {
-          const w = workspaceRef.current?.clientWidth || 1000;
-          const h = workspaceRef.current?.clientHeight || 600;
+          // Use state dimensions, default to 0 to prevent jumps before mount/measure
+          const w = workspaceSize.width;
+          const h = workspaceSize.height;
+
+          // Don't render or position until we have dimensions to avoid layout jumps
+          if (w === 0 || h === 0) return null;
 
           const centerX = (out.scatterX / 100) * w;
           const centerY = (out.scatterY / 100) * h;
@@ -98,6 +133,7 @@ export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
                 src={getImageUrl(out.url)}
                 className="w-full h-full object-cover"
                 alt={out.modelName}
+                loading="lazy"
               />
               <div className={`absolute bottom-0 w-full bg-zinc-900/90 p-2 text-[10px] text-white font-bold transition-opacity ${influence > 0.3 ? 'opacity-100' : 'opacity-0'}`}>
                 <div className="truncate">{out.modelName}</div>
@@ -125,6 +161,7 @@ export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
           <input
             type="range" min="200" max="1200" step="10" value={radius}
             onChange={(e) => setRadius(Number(e.target.value))}
+            aria-label="Magnet Strength"
             className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
           />
         </div>
