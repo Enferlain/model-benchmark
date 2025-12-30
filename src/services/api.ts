@@ -1,5 +1,5 @@
-// Use environment variable for API base, or default to localhost
-export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
+// Use environment variable for API base, or default to relative path for proxy
+export const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 
 export interface ScanOptions {
   sampler?: string;

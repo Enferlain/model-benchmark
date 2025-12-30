@@ -4,10 +4,37 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+
+    // Determine the API target URL.
+    // If VITE_API_BASE is set (e.g., http://localhost:8001/api), we use its origin.
+    // Otherwise, default to http://localhost:8000.
+    let apiTarget = env.VITE_API_BASE || 'http://localhost:8000';
+
+    // Strip trailing slash if present
+    if (apiTarget.endsWith('/')) {
+        apiTarget = apiTarget.slice(0, -1);
+    }
+    // Strip /api suffix if present, as the proxy configuration handles the path
+    if (apiTarget.endsWith('/api')) {
+        apiTarget = apiTarget.slice(0, -4);
+    }
+
     return {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          '/api': {
+            target: apiTarget,
+            changeOrigin: true,
+            secure: false,
+          },
+          '/assets': {
+            target: apiTarget,
+            changeOrigin: true,
+            secure: false,
+          }
+        }
       },
       plugins: [react()],
       define: {
