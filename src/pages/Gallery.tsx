@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchModels, fetchModelOutputs } from '../services/api';
 import { useGalleryContext } from '../context/GalleryContext';
 import { ModelData, ModelOutput } from '../types';
+import { getImageUrl } from '../components/compare/utils';
 
 import { SkeletonGrid } from '../components/SkeletonGrid';
 
@@ -82,7 +83,6 @@ export default function Gallery() {
     setError(null);
     try {
       const data = await fetchModelOutputs(modelId);
-      setOutputs(data);
       setOutputs(data);
       setOutputCache(prev => ({...prev, [modelId]: data}));
       // Persist filters across model switches (do not reset to "All")
@@ -245,7 +245,7 @@ export default function Gallery() {
               >
                 <div className="aspect-[2/3] relative overflow-hidden bg-slate-100 dark:bg-slate-900">
                   <img
-                    src={`${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:8000'}${output.url}`}
+                    src={getImageUrl(output.url)}
                     alt={output.prompt}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
@@ -296,7 +296,7 @@ export default function Gallery() {
 
           <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <img
-              src={`${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:8000'}${lightboxImages[currentImageIndex].url}`}
+              src={getImageUrl(lightboxImages[currentImageIndex].url)}
               alt={lightboxImages[currentImageIndex].prompt}
               className="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-sm"
             />
