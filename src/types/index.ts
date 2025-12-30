@@ -31,6 +31,7 @@ export interface ModelOutput {
   prompt: string;
   seed: number;
   prompt_idx: number;
+  mtime?: number;
 }
 
 export interface PromptData {

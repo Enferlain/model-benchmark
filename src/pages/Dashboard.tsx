@@ -58,6 +58,34 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
 
   // Poll download status
   useEffect(() => {
+    // Check initial status on mount
+    const checkInitialStatus = async () => {
+        try {
+            const status = await getDownloadStatus();
+            if (status.is_downloading || status.status === 'downloading') {
+                setIsDownloading(true);
+                setDownloadProgress({
+                    current: status.progress,
+                    total: status.total,
+                    status: status.status,
+                    filename: status.current_file
+                });
+            }
+            
+            const genStatus = await getStatus();
+            if (genStatus.is_running) {
+                setIsScanning(true);
+                setGenerationStatus(genStatus);
+            }
+        } catch (e) {
+            console.error("Failed to restore status:", e);
+        }
+    };
+    
+    checkInitialStatus();
+  }, []); // Run once on mount
+
+  useEffect(() => {
     if (!isDownloading) return;
 
     const interval = setInterval(async () => {

@@ -38,6 +38,7 @@ export default function Compare() {
     commonPrompts,
     commonSeeds,
     getImagesForSelection,
+    getAllImagesForPrompt,
     loadingMap
   } = useComparisonData(models, selectedModelIds);
 
@@ -215,7 +216,12 @@ export default function Compare() {
                         <SliderView images={currentImages} modelNames={currentModelNames} />
                     )}
                     {viewMode === 'proximity' && (
-                        <ProximityView images={currentImages} modelNames={currentModelNames} />
+                         <ProximityView 
+                            groups={getAllImagesForPrompt(selectedPrompt).map(g => ({
+                                modelName: models.find(m => m.id === g.modelId)?.name || g.modelId,
+                                images: g.images
+                            }))}
+                         />
                     )}
                 </div>
             )}

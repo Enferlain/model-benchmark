@@ -62,7 +62,7 @@ export function useComparisonData(models: ModelData[], selectedModelIds: string[
 
     return {
         prompts: intersectionPrompts,
-        seeds: intersectionSeeds.sort((a, b) => a - b)
+        seeds: intersectionSeeds.sort((a: number, b: number) => a - b)
     };
   }, [selectedModelIds, outputsMap]);
 
@@ -73,11 +73,22 @@ export function useComparisonData(models: ModelData[], selectedModelIds: string[
       });
   };
 
+  const getAllImagesForPrompt = (prompt: string) => {
+      return selectedModelIds.map(id => {
+          const list = outputsMap[id] || [];
+          return {
+              modelId: id,
+              images: list.filter(o => o.prompt === prompt).sort((a, b) => a.seed - b.seed)
+          };
+      });
+  };
+
   return {
     outputsMap,
     loadingMap,
     commonPrompts: commonData.prompts,
     commonSeeds: commonData.seeds,
-    getImagesForSelection
+    getImagesForSelection,
+    getAllImagesForPrompt
   };
 }

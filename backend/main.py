@@ -124,20 +124,36 @@ def get_model_outputs(model_id: str):
                     seed = int(part[1:])
 
             if prompt_idx != -1:
+                # Default fallback
                 prompt_text = prompts[prompt_idx] if prompt_idx < len(prompts) else "Unknown prompt"
+                
+                # Metadata check
+                try:
+                    from PIL import Image
+                    with Image.open(img_path) as img:
+                        img.load()
+                        meta_prompt = img.info.get("prompt")
+                        if meta_prompt:
+                            prompt_text = meta_prompt
+                except Exception:
+                    pass
 
                 # Construct URL: mounted /assets points to backend/assets
                 # Output dir is backend/assets/outputs/{model_id}
                 # So URL is /assets/outputs/{model_id}/{filename}
                 # Use standard forward slashes for URLs
                 url = f"/assets/outputs/{model_id}/{img_path.name}"
+                
+                # Get mtime for cache busting
+                mtime = int(img_path.stat().st_mtime)
 
                 images.append({
                     "filename": img_path.name,
                     "url": url,
                     "prompt": prompt_text,
                     "seed": seed,
-                    "prompt_idx": prompt_idx
+                    "prompt_idx": prompt_idx,
+                    "mtime": mtime
                 })
         except Exception as e:
             print(f"Error parsing metadata for {img_path}: {e}")

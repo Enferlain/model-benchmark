@@ -22,7 +22,7 @@ export const SideBySideView: React.FC<Props> = ({ images, modelNames }) => {
            <div className="relative w-full h-full bg-white dark:bg-black rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700 shadow-md">
              {img ? (
                <img
-                 src={getImageUrl(img.url)}
+                 src={getImageUrl(img.url, img.mtime)}
                  alt={modelNames[idx]}
                  className="w-full h-full object-contain"
                />

@@ -2,182 +2,253 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ModelOutput } from '../../../types';
 import { getImageUrl } from '../utils';
 
-interface Props {
-  images: (ModelOutput | undefined)[];
-  modelNames: string[];
-}
-
-interface ScatteredImage extends ModelOutput {
+interface GroupedImages {
   modelName: string;
-  scatterX: number;
-  scatterY: number;
-  rotation: number;
-  originalIndex: number;
+  images: ModelOutput[];
 }
 
-export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
-  const [radius, setRadius] = useState(450);
-  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
+interface Props {
+  groups: GroupedImages[];
+}
+
+interface LayoutItem extends ModelOutput {
+  modelName: string;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  opacity: number;
+  zIndex: number;
+  isHovered: boolean;
+  isRelated: boolean;
+  groupId: number;
+}
+
+export const ProximityView: React.FC<Props> = ({ groups }) => {
   const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
+  const [hoveredSeed, setHoveredSeed] = useState<number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
 
+  // Resize Observer
   useEffect(() => {
     if (!workspaceRef.current) return;
-
     const updateSize = () => {
       if (workspaceRef.current) {
         setWorkspaceSize({
-          width: workspaceRef.current.clientWidth,
-          height: workspaceRef.current.clientHeight
+            width: workspaceRef.current.clientWidth,
+            height: workspaceRef.current.clientHeight
         });
       }
     };
-
-    // Initial size
     updateSize();
-
-    const observer = new ResizeObserver(() => {
-      updateSize();
-    });
-
+    const observer = new ResizeObserver(updateSize);
     observer.observe(workspaceRef.current);
-
     return () => observer.disconnect();
   }, []);
 
-  // Generate stable scatter coordinates for the images
-  const scatteredImages = useMemo(() => {
-    // Simple deterministic pseudo-random based on index
-    const seededRandom = (seed: number, offset: number) => {
-        const x = Math.sin(seed * 9999 + offset) * 10000;
-        return x - Math.floor(x);
-    };
+  // Compute Layout
+  const layoutItems = useMemo(() => {
+     if (workspaceSize.width === 0 || workspaceSize.height === 0) return [];
+     if (groups.length === 0) return [];
 
-    return images.map((img, idx) => {
-      if (!img) return null;
-      return {
-        ...img,
-        modelName: modelNames[idx] ?? `Model ${idx}`,
-        originalIndex: idx,
-        // Percentage-based coordinates for better responsiveness
-        scatterX: 5 + seededRandom(idx, 1) * 80,
-        scatterY: 10 + seededRandom(idx, 2) * 70,
-        rotation: (seededRandom(idx, 3) - 0.5) * 12
-      };
-    }).filter((item): item is ScatteredImage => item !== null);
-  }, [images, modelNames]);
+     const items: LayoutItem[] = [];
+     const groupCount = groups.length;
+     
+     // Determine Group Centers
+     // If 1 group: Center
+     // If 2 groups: Left, Right
+     // If 3+ groups: Circle
+     const centers = groups.map((_, i) => {
+         if (groupCount === 1) return { x: 0.5, y: 0.5 };
+         if (groupCount === 2) return { x: 0.25 + (i * 0.5), y: 0.5 };
+         
+         const angle = (i / groupCount) * Math.PI * 2 - Math.PI / 2;
+         const radius = 0.25; // % of workspace
+         return {
+             x: 0.5 + Math.cos(angle) * radius,
+             y: 0.5 + Math.sin(angle) * (radius * (workspaceSize.width / workspaceSize.height)) // Adjust for aspect ratio
+         };
+     });
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!workspaceRef.current) return;
-    const rect = workspaceRef.current.getBoundingClientRect();
-    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
+     groups.forEach((group, groupIdx) => {
+         const center = centers[groupIdx];
+         
+         group.images.forEach((img) => {
+             // Position based on Seed
+             // Consistent hashing for angle
+             const seedAngle = (img.seed * 137.508) * (Math.PI / 180); // Golden angle distribution
+             // Radius based on sort order or just seed value variation?
+             // Let's use a spiral approach based on seed value to keep "Seed X" consistently placed
+             // But we probably want all seeds visible. 
+             // Let's put them in a local cloud around the center.
+             
+             // Deterministic Local Position
+             // Normalize seed to 0-1 for layout "slots" or just use random-ish based on seed
+             // Using seed directly ensures same seed = same relative pos
+             
+             // Pseudo-random from seed
+             const rnd = (s: number) => {
+                 const x = Math.sin(s * 12.9898) * 43758.5453;
+                 return x - Math.floor(x);
+             };
+             
+             const localRadius = 80 + (rnd(img.seed) * 120); // 80px to 200px spread
+             const localAngle = rnd(img.seed + 1) * Math.PI * 2;
 
-  const handleMouseLeave = () => {
-    setMousePos({ x: -1000, y: -1000 });
-  };
+             // Absolute pixel coords
+             const centerX = center.x * workspaceSize.width;
+             const centerY = center.y * workspaceSize.height;
+
+             // Collision-ish: push apart?
+             // For now, simple static.
+
+             const x = centerX + Math.cos(localAngle) * localRadius;
+             const y = centerY + Math.sin(localAngle) * localRadius;
+             
+             const isHovered = hoveredSeed === img.seed && hoveredSeed !== null; // Specific logic? No, hoveredSeed check
+             // Actually, if we hover an image, we want that specific image hovered.
+             // We also want to highlight images with same seed.
+             
+             items.push({
+                 ...img,
+                 modelName: group.modelName,
+                 x,
+                 y,
+                 rotation: (rnd(img.seed + 2) - 0.5) * 10,
+                 scale: 1,
+                 opacity: 1,
+                 zIndex: 1,
+                 isHovered: false, // Set during render map based on state
+                 isRelated: false,
+                 groupId: groupIdx
+             });
+         });
+     });
+
+     return items;
+  }, [groups, workspaceSize.width, workspaceSize.height]);
+
+  // Adjust for hover state
+  const finalItems = useMemo(() => {
+      // Find the specific item being hovered if any (we track seed, but we need to know WHICH item triggered it to scale it most)
+      // Actually simpler: just use hoveredSeed.
+      
+      return layoutItems.map(item => {
+          const isSeedMatch = hoveredSeed === item.seed;
+          
+          let scale = 1;
+          let zIndex = 10;
+          let opacity = 1;
+          
+          if (hoveredSeed !== null) {
+              if (isSeedMatch) {
+                  scale = 1.5;
+                  zIndex = 100;
+                  opacity = 1;
+              } else {
+                  opacity = 0.3;
+                  scale = 0.8;
+                  zIndex = 1;
+              }
+          }
+
+          // Safety bounds clamping
+          // If item is too close to edge, push it in? 
+          // For now, let's just let it be, but the container has overflow hidden.
+          // We can clamp x/y.
+          const buffer = 80; // half size roughly
+          const safeX = Math.max(buffer, Math.min(workspaceSize.width - buffer, item.x));
+          const safeY = Math.max(buffer, Math.min(workspaceSize.height - buffer, item.y));
+
+          return {
+              ...item,
+              x: safeX,
+              y: safeY,
+              scale,
+              zIndex,
+              opacity,
+              isRelated: isSeedMatch
+          };
+      });
+  }, [layoutItems, hoveredSeed, workspaceSize]);
+
 
   return (
-    <div className="flex flex-col h-full w-full bg-zinc-100 dark:bg-zinc-900/20 rounded-xl overflow-hidden">
-      {/* Main Workspace */}
-      <div
+    <div className="flex flex-col h-full w-full bg-zinc-100 dark:bg-zinc-950 rounded-xl overflow-hidden relative">
+      <div 
         ref={workspaceRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="relative flex-grow min-h-[600px] overflow-hidden shadow-inner cursor-crosshair"
+        className="flex-grow relative overflow-hidden cursor-default"
+        onMouseLeave={() => setHoveredSeed(null)}
       >
-        {scatteredImages.map((out) => {
-          // Use state dimensions, default to 0 to prevent jumps before mount/measure
-          const w = workspaceSize.width;
-          const h = workspaceSize.height;
+        {/* Model Labels / Group Centers */}
+         {workspaceSize.width > 0 && groups.map((g, i) => {
+             // Re-calc center logic strictly for label
+             // Duplicated logic from useMemo, but lightweight
+             const groupCount = groups.length;
+             let cx = 0.5, cy = 0.5;
+             if (groupCount === 2) cx = 0.25 + (i * 0.5);
+             else if (groupCount > 2) {
+                 const angle = (i / groupCount) * Math.PI * 2 - Math.PI / 2;
+                 const radius = 0.25;
+                 cx = 0.5 + Math.cos(angle) * radius;
+                 cy = 0.5 + Math.sin(angle) * (radius * (workspaceSize.width / workspaceSize.height));
+             }
+             
+             return (
+                 <div 
+                    key={i} 
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
+                    style={{ left: cx * workspaceSize.width, top: cy * workspaceSize.height }}
+                 >
+                    <div className="w-64 h-64 rounded-full bg-zinc-200/50 dark:bg-zinc-800/20 blur-3xl absolute" />
+                    <h3 className="relative text-2xl font-black text-zinc-300 dark:text-zinc-800 uppercase tracking-widest select-none z-0">
+                        {g.modelName}
+                    </h3>
+                 </div>
+             );
+         })}
 
-          // Don't render or position until we have dimensions to avoid layout jumps
-          if (w === 0 || h === 0) return null;
-
-          const centerX = (out.scatterX / 100) * w;
-          const centerY = (out.scatterY / 100) * h;
-
-          const dx = mousePos.x - centerX;
-          const dy = mousePos.y - centerY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-
-          // IMPROVED MATH: S-Curve influence
-          let influence = Math.max(0, 1 - (distance / radius));
-          influence = Math.pow(influence, 3); // Steeper curve for more "snap"
-
-          const scale = 1 + (influence * 1.6); // Massive scale-up
-          const zIndex = Math.floor(out.originalIndex + (influence * 2000));
-
-          // Move slightly toward cursor to "look at you"
-          const moveX = dx * influence * 0.12;
-          const moveY = dy * influence * 0.12;
-
-          return (
+        {finalItems.map((item) => (
             <div
-              key={out.originalIndex}
-              className="absolute w-44 aspect-square bg-white dark:bg-zinc-800 rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700 transition-transform duration-150 ease-out pointer-events-none"
-              style={{
-                left: `${out.scatterX}%`,
-                top: `${out.scatterY}%`,
-                zIndex: zIndex,
-                // Solid opacity, varying shadow depth instead
-                boxShadow: influence > 0.1
-                  ? `0 ${20 * influence}px ${50 * influence}px -10px rgba(0,0,0,0.5), 0 0 ${15 * influence}px rgba(99,102,241, 0.4)`
-                  : '0 4px 12px rgba(0,0,0,0.1)',
-                transform: `translate(${moveX}px, ${moveY}px) scale(${scale}) rotate(${out.rotation * (1 - influence)}deg)`,
-                borderColor: influence > 0.2 ? '#6366f1' : '',
-                borderWidth: influence > 0.2 ? '3px' : '2px'
-              }}
+                key={`${item.modelName}-${item.seed}`}
+                onMouseEnter={() => setHoveredSeed(item.seed)}
+                className="absolute w-32 aspect-square bg-white dark:bg-zinc-800 rounded-lg shadow-lg border-2 border-white dark:border-zinc-700 transition-all duration-300 ease-out origin-center group"
+                style={{
+                    left: item.x,
+                    top: item.y,
+                    transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale})`,
+                    zIndex: item.zIndex,
+                    opacity: item.opacity,
+                    borderColor: item.isRelated ? '#6366f1' : undefined
+                }}
             >
-              <img
-                src={getImageUrl(out.url)}
-                className="w-full h-full object-cover"
-                alt={out.modelName}
-                loading="lazy"
-              />
-              <div className={`absolute bottom-0 w-full bg-zinc-900/90 p-2 text-[10px] text-white font-bold transition-opacity ${influence > 0.3 ? 'opacity-100' : 'opacity-0'}`}>
-                <div className="truncate">{out.modelName}</div>
-                <div className="text-zinc-500 text-[8px] uppercase tracking-widest">Seed: {out.seed}</div>
-              </div>
+                <img 
+                    src={getImageUrl(item.url, item.mtime)} 
+                    alt={item.modelName}
+                    className="w-full h-full object-cover rounded-md"
+                    loading="lazy"
+                />
+                
+                {/* Tooltip / Info - Shows on hover or related */}
+                <div 
+                    className={`absolute -bottom-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap transition-opacity pointer-events-none ${item.isRelated ? 'opacity-100' : 'opacity-0'}`}
+                >
+                    Seed {item.seed}
+                </div>
             </div>
-          );
-        })}
+        ))}
 
-        {scatteredImages.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 gap-3">
-             <div className="w-12 h-12 border-4 border-zinc-200 dark:border-zinc-800 border-t-indigo-500 rounded-full animate-spin"></div>
-             <p className="text-sm font-bold uppercase tracking-widest">Gathering Latents...</p>
-          </div>
+        {finalItems.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center text-zinc-400">
+                No data to display
+            </div>
         )}
       </div>
-
-      {/* Footer Controls */}
-      <footer className="mt-auto flex flex-wrap items-center gap-8 p-5 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
-        <div className="flex flex-col min-w-[200px]">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Magnet Strength</span>
-            <span className="text-[10px] font-mono text-zinc-400">{radius}px</span>
-          </div>
-          <input
-            type="range" min="200" max="1200" step="10" value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
-            aria-label="Magnet Strength"
-            className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
-          />
-        </div>
-
-        <div className="hidden lg:block h-10 w-[1px] bg-zinc-200 dark:bg-zinc-800"></div>
-
-        <div className="flex flex-grow justify-end gap-4">
-             <div className="text-right">
-                <p className="text-[10px] font-black text-zinc-400 uppercase leading-none">Status</p>
-                <p className="text-xs font-black text-green-500 leading-none mt-1">Ready</p>
-            </div>
-            <div className="bg-zinc-100 dark:bg-zinc-800 h-8 w-8 rounded-full flex items-center justify-center font-black text-[10px] text-indigo-500">
-                {scatteredImages.length}
-            </div>
-        </div>
-      </footer>
+      
+      <div className="h-8 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center px-4 justify-between text-[10px] text-zinc-400 uppercase tracking-widest">
+         <span>Proximity View</span>
+         <span>Hover to isolate seeds</span>
+      </div>
     </div>
   );
 };

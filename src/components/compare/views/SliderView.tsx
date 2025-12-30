@@ -26,7 +26,7 @@ export const SliderView: React.FC<Props> = ({ images, modelNames }) => {
       <div className="relative w-full max-w-[800px] aspect-square select-none overflow-hidden rounded-lg shadow-xl border border-slate-300 dark:border-slate-600 bg-black">
           {/* Base Image (Model B - Right side) */}
           <img
-            src={getImageUrl(imgB.url)}
+            src={getImageUrl(imgB.url, imgB.mtime)}
             alt={modelNames[1]}
             className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
@@ -37,12 +37,12 @@ export const SliderView: React.FC<Props> = ({ images, modelNames }) => {
             className="absolute inset-0 overflow-hidden"
             style={{ width: `${sliderPosition}%`, borderRight: '2px solid white' }}
           >
-               <img
-                src={getImageUrl(imgA.url)}
-                alt={modelNames[0]}
-                className="absolute top-0 left-0 w-full h-full object-contain"
-                style={{ width: `${100 / (Math.max(sliderPosition, 1)/100)}%`, maxWidth: 'none' }}
-               />
+                <img
+                 src={getImageUrl(imgA.url, imgA.mtime)}
+                 alt={modelNames[0]}
+                 className="absolute top-0 left-0 w-full h-full object-contain"
+                 style={{ width: `${100 / (Math.max(sliderPosition, 1)/100)}%`, maxWidth: 'none' }}
+                />
           </div>
 
           {/* Slider Control */}
