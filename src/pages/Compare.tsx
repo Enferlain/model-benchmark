@@ -208,7 +208,7 @@ export default function Compare() {
                     Selected models have no common prompts. Try selecting different models.
                 </div>
             ) : (
-                <div className="flex-1">
+                <div className="flex-1 flex flex-col min-h-0">
                     {viewMode === 'side-by-side' && (
                         <SideBySideView images={currentImages} modelNames={currentModelNames} />
                     )}
