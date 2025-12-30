@@ -139,3 +139,19 @@ export const setAllPromptsEnabled = async (enabled: boolean) => {
   if (!response.ok) throw new Error('Failed to update all prompts');
   return response.json();
 };
+
+export const fetchNote = async (noteId: string) => {
+  const response = await fetch(`${API_BASE}/notes/${noteId}`);
+  if (!response.ok) throw new Error('Failed to fetch note');
+  return response.json();
+};
+
+export const saveNote = async (noteId: string, content: any) => {
+  const response = await fetch(`${API_BASE}/notes/${noteId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(content),
+  });
+  if (!response.ok) throw new Error('Failed to save note');
+  return response.json();
+};
