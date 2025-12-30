@@ -1,109 +1,82 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { fetchModels, fetchModelOutputs, fetchNote, saveNote } from '../services/api';
-import { ModelData, ModelOutput } from '../types';
+import React, { useState, useEffect } from 'react';
+import { fetchModels, fetchNote, saveNote } from '../services/api';
+import { ModelData } from '../types';
+import { useComparisonData } from '../components/compare/useComparisonData';
+import { SideBySideView } from '../components/compare/views/SideBySideView';
+import { SliderView } from '../components/compare/views/SliderView';
+import { ProximityView } from '../components/compare/views/ProximityView';
+
+type ViewMode = 'side-by-side' | 'slider' | 'proximity';
 
 export default function Compare() {
   const [models, setModels] = useState<ModelData[]>([]);
-  const [modelA, setModelA] = useState<string>('');
-  const [modelB, setModelB] = useState<string>('');
+  // Support N models
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
 
-  const [outputsA, setOutputsA] = useState<ModelOutput[]>([]);
-  const [outputsB, setOutputsB] = useState<ModelOutput[]>([]);
-
+  const [viewMode, setViewMode] = useState<ViewMode>('side-by-side');
   const [selectedPrompt, setSelectedPrompt] = useState<string>('All');
   const [selectedSeed, setSelectedSeed] = useState<string>('All');
 
   const [note, setNote] = useState<string>('');
   const [noteSaving, setNoteSaving] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'side-by-side' | 'slider'>('side-by-side');
-  const [sliderPosition, setSliderPosition] = useState<number>(50);
-
-  // Loading states
-  const [loadingA, setLoadingA] = useState(false);
-  const [loadingB, setLoadingB] = useState(false);
-
-  // Initial load
+  // Load models on mount
   useEffect(() => {
     fetchModels().then(data => {
       setModels(data);
+      // Default to first 2 models if available
       if (data.length >= 2) {
-        setModelA(data[0].id);
-        setModelB(data[1].id);
+        setSelectedModelIds([data[0].id, data[1].id]);
       } else if (data.length === 1) {
-        setModelA(data[0].id);
+        setSelectedModelIds([data[0].id]);
       }
     });
   }, []);
 
-  // Fetch outputs when models change
+  // Use Custom Hook for Data
+  const {
+    commonPrompts,
+    commonSeeds,
+    getImagesForSelection,
+    loadingMap
+  } = useComparisonData(models, selectedModelIds);
+
+  // Auto-select first common prompt/seed if current selection is invalid
   useEffect(() => {
-    if (modelA) {
-      setLoadingA(true);
-      fetchModelOutputs(modelA)
-        .then(setOutputsA)
-        .finally(() => setLoadingA(false));
-    } else {
-      setOutputsA([]);
-    }
-  }, [modelA]);
+     // If we have models selected and common data exists
+     if (selectedModelIds.length > 0) {
+        const promptValid = selectedPrompt !== 'All' && commonPrompts.includes(selectedPrompt);
+        const seedValid = selectedSeed !== 'All' && commonSeeds.map(String).includes(selectedSeed);
 
-  useEffect(() => {
-    if (modelB) {
-      setLoadingB(true);
-      fetchModelOutputs(modelB)
-        .then(setOutputsB)
-        .finally(() => setLoadingB(false));
-    } else {
-      setOutputsB([]);
-    }
-  }, [modelB]);
-
-  // Compute common prompts and seeds for filter dropdowns
-  // We want to navigate between "common ground" to compare apples to apples
-  const promptsA = new Set(outputsA.map(o => o.prompt));
-  const promptsB = new Set(outputsB.map(o => o.prompt));
-  const commonPrompts = Array.from(promptsA).filter(p => promptsB.has(p));
-
-  const seedsA = new Set(outputsA.map(o => o.seed));
-  const seedsB = new Set(outputsB.map(o => o.seed));
-  const commonSeeds = Array.from(seedsA).filter(s => seedsB.has(s)).sort((a, b) => a - b);
-
-  // If currently selected filters are invalid for new model selection, reset them
-  // Logic: Try to keep selection if possible, else default to first common, else "All"
-  useEffect(() => {
-    // This effect runs when outputs update.
-    // We should ensure selectedPrompt and selectedSeed are valid or "All"
-    // Actually, "All" might be confusing for 1:1 comparison.
-    // Let's default to the first common prompt/seed if available and current selection is invalid.
-
-    if (outputsA.length > 0 && outputsB.length > 0) {
-        if (selectedPrompt === 'All' && commonPrompts.length > 0) {
+        if (!promptValid && commonPrompts.length > 0) {
             setSelectedPrompt(commonPrompts[0]);
         }
-        if (selectedSeed === 'All' && commonSeeds.length > 0) {
+
+        if (!seedValid && commonSeeds.length > 0) {
             setSelectedSeed(commonSeeds[0].toString());
         }
-    }
-  }, [outputsA, outputsB]); // Don't include commonPrompts/commonSeeds arrays to avoid loops, just depend on data
+     }
+  }, [commonPrompts, commonSeeds, selectedModelIds.length]);
 
-  // Find the specific images to compare
-  const imageA = outputsA.find(o => o.prompt === selectedPrompt && o.seed.toString() === selectedSeed);
-  const imageB = outputsB.find(o => o.prompt === selectedPrompt && o.seed.toString() === selectedSeed);
+  // Get current images for the view
+  const currentImages = getImagesForSelection(selectedPrompt, selectedSeed);
+  const currentModelNames = selectedModelIds.map(id => models.find(m => m.id === id)?.name || id);
 
-  // Note management
-  const noteId = imageA && imageB ? `compare:${modelA}:${modelB}:${imageA.prompt_idx}:${imageA.seed}` : null;
+  // Note management (Composite key)
+  // Key needs to be sorted to be consistent regardless of order?
+  // Let's sort IDs in the key.
+  const noteId = selectedModelIds.length > 0 && selectedPrompt !== 'All' && selectedSeed !== 'All'
+    ? `compare:${[...selectedModelIds].sort().join(':')}:${currentImages[0]?.prompt_idx || '0'}:${selectedSeed}`
+    : null;
 
   useEffect(() => {
     if (noteId) {
-      setNote(''); // Clear while loading
+      setNote('');
       fetchNote(noteId).then(data => {
         if (data && data.content) {
             setNote(data.content);
         }
-      }).catch(() => {
-          // No note found, ignore
-      });
+      }).catch(() => {});
     } else {
         setNote('');
     }
@@ -121,12 +94,16 @@ export default function Compare() {
     }
   };
 
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSliderPosition(Number(e.target.value));
+  const toggleModelSelection = (id: string) => {
+      setSelectedModelIds(prev => {
+          if (prev.includes(id)) {
+              // Don't allow deselecting the last one? Or allow empty?
+              return prev.filter(m => m !== id);
+          } else {
+              return [...prev, id];
+          }
+      });
   };
-
-  // Helper for URLs
-  const getUrl = (url: string) => `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:8000'}${url}`;
 
   return (
     <div className="max-w-[1800px] mx-auto px-6 py-8">
@@ -135,189 +112,136 @@ export default function Compare() {
           Model Comparison
         </h2>
 
-        {/* Controls */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap gap-6 items-end">
-            {/* Model A */}
-            <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
-                <label className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Model A (Left)</label>
-                <select
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
-                    value={modelA}
-                    onChange={e => setModelA(e.target.value)}
-                >
-                    {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
+        {/* Top Controls Area */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 space-y-6">
+
+            {/* 1. Model Selection (Chips) */}
+            <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Selected Models ({selectedModelIds.length})</label>
+                <div className="flex flex-wrap gap-2">
+                    {models.map(m => {
+                        const isSelected = selectedModelIds.includes(m.id);
+                        return (
+                            <button
+                                key={m.id}
+                                onClick={() => toggleModelSelection(m.id)}
+                                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                                    isSelected
+                                    ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-700'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-700/50 dark:text-slate-400 dark:border-slate-600'
+                                }`}
+                            >
+                                {m.name}
+                                {isSelected && <span className="ml-2">✓</span>}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Model B */}
-            <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
-                <label className="text-sm font-semibold text-pink-600 dark:text-pink-400">Model B (Right)</label>
-                <select
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
-                    value={modelB}
-                    onChange={e => setModelB(e.target.value)}
-                >
-                    {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-            </div>
+            {/* 2. Parameters & View Mode */}
+            <div className="flex flex-wrap gap-6 items-end border-t border-slate-100 dark:border-slate-700 pt-6">
+                 {/* Prompt Selector */}
+                <div className="flex flex-col gap-2 flex-[2] min-w-[300px]">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Common Prompt</label>
+                    <select
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md truncate"
+                        value={selectedPrompt}
+                        onChange={e => setSelectedPrompt(e.target.value)}
+                        disabled={commonPrompts.length === 0}
+                    >
+                        {commonPrompts.length === 0 && <option value="All">No common prompts found</option>}
+                        {commonPrompts.map((p, i) => (
+                            <option key={i} value={p}>{p.substring(0, 80)}{p.length > 80 ? '...' : ''}</option>
+                        ))}
+                    </select>
+                </div>
 
-            {/* Prompt Selector */}
-            <div className="flex flex-col gap-2 flex-[2] min-w-[300px]">
-                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Common Prompt</label>
-                <select
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md truncate"
-                    value={selectedPrompt}
-                    onChange={e => setSelectedPrompt(e.target.value)}
-                >
-                    {commonPrompts.length === 0 && <option value="All">No common prompts found</option>}
-                    {commonPrompts.map((p, i) => (
-                        <option key={i} value={p}>{p.substring(0, 80)}{p.length > 80 ? '...' : ''}</option>
+                {/* Seed Selector */}
+                <div className="flex flex-col gap-2 flex-none w-[120px]">
+                    <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Common Seed</label>
+                    <select
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
+                        value={selectedSeed}
+                        onChange={e => setSelectedSeed(e.target.value)}
+                        disabled={commonSeeds.length === 0}
+                    >
+                        {commonSeeds.length === 0 && <option value="All">None</option>}
+                        {commonSeeds.map(s => (
+                            <option key={s} value={s}>{s}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* View Mode Switcher */}
+                <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 ml-auto">
+                    {(['side-by-side', 'slider', 'proximity'] as const).map(mode => (
+                        <button
+                            key={mode}
+                            onClick={() => setViewMode(mode)}
+                            disabled={mode === 'slider' && selectedModelIds.length !== 2}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
+                                viewMode === mode
+                                ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed'
+                            }`}
+                            title={mode === 'slider' && selectedModelIds.length !== 2 ? "Slider requires exactly 2 models" : ""}
+                        >
+                            {mode.replace(/-/g, ' ')}
+                        </button>
                     ))}
-                </select>
-            </div>
-
-            {/* Seed Selector */}
-            <div className="flex flex-col gap-2 flex-none w-[120px]">
-                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Common Seed</label>
-                <select
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
-                    value={selectedSeed}
-                    onChange={e => setSelectedSeed(e.target.value)}
-                >
-                    {commonSeeds.length === 0 && <option value="All">None</option>}
-                    {commonSeeds.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                    ))}
-                </select>
-            </div>
-
-             {/* View Mode Toggle */}
-             <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
-                <button
-                    onClick={() => setViewMode('side-by-side')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'side-by-side' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                >
-                    Side-by-Side
-                </button>
-                <button
-                    onClick={() => setViewMode('slider')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${viewMode === 'slider' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
-                >
-                    Slider
-                </button>
+                </div>
             </div>
         </div>
 
         {/* Visualization Area */}
-        <div className="bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 p-8 min-h-[500px] flex items-center justify-center relative">
-
-            {(!imageA || !imageB) ? (
-                <div className="text-center text-slate-500 dark:text-slate-400">
-                    <p className="text-lg">Select matching prompts and seeds to compare.</p>
-                    <p className="text-sm mt-2 opacity-70">
-                        Model A: {outputsA.length} images | Model B: {outputsB.length} images
-                    </p>
+        <div className="bg-slate-100 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[500px] flex flex-col relative overflow-hidden">
+            {selectedModelIds.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-slate-500">
+                    Select at least one model to compare.
+                </div>
+            ) : commonPrompts.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-slate-500">
+                    Selected models have no common prompts. Try selecting different models.
                 </div>
             ) : (
-                <div className="w-full h-full flex flex-col items-center">
-
-                    {viewMode === 'side-by-side' ? (
-                        <div className="grid grid-cols-2 gap-4 w-full h-full">
-                            <div className="flex flex-col gap-2">
-                                <div className="relative aspect-square bg-white dark:bg-black rounded-lg overflow-hidden border-2 border-indigo-200 dark:border-indigo-900/50 shadow-md">
-                                    <img src={getUrl(imageA.url)} alt="Model A" className="w-full h-full object-contain" />
-                                    <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs px-2 py-1 rounded shadow-sm opacity-80">Model A</div>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <div className="relative aspect-square bg-white dark:bg-black rounded-lg overflow-hidden border-2 border-pink-200 dark:border-pink-900/50 shadow-md">
-                                    <img src={getUrl(imageB.url)} alt="Model B" className="w-full h-full object-contain" />
-                                    <div className="absolute top-2 right-2 bg-pink-600 text-white text-xs px-2 py-1 rounded shadow-sm opacity-80">Model B</div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="relative w-full max-w-[800px] aspect-square select-none overflow-hidden rounded-lg shadow-xl border border-slate-300 dark:border-slate-600 bg-black">
-                             {/* Base Image (Model B - Right side logic usually) */}
-                             <img
-                                src={getUrl(imageB.url)}
-                                alt="Model B"
-                                className="absolute inset-0 w-full h-full object-contain"
-                                draggable={false}
-                             />
-
-                             {/* Overlay Image (Model A - Left side) */}
-                             <div
-                                className="absolute inset-0 overflow-hidden"
-                                style={{ width: `${sliderPosition}%`, borderRight: '2px solid white' }}
-                             >
-                                 <img
-                                    src={getUrl(imageA.url)}
-                                    alt="Model A"
-                                    className="absolute top-0 left-0 max-w-none h-full"
-                                    style={{ width: `${100 * (100/sliderPosition)}%` }} // Trick to keep aspect ratio? No, we need fixed width
-                                    // Actually for object-contain comparison it's tricky if aspects differ.
-                                    // Assuming same aspect for same prompt usually.
-                                    // Better approach: Set width to container width.
-                                 />
-                                 {/*
-                                    Fixing the overlay image sizing:
-                                    If we use object-contain, the image might not fill the container.
-                                    Ideally for slider comparison, we assume images are same dimensions.
-                                    Let's try absolute positioning with width of the parent container.
-                                 */}
-                                 <img
-                                    src={getUrl(imageA.url)}
-                                    alt="Model A"
-                                    className="absolute top-0 left-0 w-[800px] h-full object-contain" // Hardcoded width matches max-w?
-                                    // React hooks needed to get container width?
-                                    // Let's use % but inverse the crop.
-                                    style={{ width: `${100 / (sliderPosition/100)}%`, maxWidth: 'none' }}
-                                 />
-                             </div>
-
-                             {/* Slider Control */}
-                             <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={sliderPosition}
-                                onChange={handleSliderChange}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
-                             />
-
-                             {/* Labels */}
-                             <div className="absolute bottom-4 left-4 bg-black/50 text-white px-2 py-1 rounded text-sm pointer-events-none z-10">Model A</div>
-                             <div className="absolute bottom-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm pointer-events-none z-10">Model B</div>
-
-                             {/* Slider Handle Visual */}
-                             <div
-                                className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_rgba(0,0,0,0.5)] z-10 pointer-events-none"
-                                style={{ left: `${sliderPosition}%` }}
-                             >
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-800"><path d="m9 18 6-6-6-6"/></svg>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-800 rotate-180 absolute"><path d="m9 18 6-6-6-6"/></svg>
-                                </div>
-                             </div>
-                        </div>
+                <div className="flex-1">
+                    {viewMode === 'side-by-side' && (
+                        <SideBySideView images={currentImages} modelNames={currentModelNames} />
                     )}
-
-                    <div className="mt-4 text-center text-slate-600 dark:text-slate-400 font-mono text-sm max-w-2xl">
-                        {selectedPrompt}
-                    </div>
+                    {viewMode === 'slider' && (
+                        <SliderView images={currentImages} modelNames={currentModelNames} />
+                    )}
+                    {viewMode === 'proximity' && (
+                        <ProximityView images={currentImages} modelNames={currentModelNames} />
+                    )}
                 </div>
+            )}
+
+            {/* Prompt Text Footer */}
+            {selectedPrompt !== 'All' && (
+                 <div className="p-4 bg-white/50 dark:bg-black/50 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 text-center">
+                    <p className="font-mono text-sm text-slate-700 dark:text-slate-300">{selectedPrompt}</p>
+                 </div>
             )}
         </div>
 
         {/* Notes Section */}
-        {imageA && imageB && (
+        {noteId && (
             <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Comparison Notes</h3>
+                <div className="flex justify-between items-center mb-4">
+                     <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                        Notes for this Comparison
+                     </h3>
+                     <span className="text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded">
+                        {currentModelNames.length} Models • Seed {selectedSeed}
+                     </span>
+                </div>
+
                 <div className="flex flex-col gap-3">
                     <textarea
                         className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
-                        placeholder="Add your thoughts on this comparison..."
+                        placeholder="Add your thoughts on this specific comparison..."
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
                     />
