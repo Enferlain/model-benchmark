@@ -245,7 +245,7 @@ export default function Gallery() {
               >
                 <div className="aspect-[2/3] relative overflow-hidden bg-slate-100 dark:bg-slate-900">
                   <img
-                    src={getImageUrl(output.url)}
+                    src={getImageUrl(output.url, output.mtime)}
                     alt={output.prompt}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
@@ -296,7 +296,7 @@ export default function Gallery() {
 
           <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <img
-              src={getImageUrl(lightboxImages[currentImageIndex].url)}
+              src={getImageUrl(lightboxImages[currentImageIndex].url, lightboxImages[currentImageIndex].mtime)}
               alt={lightboxImages[currentImageIndex].prompt}
               className="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-sm"
             />
