@@ -402,7 +402,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                   
                   <div className="pt-2 border-t border-blue-200/30 dark:border-blue-500/20">
                      <p className="text-[10px] text-blue-600/60 dark:text-blue-400/50">
-                        Running on :8000
+                        Ready
                      </p>
                   </div>
                 </div>
