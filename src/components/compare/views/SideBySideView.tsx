@@ -1,5 +1,6 @@
 import React from 'react';
 import { ModelOutput } from '../../../types';
+import { getImageUrl } from '../utils';
 
 interface Props {
   images: (ModelOutput | undefined)[];
@@ -7,8 +8,6 @@ interface Props {
 }
 
 export const SideBySideView: React.FC<Props> = ({ images, modelNames }) => {
-  const getUrl = (url: string) => `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:8000'}${url}`;
-
   // Dynamic grid cols based on count
   const count = images.length;
   let gridCols = 'grid-cols-2';
@@ -23,7 +22,7 @@ export const SideBySideView: React.FC<Props> = ({ images, modelNames }) => {
            <div className="relative w-full h-full bg-white dark:bg-black rounded-lg overflow-hidden border-2 border-slate-200 dark:border-slate-700 shadow-md">
              {img ? (
                <img
-                 src={getUrl(img.url)}
+                 src={getImageUrl(img.url)}
                  alt={modelNames[idx]}
                  className="w-full h-full object-contain"
                />

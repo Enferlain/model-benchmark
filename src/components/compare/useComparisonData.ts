@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchModelOutputs } from '../../services/api';
 import { ModelData, ModelOutput } from '../../types';
 
@@ -6,13 +6,18 @@ export function useComparisonData(models: ModelData[], selectedModelIds: string[
   const [outputsMap, setOutputsMap] = useState<Record<string, ModelOutput[]>>({});
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
 
+  // Track in-flight requests to avoid stale closures
+  const inFlightIds = useRef<Set<string>>(new Set());
+
   // Fetch outputs for selected models
   useEffect(() => {
     selectedModelIds.forEach(id => {
-      // If we already have data or are loading, skip
-      if (outputsMap[id] || loadingMap[id]) return;
+      // If we already have data or are currently fetching, skip
+      if (outputsMap[id] || inFlightIds.current.has(id)) return;
 
+      inFlightIds.current.add(id);
       setLoadingMap(prev => ({ ...prev, [id]: true }));
+
       fetchModelOutputs(id)
         .then(data => {
           setOutputsMap(prev => ({ ...prev, [id]: data }));
@@ -20,9 +25,10 @@ export function useComparisonData(models: ModelData[], selectedModelIds: string[
         .catch(err => console.error(`Failed to load outputs for ${id}`, err))
         .finally(() => {
           setLoadingMap(prev => ({ ...prev, [id]: false }));
+          inFlightIds.current.delete(id);
         });
     });
-  }, [selectedModelIds]);
+  }, [selectedModelIds, outputsMap]);
 
   // Calculate Intersection
   const commonData = useMemo(() => {

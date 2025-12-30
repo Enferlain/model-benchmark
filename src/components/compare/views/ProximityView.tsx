@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ModelOutput } from '../../../types';
+import { getImageUrl } from '../utils';
 
 interface Props {
   images: (ModelOutput | undefined)[];
@@ -9,13 +10,12 @@ interface Props {
 export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const getUrl = (url: string) => `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:8000'}${url}`;
 
   // This view works by dividing the container width into N segments.
   // Hovering a segment shows that model's image.
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || images.length === 0) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
@@ -48,7 +48,7 @@ export const ProximityView: React.FC<Props> = ({ images, modelNames }) => {
        >
           {activeImage ? (
             <img
-              src={getUrl(activeImage.url)}
+              src={getImageUrl(activeImage.url)}
               alt={modelNames[activeIndex]}
               className="w-full h-full object-contain pointer-events-none"
             />

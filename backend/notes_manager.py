@@ -22,8 +22,8 @@ def _load_notes_db() -> Dict[str, Any]:
     except json.JSONDecodeError:
         logger.error(f"Failed to decode {NOTES_FILE}. Returning empty db.")
         return {}
-    except Exception as e:
-        logger.error(f"Error loading notes: {e}")
+    except Exception:
+        logger.exception("Error loading notes")
         return {}
 
 def _save_notes_db(db: Dict[str, Any]) -> None:
@@ -34,8 +34,8 @@ def _save_notes_db(db: Dict[str, Any]) -> None:
     try:
         with open(NOTES_FILE, "w", encoding="utf-8") as f:
             json.dump(db, f, indent=2)
-    except Exception as e:
-        logger.error(f"Error saving notes: {e}")
+    except Exception:
+        logger.exception("Error saving notes")
 
 def get_note(note_id: str) -> Dict[str, Any]:
     """Retrieves a note by ID."""

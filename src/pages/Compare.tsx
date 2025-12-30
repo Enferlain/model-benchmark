@@ -76,7 +76,9 @@ export default function Compare() {
         if (data && data.content) {
             setNote(data.content);
         }
-      }).catch(() => {});
+      }).catch((err) => {
+        console.debug(`Failed to fetch note for ${noteId}:`, err);
+      });
     } else {
         setNote('');
     }

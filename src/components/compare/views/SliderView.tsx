@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ModelOutput } from '../../../types';
+import { getImageUrl } from '../utils';
 
 interface Props {
   images: (ModelOutput | undefined)[];
@@ -8,7 +9,6 @@ interface Props {
 
 export const SliderView: React.FC<Props> = ({ images, modelNames }) => {
   const [sliderPosition, setSliderPosition] = useState<number>(50);
-  const getUrl = (url: string) => `${import.meta.env.VITE_API_BASE?.replace('/api', '') || 'http://localhost:8000'}${url}`;
 
   if (images.length !== 2) {
     return (
@@ -26,7 +26,7 @@ export const SliderView: React.FC<Props> = ({ images, modelNames }) => {
       <div className="relative w-full max-w-[800px] aspect-square select-none overflow-hidden rounded-lg shadow-xl border border-slate-300 dark:border-slate-600 bg-black">
           {/* Base Image (Model B - Right side) */}
           <img
-            src={getUrl(imgB.url)}
+            src={getImageUrl(imgB.url)}
             alt={modelNames[1]}
             className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
@@ -37,37 +37,18 @@ export const SliderView: React.FC<Props> = ({ images, modelNames }) => {
             className="absolute inset-0 overflow-hidden"
             style={{ width: `${sliderPosition}%`, borderRight: '2px solid white' }}
           >
-              {/* Counter-scaling to keep image static while container shrinks */}
-              <img
-                src={getUrl(imgA.url)}
-                alt={modelNames[0]}
-                className="absolute top-0 left-0 max-w-none h-full"
-                style={{ width: `${100 * (100/sliderPosition)}%`, maxWidth: 'none' }}
-              />
-               {/*
-                  Note: The simple percentage trick above works well if the image fills the container.
-                  If using object-contain with different aspect ratios, it can get tricky.
-                  For now, we assume consistent aspect ratios for benchmarks.
-
-                  Correct approach for exact registration:
-                  Both images are strictly 100% width/height of the container.
-                  The wrapper div clips the left one.
-                  The inner image of the wrapper needs to be width: 100vw of the PARENT container.
-
-                  style={{ width: `${100 / (sliderPosition/100)}%` }}
-               */}
                <img
-                src={getUrl(imgA.url)}
+                src={getImageUrl(imgA.url)}
                 alt={modelNames[0]}
                 className="absolute top-0 left-0 w-full h-full object-contain"
-                style={{ width: `${100 / (sliderPosition/100)}%`, maxWidth: 'none' }}
+                style={{ width: `${100 / (Math.max(sliderPosition, 1)/100)}%`, maxWidth: 'none' }}
                />
           </div>
 
           {/* Slider Control */}
           <input
             type="range"
-            min="0"
+            min="1"
             max="100"
             value={sliderPosition}
             onChange={(e) => setSliderPosition(Number(e.target.value))}
