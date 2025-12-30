@@ -84,7 +84,6 @@ export default function Gallery() {
     try {
       const data = await fetchModelOutputs(modelId);
       setOutputs(data);
-      setOutputs(data);
       setOutputCache(prev => ({...prev, [modelId]: data}));
       // Persist filters across model switches (do not reset to "All")
     } catch (err) {
