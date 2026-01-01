@@ -4,18 +4,29 @@ import { ModelData } from '../types';
 import { useComparisonData } from '../components/compare/useComparisonData';
 import { SideBySideView } from '../components/compare/views/SideBySideView';
 import { SliderView } from '../components/compare/views/SliderView';
+import { GridView } from '../components/compare/views/GridView';
 import { ProximityView } from '../components/compare/views/ProximityView';
 
-type ViewMode = 'side-by-side' | 'slider' | 'proximity';
+type ViewMode = 'side-by-side' | 'slider' | 'proximity' | 'grid';
 
 export default function Compare() {
   const [models, setModels] = useState<ModelData[]>([]);
+  
+  // Initialize state from LocalStorage if available
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+      return (localStorage.getItem('compare_viewMode') as ViewMode) || 'side-by-side';
+  });
+  
+  const [selectedPrompt, setSelectedPrompt] = useState<string>(() => {
+      return localStorage.getItem('compare_selectedPrompt') || 'All';
+  });
+  
+  const [selectedSeed, setSelectedSeed] = useState<string>(() => {
+      return localStorage.getItem('compare_selectedSeed') || 'All';
+  });
+
   // Support N models
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
-
-  const [viewMode, setViewMode] = useState<ViewMode>('side-by-side');
-  const [selectedPrompt, setSelectedPrompt] = useState<string>('All');
-  const [selectedSeed, setSelectedSeed] = useState<string>('All');
 
   const [note, setNote] = useState<string>('');
   const [noteSaving, setNoteSaving] = useState(false);
@@ -24,14 +35,56 @@ export default function Compare() {
   useEffect(() => {
     fetchModels().then(data => {
       setModels(data);
-      // Default to first 2 models if available
-      if (data.length >= 2) {
-        setSelectedModelIds([data[0].id, data[1].id]);
-      } else if (data.length === 1) {
-        setSelectedModelIds([data[0].id]);
+      
+      // Try to load selection from storage
+      const storedIds = localStorage.getItem('compare_selectedModelIds');
+      let applied = false;
+      
+      if (storedIds) {
+          try {
+              const parsed = JSON.parse(storedIds);
+              if (Array.isArray(parsed)) {
+                  // Validate IDs exist
+                  const validIds = parsed.filter(id => data.find(m => m.id === id));
+                  if (validIds.length > 0) {
+                      setSelectedModelIds(validIds);
+                      applied = true;
+                  }
+              }
+          } catch (e) {
+              console.error("Failed to parse stored model IDs", e);
+          }
+      }
+
+      // Default if no storage or invalid
+      if (!applied) {
+          if (data.length >= 2) {
+            setSelectedModelIds([data[0].id, data[1].id]);
+          } else if (data.length === 1) {
+            setSelectedModelIds([data[0].id]);
+          }
       }
     });
   }, []);
+
+  // Persistence Effects
+  useEffect(() => {
+      localStorage.setItem('compare_viewMode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+      if (selectedModelIds.length > 0) {
+        localStorage.setItem('compare_selectedModelIds', JSON.stringify(selectedModelIds));
+      }
+  }, [selectedModelIds]);
+
+  useEffect(() => {
+      localStorage.setItem('compare_selectedPrompt', selectedPrompt);
+  }, [selectedPrompt]);
+
+  useEffect(() => {
+      localStorage.setItem('compare_selectedSeed', selectedSeed);
+  }, [selectedSeed]);
 
   // Use Custom Hook for Data
   const {
@@ -46,15 +99,27 @@ export default function Compare() {
   useEffect(() => {
      // If we have models selected and common data exists
      if (selectedModelIds.length > 0) {
+        // We delay this check slightly or ensure it runs after data is loaded to avoid 
+        // overwriting the restored state with specific logic too aggressively? 
+        // Actually, the hook updates commonPrompts.
+        // If the RESTORED prompt is valid, it stays. If not, this replaces it. Perfect.
+        
         const promptValid = selectedPrompt !== 'All' && commonPrompts.includes(selectedPrompt);
         const seedValid = selectedSeed !== 'All' && commonSeeds.map(String).includes(selectedSeed);
 
+        // Only overwrite if INVALID (and we have options)
+        // AND specifically if we are not 'All' or if we want to force selection?
+        // The original logic was: "If invalid... set to first".
+        
         if (!promptValid && commonPrompts.length > 0) {
             setSelectedPrompt(commonPrompts[0]);
         }
 
         if (!seedValid && commonSeeds.length > 0) {
-            setSelectedSeed(commonSeeds[0].toString());
+             // For Grid View, we generally want a specific seed.
+             // If we are in 'proximity' mode, the UI forces 'All', but state might remain.
+             // We'll just reset it to the first valid seed to be safe.
+             setSelectedSeed(commonSeeds[0].toString());
         }
      }
   }, [commonPrompts, commonSeeds, selectedModelIds.length]);
@@ -109,14 +174,14 @@ export default function Compare() {
   };
 
   return (
-    <div className="max-w-[1800px] mx-auto px-6 py-8">
-      <div className="flex flex-col gap-6">
+    <div className="max-w-[1800px] mx-auto px-4 py-4">
+      <div className="flex flex-col gap-4">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
           Model Comparison
         </h2>
 
         {/* Top Controls Area */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 space-y-6">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
 
             {/* 1. Model Selection (Chips) */}
             <div className="flex flex-col gap-2">
@@ -143,20 +208,26 @@ export default function Compare() {
             </div>
 
             {/* 2. Parameters & View Mode */}
-            <div className="flex flex-wrap gap-6 items-end border-t border-slate-100 dark:border-slate-700 pt-6">
+            <div className="flex flex-wrap gap-4 items-end border-t border-slate-100 dark:border-slate-700 pt-4">
                  {/* Prompt Selector */}
                 <div className="flex flex-col gap-2 flex-[2] min-w-[300px]">
                     <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Common Prompt</label>
                     <select
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md truncate"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md truncate disabled:opacity-50"
                         value={selectedPrompt}
                         onChange={e => setSelectedPrompt(e.target.value)}
-                        disabled={commonPrompts.length === 0}
+                        disabled={commonPrompts.length === 0 || viewMode === 'grid'}
                     >
-                        {commonPrompts.length === 0 && <option value="All">No common prompts found</option>}
-                        {commonPrompts.map((p, i) => (
-                            <option key={i} value={p}>{p.substring(0, 80)}{p.length > 80 ? '...' : ''}</option>
-                        ))}
+                        {viewMode === 'grid' ? (
+                            <option>All Prompts (Grid View)</option>
+                        ) : (
+                            <>
+                                {commonPrompts.length === 0 && <option value="All">No common prompts found</option>}
+                                {commonPrompts.map((p, i) => (
+                                    <option key={i} value={p}>{p.substring(0, 80)}{p.length > 80 ? '...' : ''}</option>
+                                ))}
+                            </>
+                        )}
                     </select>
                 </div>
 
@@ -164,21 +235,29 @@ export default function Compare() {
                 <div className="flex flex-col gap-2 flex-none w-[120px]">
                     <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Common Seed</label>
                     <select
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
-                        value={selectedSeed}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={viewMode === 'proximity' ? 'All' : selectedSeed}
                         onChange={e => setSelectedSeed(e.target.value)}
-                        disabled={commonSeeds.length === 0}
+                        disabled={commonSeeds.length === 0 || viewMode === 'proximity'}
                     >
-                        {commonSeeds.length === 0 && <option value="All">None</option>}
-                        {commonSeeds.map(s => (
-                            <option key={s} value={s}>{s}</option>
-                        ))}
+                        {viewMode === 'proximity' ? (
+                            <option value="All">All Seeds (Proximity View)</option>
+                        ) : (
+                            <>
+                                {commonSeeds.length === 0 && <option value="All">None</option>}
+                                {/* Grid view usually wants a specific seed, so 'All' might be confusing, but we handle it in render by picking first */}
+                                {(viewMode === 'grid' && selectedSeed === 'All') && <option value="All">Pick a seed</option>}
+                                {commonSeeds.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </>
+                        )}
                     </select>
                 </div>
 
-                {/* View Mode Switcher */}
+            {/* View Mode Switcher */}
                 <div className="flex bg-slate-100 dark:bg-slate-900 rounded-lg p-1 border border-slate-200 dark:border-slate-700 ml-auto">
-                    {(['side-by-side', 'slider', 'proximity'] as const).map(mode => (
+                    {(['side-by-side', 'slider', 'grid', 'proximity'] as const).map(mode => (
                         <button
                             key={mode}
                             onClick={() => setViewMode(mode)}
@@ -215,19 +294,28 @@ export default function Compare() {
                     {viewMode === 'slider' && (
                         <SliderView images={currentImages} modelNames={currentModelNames} />
                     )}
+                    {viewMode === 'grid' && (
+                        <GridView 
+                            prompts={commonPrompts} 
+                            modelNames={currentModelNames} 
+                            getImagesForSelection={getImagesForSelection}
+                            seed={selectedSeed === 'All' ? (commonSeeds[0]?.toString() || '0') : selectedSeed}
+                        />
+                    )}
                     {viewMode === 'proximity' && (
-                         <ProximityView 
+                        <ProximityView 
                             groups={getAllImagesForPrompt(selectedPrompt).map(g => ({
+                                id: models.find(m => m.id === g.modelId)?.id || g.modelId,
                                 modelName: models.find(m => m.id === g.modelId)?.name || g.modelId,
                                 images: g.images
-                            }))}
-                         />
+                            }))} 
+                        />
                     )}
                 </div>
             )}
 
             {/* Prompt Text Footer */}
-            {selectedPrompt !== 'All' && (
+            {selectedPrompt !== 'All' && viewMode !== 'grid' && (
                  <div className="p-4 bg-white/50 dark:bg-black/50 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 text-center">
                     <p className="font-mono text-sm text-slate-700 dark:text-slate-300">{selectedPrompt}</p>
                  </div>
