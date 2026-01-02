@@ -59,6 +59,7 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 - [ ] **Export results** - CSV/JSON export of benchmark data
 - [x] **Model fetching** - Fix model fetch/downloader
 - [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
+- [ ] **Add visible databse tab (non editable)** - nicely presented database rows/columns, search, related options, etc.
 
 ### Backend
 

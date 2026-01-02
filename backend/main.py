@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlmodel import select, desc
 import logging
 import threading
 from pathlib import Path
@@ -11,6 +12,7 @@ import state
 import scanner
 import downloader
 import notes_manager
+import database as db
 
 app = FastAPI()
 
@@ -20,12 +22,13 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 # Mount assets directory for serving images
 # Ensure the directory exists to avoid errors on startup if it's missing
 data_loader.ASSETS_DIR.mkdir(exist_ok=True)
+db.init_db()
 app.mount("/assets", StaticFiles(directory=data_loader.ASSETS_DIR), name="assets")
 
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,6 +37,7 @@ app.add_middleware(
 # Startup/Shutdown Events
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+
 
 class ModelFileHandler(FileSystemEventHandler):
     def __init__(self):
@@ -55,7 +59,7 @@ class ModelFileHandler(FileSystemEventHandler):
 
     def _run_scan(self):
         print("Detected file changes in models directory. Rescanning...")
-        # Run scan in thread-safe way? 
+        # Run scan in thread-safe way?
         # scan_models_light modifies the global list in place.
         # It's relatively fast.
         try:
@@ -64,26 +68,29 @@ class ModelFileHandler(FileSystemEventHandler):
         except Exception as e:
             print(f"Auto-scan failed: {e}")
 
+
 _observer = None
+
 
 @app.on_event("startup")
 async def startup_event():
     print("Starting up... (no auto-generation, use /api/generate or /api/analyze)")
-    
+
     # 1. Initial Scan
     print("Scanning for local models (fast mode)...")
     scanner.scan_models_light(state.ScanOptions())
-    
+
     # 2. Start Watcher
     global _observer
     # Ensure models dir exists
     data_loader.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     event_handler = ModelFileHandler()
     _observer = Observer()
     _observer.schedule(event_handler, str(data_loader.MODELS_DIR), recursive=False)
     _observer.start()
     print(f"Started watching {data_loader.MODELS_DIR} for changes.")
+
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -92,10 +99,12 @@ def shutdown_event():
         _observer.stop()
         _observer.join()
 
+
 # API Endpoints
 @app.get("/api/models")
 def get_models():
     return state.models_db
+
 
 @app.get("/api/models/{model_id}/outputs")
 def get_model_outputs(model_id: str):
@@ -112,24 +121,29 @@ def get_model_outputs(model_id: str):
     for img_path in sorted(list(output_dir.glob("p*_i*_s*.png"))):
         try:
             name = img_path.stem
-            parts = name.split('_')
+            parts = name.split("_")
             # robust parsing
             prompt_idx = -1
             seed = -1
 
             for part in parts:
-                if part.startswith('p') and part[1:].isdigit():
+                if part.startswith("p") and part[1:].isdigit():
                     prompt_idx = int(part[1:])
-                elif part.startswith('s') and part[1:].isdigit():
+                elif part.startswith("s") and part[1:].isdigit():
                     seed = int(part[1:])
 
             if prompt_idx != -1:
                 # Default fallback
-                prompt_text = prompts[prompt_idx] if prompt_idx < len(prompts) else "Unknown prompt"
-                
+                prompt_text = (
+                    prompts[prompt_idx]
+                    if prompt_idx < len(prompts)
+                    else "Unknown prompt"
+                )
+
                 # Metadata check
                 try:
                     from PIL import Image
+
                     with Image.open(img_path) as img:
                         img.load()
                         meta_prompt = img.info.get("prompt")
@@ -143,22 +157,25 @@ def get_model_outputs(model_id: str):
                 # So URL is /assets/outputs/{model_id}/{filename}
                 # Use standard forward slashes for URLs
                 url = f"/assets/outputs/{model_id}/{img_path.name}"
-                
+
                 # Get mtime for cache busting
                 mtime = int(img_path.stat().st_mtime)
 
-                images.append({
-                    "filename": img_path.name,
-                    "url": url,
-                    "prompt": prompt_text,
-                    "seed": seed,
-                    "prompt_idx": prompt_idx,
-                    "mtime": mtime
-                })
+                images.append(
+                    {
+                        "filename": img_path.name,
+                        "url": url,
+                        "prompt": prompt_text,
+                        "seed": seed,
+                        "prompt_idx": prompt_idx,
+                        "mtime": mtime,
+                    }
+                )
         except Exception as e:
             print(f"Error parsing metadata for {img_path}: {e}")
 
     return images
+
 
 @app.post("/api/generate")
 def generate_endpoint(options: state.ScanOptions = Body(default=state.ScanOptions())):
@@ -167,10 +184,12 @@ def generate_endpoint(options: state.ScanOptions = Body(default=state.ScanOption
         return {"status": "error", "message": "Generation already in progress"}
     return scanner.generate_images_only(options)
 
+
 @app.post("/api/analyze")
 def analyze_endpoint(options: state.ScanOptions = Body(default=state.ScanOptions())):
     """Analyze existing images and compute metrics."""
     return scanner.analyze_models_only(options)
+
 
 @app.post("/api/scan")
 def scan_models(options: state.ScanOptions = Body(default=state.ScanOptions())):
@@ -180,6 +199,7 @@ def scan_models(options: state.ScanOptions = Body(default=state.ScanOptions())):
     scanner.generate_images_only(options)
     return scanner.analyze_models_only(options)
 
+
 @app.post("/api/cancel")
 def cancel_generation():
     """Cancel ongoing generation."""
@@ -188,65 +208,99 @@ def cancel_generation():
         return {"status": "ok", "message": "Cancellation requested"}
     return {"status": "ok", "message": "No generation in progress"}
 
+
 @app.get("/api/status")
 def get_status():
     """Get current generation status."""
     return {
         "is_running": state.generation_state["is_running"],
         "current_model": state.generation_state["current_model"],
-        "progress": state.generation_state["progress"]
+        "progress": state.generation_state["progress"],
     }
+
+
+@app.get("/api/runs")
+def get_runs():
+    """Get list of past benchmark runs."""
+    with db.get_session() as session:
+        runs = session.exec(
+            select(db.BenchmarkRun).order_by(desc(db.BenchmarkRun.timestamp))
+        ).all()
+        return runs
+
 
 @app.delete("/api/models/{model_id}")
 def delete_model(model_id: str, delete_file: bool = False):
-    target_model = next((m for m in state.models_db if m.id == model_id), None)
+    # Find in DB first (model_id is hash now)
+    target_hash = model_id
 
-    if delete_file and target_model and target_model.path:
-        try:
-            file_path = Path(target_model.path).resolve()
-            models_dir_resolved = data_loader.MODELS_DIR.resolve()
+    # Update Global State (Active Session)
+    if not any(m.id == model_id for m in state.models_db):
+        # If not in session, we might still want to delete the file if requested?
+        # But the ID is the hash.
+        pass
 
-            # Security check: Ensure file is within MODELS_DIR
-            if not str(file_path).startswith(str(models_dir_resolved)):
-                 raise HTTPException(status_code=403, detail="Cannot delete file outside models directory")
+    # Delete File if requested
+    if delete_file:
+        with db.get_session() as session:
+            # We still need to look up path from DB to be safe/correct
+            db_model = session.get(db.Model, target_hash)
+            if db_model:
+                path_str = db_model.path
+                try:
+                    file_path = Path(path_str).resolve()
+                    models_dir_resolved = data_loader.MODELS_DIR.resolve()
 
-            if file_path.exists():
-                if file_path.is_dir() or file_path.is_symlink():
-                     raise HTTPException(status_code=403, detail="Cannot delete directories or symlinks")
+                    # Security check
+                    if not str(file_path).startswith(str(models_dir_resolved)):
+                        raise HTTPException(
+                            status_code=403,
+                            detail="Cannot delete file outside models directory",
+                        )
 
-                file_path.unlink()
-                print(f"Deleted file: {file_path}")
-            else:
-                print(f"File not found for deletion: {file_path}")
-        except HTTPException:
-            raise
-        except Exception as e:
-            print(f"Error deleting file: {e}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+                    if file_path.exists():
+                        if file_path.is_dir() or file_path.is_symlink():
+                            raise HTTPException(
+                                status_code=403,
+                                detail="Cannot delete directories or symlinks",
+                            )
 
-    # Update DB globally
-    # Note: reassigning the list reference in state requires modifying the list in place or using the module attribute
+                        file_path.unlink()
+                        print(f"Deleted file: {file_path}")
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    print(f"Error deleting file: {e}")
+                    raise HTTPException(status_code=500, detail=str(e)) from e
+
+    # Remove from Session List
     state.models_db[:] = [m for m in state.models_db if m.id != model_id]
+
     return {"status": "ok"}
 
+
 from fastapi import UploadFile, File, Form
+
 
 @app.get("/api/prompts")
 def get_prompts():
     """Get all prompts with metadata for the manager."""
     return data_loader.get_all_prompts_metadata()
 
+
 @app.post("/api/prompts/create")
 async def create_prompt_multipart(
-    text: str = Form(...),
-    image: UploadFile = File(None)
+    text: str = Form(...), image: UploadFile = File(None)
 ):
     image_bytes = None
     if image:
         image_bytes = await image.read()
-        
-    new_id = data_loader.save_new_prompt(text, image_bytes, image.filename if image else None)
+
+    new_id = data_loader.save_new_prompt(
+        text, image_bytes, image.filename if image else None
+    )
     return {"status": "success", "id": new_id}
+
 
 @app.put("/api/prompts/{filename}")
 def update_prompt(filename: str, payload: dict = Body(...)):
@@ -273,6 +327,7 @@ def update_prompt(filename: str, payload: dict = Body(...)):
 
     return {"status": "success"}
 
+
 @app.delete("/api/prompts/{filename}")
 def delete_prompt(filename: str):
     try:
@@ -281,19 +336,22 @@ def delete_prompt(filename: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Prompt not found")
 
+
 @app.post("/api/prompts/reorder")
 def reorder_prompts(payload: dict = Body(...)):
     order = payload.get("order")
     if not order or not isinstance(order, list):
         raise HTTPException(status_code=400, detail="Order list is required")
-        
+
     data_loader.save_prompt_order(order)
     return {"status": "success"}
+
 
 @app.post("/api/prompts/shuffle")
 def shuffle_prompts():
     data_loader.shuffle_prompts_order()
     return {"status": "success"}
+
 
 @app.post("/api/prompts/bulk/enable")
 def bulk_enable_prompts(payload: dict = Body(...)):
@@ -304,6 +362,7 @@ def bulk_enable_prompts(payload: dict = Body(...)):
     data_loader.set_all_prompts_enabled(enabled)
     return {"status": "success"}
 
+
 @app.post("/api/models/download")
 def download_model(request: state.ModelRequest, background_tasks: BackgroundTasks):
     # TOCTOU protection
@@ -312,8 +371,15 @@ def download_model(request: state.ModelRequest, background_tasks: BackgroundTask
             raise HTTPException(status_code=400, detail="Download already in progress")
         state.download_state["is_downloading"] = True
 
-    background_tasks.add_task(downloader.download_model_task, request.url, request.name, request.source, request.api_token)
+    background_tasks.add_task(
+        downloader.download_model_task,
+        request.url,
+        request.name,
+        request.source,
+        request.api_token,
+    )
     return {"status": "started"}
+
 
 @app.get("/api/models/download/status")
 def get_download_status():
