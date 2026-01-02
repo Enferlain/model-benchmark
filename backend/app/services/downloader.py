@@ -3,8 +3,8 @@ import requests
 import re
 import traceback
 from typing import Optional
-import data_loader
-from state import download_state, download_state_lock, models_db, ModelResult
+from . import prompt_manager as data_loader
+from ..core.state import download_state, download_state_lock, models_db, ModelResult
 
 def download_model_task(url: str, name: str, source: str, api_token: Optional[str] = None):
     global download_state
