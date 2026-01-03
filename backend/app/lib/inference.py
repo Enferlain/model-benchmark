@@ -16,11 +16,31 @@ class SDXLInferencer:
         self.venv_python = self.base_dir / "venv" / "Scripts" / "python.exe"
         self.script_path = self.sd_scripts_dir / "sdxl_gen_img.py"
         
+        # Check if venv exists
         if not self.venv_python.exists():
-            # Fallback if venv not found there, maybe it's the backend venv?
-            # But user said it's in sd-scripts.
-            logger.warning(f"Python not found at {self.venv_python}, checking backend venv")
-            self.venv_python = self.base_dir / "venv" / "Scripts" / "python.exe"
+             logger.warning(f"Python not found at {self.venv_python}, trying fallback mechanisms")
+             # Try other common venv locations or system python
+             fallback_paths = [
+                 self.base_dir / "venv" / "bin" / "python", # Linux venv
+                 Path(sys.executable) # Current interpreter
+             ]
+
+             found_python = False
+             for path in fallback_paths:
+                 if path.exists():
+                     logger.info(f"Using python interpreter: {path}")
+                     self.venv_python = path
+                     found_python = True
+                     break
+
+             if not found_python:
+                  # Last resort: just use "python" command and hope it's in PATH
+                  import shutil
+                  if shutil.which("python"):
+                      self.venv_python = "python"
+                      logger.warning("Using system 'python' from PATH")
+                  else:
+                      raise RuntimeError("Could not find a valid Python interpreter for inference subprocess")
 
     def load_model(self, ckpt_path):
         # No-op for subprocess method, just storing key info if needed

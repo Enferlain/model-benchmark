@@ -88,7 +88,7 @@ def update_prompt(filename: str, payload: dict = Body(...)):
             raise HTTPException(status_code=404, detail="Prompt not found") from None
 
     if not updated:
-        raise HTTPException(status400, detail="No valid fields to update")
+        raise HTTPException(status_code=400, detail="No valid fields to update")
 
     return {"status": "success"}
 
@@ -119,6 +119,9 @@ def bulk_enable_prompts(payload: dict = Body(...)):
     enabled = payload.get("enabled")
     if enabled is None:
         raise HTTPException(status_code=400, detail="enabled field is required")
+
+    if not isinstance(enabled, bool):
+        raise HTTPException(status_code=400, detail="enabled must be a boolean")
 
     data_loader.set_all_prompts_enabled(enabled)
     return {"status": "success"}
