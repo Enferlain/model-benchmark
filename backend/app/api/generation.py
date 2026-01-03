@@ -21,7 +21,13 @@ def scan_models(options: state.ScanOptions = Body(default=state.ScanOptions())):
     """Generate images AND analyze (legacy endpoint)."""
     if state.generation_state["is_running"]:
         return {"status": "error", "message": "Generation already in progress"}
-    generation.generate_images_only(options)
+
+    gen_result = generation.generate_images_only(options)
+
+    # Check for failure or cancellation
+    if gen_result.get("status") in ["error", "cancelled"]:
+        return gen_result
+
     return analysis.analyze_models_only(options)
 
 @router.post("/cancel")
