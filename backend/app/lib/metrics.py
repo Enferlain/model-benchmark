@@ -23,7 +23,7 @@ except ImportError:
     LPIPS_AVAILABLE = False
     print("Warning: lpips not installed. LPIPS diversity will use mock values.")
 
-import lpw_utils
+from . import lpw_utils
 
 class MetricsCalculator:
     def __init__(self, device=None):

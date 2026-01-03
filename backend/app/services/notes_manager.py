@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 # Constants
-ASSETS_DIR = Path("assets")
+# Assuming assets are relative to backend root, which is 2 levels up from services/notes_manager.py
+ASSETS_DIR = Path(__file__).parents[2] / "assets"
 NOTES_FILE = ASSETS_DIR / "notes.json"
 
 # Configure logging
