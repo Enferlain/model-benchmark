@@ -65,6 +65,7 @@ Working prototype with:
 ### Backend
 
 - [ ] **Negative prompt support** - Per-generation negative prompts
+- [ ] **Noise, color scorers** - Based on forensic noise, pca, colors, etc.
 - [ ] **Batch generation** - Queue multiple models for overnight runs
 - [x] **Cache metrics** - Don't recompute if images haven't changed
 - [ ] **LoRA support** - Test LoRA models (not just checkpoints)
