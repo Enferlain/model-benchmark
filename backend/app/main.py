@@ -10,7 +10,7 @@ from .services import model_manager
 from .core import state, database as db
 from .api import models, prompts, generation, system
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 # Suppress uvicorn access log spam for polling endpoints
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
@@ -33,6 +33,7 @@ app.add_middleware(
 # Startup/Shutdown Events
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from contextlib import asynccontextmanager
 
 class ModelFileHandler(FileSystemEventHandler):
     def __init__(self):
@@ -58,10 +59,8 @@ class ModelFileHandler(FileSystemEventHandler):
         except Exception as e:
             print(f"Auto-scan failed: {e}")
 
-_observer = None
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     print("Starting up... (no auto-generation, use /api/generate or /api/analyze)")
 
     # 1. Initial Scan
@@ -69,23 +68,21 @@ async def startup_event():
     model_manager.sync_models_with_db()
 
     # 2. Start Watcher
-    global _observer
     # Ensure models dir exists
     data_loader.MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
     event_handler = ModelFileHandler()
-    _observer = Observer()
-    _observer.schedule(event_handler, str(data_loader.MODELS_DIR), recursive=False)
-    _observer.start()
+    observer = Observer()
+    observer.schedule(event_handler, str(data_loader.MODELS_DIR), recursive=False)
+    observer.start()
     print(f"Started watching {data_loader.MODELS_DIR} for changes.")
 
+    yield
 
-@app.on_event("shutdown")
-def shutdown_event():
-    global _observer
-    if _observer:
-        _observer.stop()
-        _observer.join()
+    # Shutdown
+    if observer:
+        observer.stop()
+        observer.join()
 
 # Register Routers
 app.include_router(models.router, prefix="/api", tags=["models"])

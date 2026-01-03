@@ -136,7 +136,7 @@ def sync_models_with_db():
         session.commit()
 
         # 2. Refresh In-Memory State for API
-        models_db.clear()
+        new_models_list = []
 
         all_db_models = session.exec(select(Model)).all()
         for db_m in all_db_models:
@@ -172,7 +172,10 @@ def sync_models_with_db():
                 api_m.metrics = latest_res.metrics
                 api_m.image_count = latest_res.image_count
 
-            models_db.append(api_m)
+            new_models_list.append(api_m)
+
+        # Atomic replacement
+        models_db[:] = new_models_list
 
     print(f"DB Sync complete. Loaded {len(models_db)} models.")
     return models_db

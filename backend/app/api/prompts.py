@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Form
 from PIL import Image
 import io
-from ..services import prompt_manager as data_loader
+from ..services import prompt_manager
 
 router = APIRouter()
 
@@ -11,7 +11,7 @@ MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50 MB
 @router.get("/prompts")
 def get_prompts():
     """Get all prompts with metadata for the manager."""
-    return data_loader.get_all_prompts_metadata()
+    return prompt_manager.get_all_prompts_metadata()
 
 @router.post("/prompts/create")
 async def create_prompt_multipart(
@@ -56,7 +56,7 @@ async def create_prompt_multipart(
         except Exception:
              raise HTTPException(status_code=400, detail="Invalid image file.")
 
-    new_id = data_loader.save_new_prompt(
+    new_id = prompt_manager.save_new_prompt(
         text, image_bytes, image.filename if image else None
     )
     return {"status": "success", "id": new_id}
@@ -67,11 +67,11 @@ def update_prompt(filename: str, payload: dict = Body(...)):
     updated = False
 
     if "enabled" in payload:
-        data_loader.toggle_prompt_active(filename, payload["enabled"])
+        prompt_manager.toggle_prompt_active(filename, payload["enabled"])
         updated = True
 
     if "alias" in payload:
-        data_loader.set_prompt_alias(filename, payload["alias"])
+        prompt_manager.set_prompt_alias(filename, payload["alias"])
         updated = True
 
     if "text" in payload:
@@ -82,7 +82,7 @@ def update_prompt(filename: str, payload: dict = Body(...)):
                 detail=f"Prompt text exceeds maximum length of {MAX_TEXT_LENGTH} characters."
             )
         try:
-            data_loader.update_prompt_text(filename, new_text)
+            prompt_manager.update_prompt_text(filename, new_text)
             updated = True
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Prompt not found") from None
@@ -95,7 +95,7 @@ def update_prompt(filename: str, payload: dict = Body(...)):
 @router.delete("/prompts/{filename}")
 def delete_prompt(filename: str):
     try:
-        data_loader.delete_prompt(filename)
+        prompt_manager.delete_prompt(filename)
         return {"status": "success"}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Prompt not found")
@@ -106,12 +106,12 @@ def reorder_prompts(payload: dict = Body(...)):
     if not order or not isinstance(order, list):
         raise HTTPException(status_code=400, detail="Order list is required")
 
-    data_loader.save_prompt_order(order)
+    prompt_manager.save_prompt_order(order)
     return {"status": "success"}
 
 @router.post("/prompts/shuffle")
 def shuffle_prompts():
-    data_loader.shuffle_prompts_order()
+    prompt_manager.shuffle_prompts_order()
     return {"status": "success"}
 
 @router.post("/prompts/bulk/enable")
@@ -123,5 +123,5 @@ def bulk_enable_prompts(payload: dict = Body(...)):
     if not isinstance(enabled, bool):
         raise HTTPException(status_code=400, detail="enabled must be a boolean")
 
-    data_loader.set_all_prompts_enabled(enabled)
+    prompt_manager.set_all_prompts_enabled(enabled)
     return {"status": "success"}

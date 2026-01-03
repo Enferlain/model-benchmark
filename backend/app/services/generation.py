@@ -72,8 +72,8 @@ def generate_images_only(options: ScanOptions):
                         if i_idx != -1:
                             existing_counts[key].add(i_idx)
 
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Warning: Could not parse existing image {img_path}: {e}")
 
             # Calculate missing
             missing_for_model = []
@@ -98,7 +98,6 @@ def generate_images_only(options: ScanOptions):
             if check_cancelled():
                 break
 
-            model_id = m.hash  # API uses hash as ID
             model_path = m.path
             generation_state["current_model"] = m.name
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Shuffle, CheckSquare, Square, Loader2 } from 'lucide-react';
+import { Search, Plus, Shuffle, CheckSquare, Square, Loader2, FileText, Trash2 } from 'lucide-react';
 import { PromptData } from '../../types';
 import {
   DndContext,
@@ -17,7 +17,6 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FileText, Trash2 } from 'lucide-react';
 
 interface PromptListProps {
     prompts: PromptData[];
@@ -62,7 +61,8 @@ export const PromptList: React.FC<PromptListProps> = ({
            if (!p) return false;
            const text = p.text || '';
            const id = p.id || '';
-           return text.toLowerCase().includes(q) || id.toLowerCase().includes(q);
+           const alias = p.alias || '';
+           return text.toLowerCase().includes(q) || id.toLowerCase().includes(q) || alias.toLowerCase().includes(q);
         });
       }, [prompts, searchQuery]);
 
@@ -128,8 +128,17 @@ export const PromptList: React.FC<PromptListProps> = ({
     );
 }
 
+interface SortableItemProps {
+    prompt: PromptData;
+    idx: number;
+    isSelected: boolean;
+    onSelect: (id: string | null) => void;
+    onToggle: (e: React.MouseEvent, prompt: PromptData) => void;
+    onDelete: (e: React.MouseEvent, id: string) => void;
+}
+
 // Sortable Item Component
-const SortableItem = React.memo(function SortableItem({ prompt, idx, isSelected, onSelect, onToggle, onDelete }: any) {
+const SortableItem = React.memo(function SortableItem({ prompt, idx, isSelected, onSelect, onToggle, onDelete }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({id: prompt.id});
     const style = {
       transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
@@ -169,13 +178,16 @@ const SortableItem = React.memo(function SortableItem({ prompt, idx, isSelected,
                  {prompt.alias ? prompt.alias : prompt.id}
               </span>
               <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
-                  <div
+                  <button
+                     type="button"
                      onClick={(e) => onToggle(e, prompt)}
                      className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${prompt.enabled ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'}`}
                      title={prompt.enabled ? "Enabled" : "Disabled"}
+                     role="switch"
+                     aria-checked={prompt.enabled}
                   >
                      <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${prompt.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </div>
+                  </button>
                   <button onClick={(e) => onDelete(e, prompt.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 rounded transition-all ml-1">
                     <Trash2 size={14} />
                   </button>

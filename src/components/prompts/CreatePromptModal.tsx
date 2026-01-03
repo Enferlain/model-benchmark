@@ -23,10 +23,20 @@ export const CreatePromptModal: React.FC<CreatePromptModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-white/90 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-8">
-             <div className="w-full max-w-2xl flex flex-col h-full max-h-[600px] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 animation-fade-in-up">
+        <div
+            className="fixed inset-0 z-50 bg-white/90 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-8"
+            onClick={onClose}
+            onKeyDown={(e) => e.key === 'Escape' && onClose()}
+        >
+             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="create-prompt-title"
+                className="w-full max-w-2xl flex flex-col h-full max-h-[600px] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 animation-fade-in-up"
+                onClick={(e) => e.stopPropagation()}
+             >
                 <div className="p-6 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Create New Prompt</h2>
+                  <h2 id="create-prompt-title" className="text-xl font-bold text-slate-800 dark:text-slate-100">Create New Prompt</h2>
                   <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={24}/></button>
                 </div>
 
@@ -75,7 +85,7 @@ export const CreatePromptModal: React.FC<CreatePromptModalProps> = ({
                      Cancel
                    </button>
                    <button
-                     onClick={onCreate}
+                     type="submit"
                      className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium shadow-lg shadow-blue-500/20"
                    >
                      Create Prompt

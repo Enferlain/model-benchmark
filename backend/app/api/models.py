@@ -103,7 +103,9 @@ def delete_model(model_id: str, delete_file: bool = False):
                     models_dir_resolved = data_loader.MODELS_DIR.resolve()
 
                     # Security check
-                    if not str(file_path).startswith(str(models_dir_resolved)):
+                    try:
+                        file_path.relative_to(models_dir_resolved)
+                    except ValueError:
                         raise HTTPException(
                             status_code=403,
                             detail="Cannot delete file outside models directory",

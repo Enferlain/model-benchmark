@@ -191,6 +191,7 @@ export default function PromptEditor() {
   
   const handleToggle = useCallback(async (e: React.MouseEvent, prompt: PromptData) => {
     e.stopPropagation();
+    const previousEnabled = prompt.enabled;
     try {
         const newStatus = !prompt.enabled;
         setPrompts(prev => prev.map(p => 
@@ -198,6 +199,10 @@ export default function PromptEditor() {
         ));
         await updatePromptText(prompt.filename, { enabled: newStatus });
     } catch (err) {
+        // Rollback on failure
+        setPrompts(prev => prev.map(p =>
+            p.id === prompt.id ? { ...p, enabled: previousEnabled } : p
+        ));
         alert("Failed to toggle prompt");
     }
   }, []);
@@ -209,26 +214,21 @@ export default function PromptEditor() {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this prompt?")) return;
     
+    const promptToDelete = prompts.find(x => x.id === id);
+    if (!promptToDelete) return;
+
+    // Optimistic update
+    setPrompts(prev => prev.filter(x => x.id !== id));
+    if (selectedIdRef.current === id) setSelectedId(null);
+
     try {
-      setPrompts(currentPrompts => {
-          const p = currentPrompts.find(x => x.id === id);
-          if (p) {
-              deletePrompt(p.filename).catch(err => {
-                  console.error("Delete failed in background", err);
-                  alert("Failed to delete (background)");
-              });
-              
-              const currentSelected = selectedIdRef.current;
-              if (currentSelected === id) setSelectedId(null);
-              
-              return currentPrompts.filter(x => x.id !== id);
-          }
-          return currentPrompts;
-      });
+      await deletePrompt(promptToDelete.filename);
     } catch (err) {
+      // Rollback on failure (simplified, append at end)
+      setPrompts(prev => [...prev, promptToDelete]);
       alert("Failed to delete prompt");
     }
-  }, []);
+  }, [prompts]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const {active, over} = event;
@@ -245,7 +245,9 @@ export default function PromptEditor() {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({order})
-        }).catch(err => console.error("Failed to save order", err));
+        }).catch(err => {
+            console.error("Failed to save order", err);
+        });
         
         return newItems;
       });

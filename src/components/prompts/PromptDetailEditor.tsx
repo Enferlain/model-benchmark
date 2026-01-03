@@ -58,10 +58,11 @@ export const PromptDetailEditor: React.FC<PromptDetailEditorProps> = ({
 
                {/* Alias Input */}
                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                  <label htmlFor="prompt-alias" className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
                      <Type size={14} /> Alias / Nickname
-                  </h3>
+                  </label>
                   <input
+                    id="prompt-alias"
                     type="text"
                     value={editAlias}
                     onChange={e => onAliasChange(e.target.value)}
@@ -74,8 +75,9 @@ export const PromptDetailEditor: React.FC<PromptDetailEditorProps> = ({
                </div>
 
                <div className="flex-1 flex flex-col min-h-[200px]">
-                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Prompt Text</h3>
+                 <label htmlFor="prompt-text" className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Prompt Text</label>
                  <textarea
+                   id="prompt-text"
                    value={editText}
                    onChange={e => onTextChange(e.target.value)}
                    className="flex-1 w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-xl p-4 font-mono text-sm leading-relaxed text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
