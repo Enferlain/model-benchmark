@@ -167,3 +167,69 @@ export const saveNote = async (noteId: string, content: any) => {
   if (!response.ok) throw new Error('Failed to save note');
   return response.json();
 };
+
+export interface ParamCheckResult {
+  matches: boolean;
+  existing_params: {
+    steps: number;
+    cfg: number;
+    sampler: string;
+    width: number;
+    height: number;
+  } | null;
+  mismatched_models: Array<{
+    name: string;
+    existing_params: {
+      steps: number;
+      cfg: number;
+      sampler: string;
+      width: number;
+      height: number;
+    };
+  }>;
+  current_params: {
+    steps: number;
+    cfg: number;
+    sampler: string;
+    width: number;
+    height: number;
+  };
+}
+
+export async function checkParams(options: ScanOptions): Promise<ParamCheckResult> {
+  const response = await fetch(`${API_BASE}/check-params`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  if (!response.ok) throw new Error('Failed to check parameters');
+  return response.json();
+}
+
+export async function archiveModel(modelName: string) {
+  const response = await fetch(`${API_BASE}/archive/${encodeURIComponent(modelName)}`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to archive model');
+  return response.json();
+}
+
+export interface CoverageCheckResult {
+  all_match: boolean;
+  common_count: number;
+  model_coverage: Array<{
+    name: string;
+    count: number;
+    missing_count: number;
+    extra_count: number;
+  }>;
+}
+
+export async function checkCoverage(): Promise<CoverageCheckResult> {
+  const response = await fetch(`${API_BASE}/analyze/check-coverage`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to check coverage');
+  return response.json();
+}
+

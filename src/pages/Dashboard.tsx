@@ -10,7 +10,7 @@ import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "../com
 import { METRIC_OPTIONS } from "../constants";
 import { ModelData, MetricKey } from "../types";
 import { useOutletContext } from "react-router-dom";
-import { downloadModel, getDownloadStatus, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus } from "../services/api";
+import { downloadModel, getDownloadStatus, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus, checkParams, archiveModel, ParamCheckResult, checkCoverage, CoverageCheckResult } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
 import { Download, HardDrive } from "lucide-react";
 
@@ -43,6 +43,14 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
 
   const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
   const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
+  
+  // Parameter mismatch modal state
+  const [paramMismatch, setParamMismatch] = useState<ParamCheckResult | null>(null);
+  const [showMismatchModal, setShowMismatchModal] = useState(false);
+  
+  // Coverage mismatch modal state
+  const [coverageMismatch, setCoverageMismatch] = useState<CoverageCheckResult | null>(null);
+  const [showCoverageModal, setShowCoverageModal] = useState(false);
 
   const xMetric =
     METRIC_OPTIONS.find((m) => m.value === xMetricKey) || METRIC_OPTIONS[0];
@@ -137,6 +145,23 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
   }, [isScanning]);
 
   const handleGenerate = useCallback(async () => {
+    // First check if params match existing images
+    try {
+      const checkResult = await checkParams(scanOptions);
+      if (!checkResult.matches && checkResult.mismatched_models.length > 0) {
+        setParamMismatch(checkResult);
+        setShowMismatchModal(true);
+        return; // Don't generate yet, wait for user decision
+      }
+    } catch (error) {
+      console.error('Check params error:', error);
+      // Continue with generation if check fails
+    }
+    
+    await doGenerate();
+  }, [scanOptions]);
+  
+  const doGenerate = useCallback(async () => {
     setIsScanning(true);
     setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
     try {
@@ -148,11 +173,60 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
       setGenerationStatus(prev => ({ ...prev, is_running: false }));
     }
   }, [scanOptions]);
+  
+  const handleMatchExisting = useCallback(() => {
+    if (paramMismatch?.existing_params) {
+      setScanOptions(prev => ({
+        ...prev,
+        steps: paramMismatch.existing_params!.steps,
+        guidance_scale: paramMismatch.existing_params!.cfg,
+        sampler: paramMismatch.existing_params!.sampler,
+        width: paramMismatch.existing_params!.width,
+        height: paramMismatch.existing_params!.height,
+      }));
+    }
+    setShowMismatchModal(false);
+    setParamMismatch(null);
+  }, [paramMismatch]);
+  
+  const handleArchiveAndGenerate = useCallback(async () => {
+    if (!paramMismatch) return;
+    
+    // Archive all mismatched models
+    for (const model of paramMismatch.mismatched_models) {
+      try {
+        await archiveModel(model.name);
+      } catch (error) {
+        console.error(`Failed to archive ${model.name}:`, error);
+      }
+    }
+    
+    setShowMismatchModal(false);
+    setParamMismatch(null);
+    await doGenerate();
+  }, [paramMismatch, doGenerate]);
 
   const handleAnalyze = useCallback(async () => {
+    // First check prompt coverage
+    try {
+      const coverageResult = await checkCoverage();
+      if (!coverageResult.all_match && coverageResult.model_coverage.some(m => m.missing_count > 0)) {
+        setCoverageMismatch(coverageResult);
+        setShowCoverageModal(true);
+        return; // Wait for user decision
+      }
+    } catch (error) {
+      console.error('Coverage check error:', error);
+      // Continue with analysis if check fails
+    }
+    
+    await doAnalyze(false);
+  }, [scanOptions]);
+  
+  const doAnalyze = useCallback(async (commonOnly: boolean) => {
     setIsScanning(true);
     try {
-      await analyzeImages(scanOptions);
+      await analyzeImages({ ...scanOptions, common_only: commonOnly });
       await fetchModels();
     } catch (error) {
       console.error('Analyze error:', error);
@@ -160,6 +234,20 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
       setIsScanning(false);
     }
   }, [scanOptions, fetchModels]);
+  
+  const handleAnalyzeCommonOnly = useCallback(async () => {
+    setShowCoverageModal(false);
+    setCoverageMismatch(null);
+    await doAnalyze(true);
+  }, [doAnalyze]);
+  
+  const handleGenerateMissing = useCallback(async () => {
+    setShowCoverageModal(false);
+    setCoverageMismatch(null);
+    // Generate to fill gaps, then analyze
+    await doGenerate();
+    await doAnalyze(false);
+  }, [doGenerate, doAnalyze]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -262,6 +350,131 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
   return (
+    <>
+      {/* Parameter Mismatch Modal */}
+      {showMismatchModal && paramMismatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <span className="text-amber-600 dark:text-amber-400 text-xl">⚠️</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Parameter Mismatch</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Existing images have different settings</p>
+              </div>
+            </div>
+            
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 mb-4 space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-slate-400 mb-1">Existing Settings</p>
+                  <div className="space-y-1 text-slate-600 dark:text-slate-300">
+                    <p>Steps: {paramMismatch.existing_params?.steps}</p>
+                    <p>CFG: {paramMismatch.existing_params?.cfg}</p>
+                    <p>Sampler: {paramMismatch.existing_params?.sampler}</p>
+                    <p>Size: {paramMismatch.existing_params?.width}×{paramMismatch.existing_params?.height}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-400 mb-1">Your Settings</p>
+                  <div className="space-y-1 text-slate-600 dark:text-slate-300">
+                    <p>Steps: {paramMismatch.current_params.steps}</p>
+                    <p>CFG: {paramMismatch.current_params.cfg}</p>
+                    <p>Sampler: {paramMismatch.current_params.sampler}</p>
+                    <p>Size: {paramMismatch.current_params.width}×{paramMismatch.current_params.height}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {paramMismatch.mismatched_models.length > 0 && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 mt-2">
+                  <p className="text-xs text-slate-500">Affected models: {paramMismatch.mismatched_models.map(m => m.name).join(', ')}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={handleMatchExisting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
+              >
+                Match Existing
+              </button>
+              <button
+                onClick={handleArchiveAndGenerate}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Archive & Regenerate
+              </button>
+            </div>
+            
+            <button
+              onClick={() => { setShowMismatchModal(false); setParamMismatch(null); }}
+              className="w-full mt-3 px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Coverage Mismatch Modal */}
+      {showCoverageModal && coverageMismatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                <span className="text-orange-600 dark:text-orange-400 text-xl">📊</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Prompt Coverage Mismatch</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Models have different prompt coverage</p>
+              </div>
+            </div>
+            
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 mb-4 text-sm">
+              <p className="text-slate-600 dark:text-slate-300 mb-2">
+                <span className="font-medium">{coverageMismatch.common_count}</span> prompts are common to all models.
+              </p>
+              <div className="space-y-1 text-slate-500 dark:text-slate-400 text-xs">
+                {coverageMismatch.model_coverage.map(m => (
+                  <div key={m.name} className="flex justify-between">
+                    <span className="truncate max-w-[180px]">{m.name}</span>
+                    <span>
+                      {m.count} prompts
+                      {m.missing_count > 0 && <span className="text-orange-500 ml-1">({m.missing_count} missing)</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={handleAnalyzeCommonOnly}
+                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
+              >
+                Analyze Common Only
+              </button>
+              <button
+                onClick={handleGenerateMissing}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                Generate Missing
+              </button>
+            </div>
+            
+            <button
+              onClick={() => { setShowCoverageModal(false); setCoverageMismatch(null); }}
+              className="w-full mt-3 px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-[1800px] mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Sidebar / Controls */}
@@ -473,5 +686,6 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
           </div>
         </div>
       </div>
+    </>
   );
 }

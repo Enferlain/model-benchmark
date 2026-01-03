@@ -61,6 +61,7 @@ class ScanOptions(BaseModel):
     num_prompts: int = 10  # Number of prompts to use from test data
     width: int = 1024
     height: int = 1536
+    common_only: bool = False  # If true, only analyze prompts common to all models
 
 
 # In-memory List Cache (Populated from DB)

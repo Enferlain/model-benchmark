@@ -31,6 +31,38 @@ def analyze_models_only(options: ScanOptions):
     if not prompts:
         return {"status": "error", "message": "No prompts found"}
 
+    # If common_only, first calculate common prompts across all models
+    common_prompts: set[str] | None = None
+    if options.common_only:
+        model_prompts_sets = []
+        for m in models_db:
+            output_dir = data_loader.ASSETS_DIR / "outputs" / m.name
+            if not output_dir.exists():
+                model_prompts_sets.append(set())
+                continue
+            images = list(output_dir.glob("p*_i*_s*.png"))
+            model_prompts = set()
+            for img_path in images:
+                try:
+                    with Image.open(img_path) as img:
+                        prompt = img.info.get("prompt")
+                        if prompt:
+                            model_prompts.add(prompt)
+                except Exception:
+                    pass
+            model_prompts_sets.append(model_prompts)
+
+        # Intersection of all non-empty sets
+        non_empty = [s for s in model_prompts_sets if len(s) > 0]
+        if non_empty:
+            common_prompts = non_empty[0].copy()
+            for s in non_empty[1:]:
+                common_prompts &= s
+        else:
+            common_prompts = set()
+
+        print(f"Common-only mode: analyzing {len(common_prompts)} common prompts")
+
     with db.get_session() as session:
         # Collect all unique prompts actually used across all models
         all_used_prompts = set()
@@ -68,6 +100,10 @@ def analyze_models_only(options: ScanOptions):
 
                     if not prompt_text:
                         prompt_text = ""
+
+                    # Skip if common_only mode and prompt not in common set
+                    if common_prompts is not None and prompt_text not in common_prompts:
+                        continue
 
                     flat_images.append(img)
                     flat_prompts.append(prompt_text)
