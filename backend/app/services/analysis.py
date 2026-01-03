@@ -1,7 +1,7 @@
 import random
 from pathlib import Path
 from datetime import datetime
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from sqlmodel import select, desc
 
 from ..core import database as db
@@ -42,9 +42,6 @@ def analyze_models_only(options: ScanOptions):
         session.refresh(run)
         print(f"Started Benchmark Run ID: {run.id}")
 
-        session.refresh(run)
-        print(f"Started Benchmark Run ID: {run.id}")
-
         # models = session.exec(select(Model)).all()
         # Analyze only ACTIVE SESSION models
         valid_models = models_db
@@ -60,10 +57,10 @@ def analyze_models_only(options: ScanOptions):
 
             for img_path in sorted(existing_images):
                 try:
-                    img = Image.open(img_path).convert("RGB")
-                    img.load()
-
-                    prompt_text = img.info.get("prompt")
+                    with Image.open(img_path) as src:
+                        img = src.convert("RGB")
+                        img.load()
+                        prompt_text = src.info.get("prompt")
 
                     # If prompt missing in metadata, fallback to index if we trust it,
                     # but strictly we should probably limit analysis to "known" prompts?
@@ -86,7 +83,7 @@ def analyze_models_only(options: ScanOptions):
                     if prompt_text not in grouped_images:
                         grouped_images[prompt_text] = []
                     grouped_images[prompt_text].append(img)
-                except Exception as e:
+                except (UnidentifiedImageError, OSError) as e:
                     print(f"Error loading {img_path}: {e}")
 
             print(f"Analyzing {m.name}: {len(flat_images)} images")
