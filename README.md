@@ -80,9 +80,9 @@ You can check the download status via:
 curl "http://localhost:8000/api/models/download/status"
 ```
 
-### 4. Manage Prompts (New!)
+### 4. Manage Prompts
 
-The application now features a full **Prompt Manager** tab.
+The application features a full **Prompt Manager** tab.
 
 - **Interactive Queue**: Toggle prompts ON/OFF. Only enabled prompts are used for benchmarking.
 - **CRUD**: Create, Edit, Delete prompts directly in the UI.
@@ -120,7 +120,24 @@ uvicorn main:app --reload --port 8000
 npm run dev
 ```
 
-Open `http://localhost:5173` (or `http://localhost:3000` depending on config) in your browser.
+Open `http://localhost:5173` in your browser.
+
+---
+
+## Key Features
+
+- **Dashboard**: Visual scatter plot of model metrics with linked table selection
+- **Gallery**: Filter generated images by Prompt, Seed, and Model
+- **Compare**: Side-by-side image comparison with slider overlay
+- **Prompt Editor**: Full CRUD for test prompts with reference images
+- **Database**: View and search benchmark run history
+- **Model Comparison View**: Slider-based visual comparison between models
+
+### Fairness Features
+
+- **Parameter Mismatch Detection**: Warns when generation settings don't match existing images
+- **Prompt Coverage Check**: Ensures all models have equal image counts before analysis
+- **Equalize Mode**: Automatically generates missing images to match across models
 
 ---
 
@@ -147,6 +164,16 @@ backend/assets/
 - **image_index**: Which image for that prompt (for diversity/LPIPS)
 - **seed**: The exact seed used
 
+### Image Metadata
+
+Each generated image contains embedded metadata:
+
+- `model_name`: Which model generated it
+- `prompt`: The full prompt text
+- `parameters`: JSON with steps, cfg, sampler, seed, dimensions
+- `generation_time`: ISO timestamp
+- `id`: Unique short identifier
+
 ### Seed Logic
 
 - Each prompt uses `base_seed + image_index`
@@ -154,11 +181,6 @@ backend/assets/
 - Example with `seed=218, images_per_prompt=2`:
   - Prompt 0: seeds 218, 219
   - Prompt 1: seeds 218, 219 (same!)
-
-### Interactive Queue
-
-- The backend respects the **Enabled/Disabled** status set in the Prompt Manager.
-- Disabled prompts are skipped entirely during generation.
 
 ### Gap Handling
 
@@ -170,27 +192,29 @@ If an image is missing (e.g., `p001_i01` doesn't exist), the system:
 
 ---
 
-## Key Features
-
-- **Stable Model Identification**: Uses Blake3 content hashing to identify models reliably, even if filenames change.
-- **Visual Dashboard**:
-  - **Identity Colors**: Models are assigned a unique, deterministic color based on their hash.
-  - **Linked Selection**: Clicking a dot in the scatter plot highlights the model in the table (and vice-versa).
-- **Prompt Manager**: Full control over your benchmark dataset.
-- **Gallery**: Filter by Prompt, Seed, and Model to analyze results.
-
----
-
 ## API Endpoints
 
-| Endpoint        | Method | Description                        |
-| --------------- | ------ | ---------------------------------- |
-| `/api/generate` | POST   | Generate images (no metrics)       |
-| `/api/analyze`  | POST   | Compute metrics on existing images |
-| `/api/scan`     | POST   | Generate + Analyze                 |
-| `/api/status`   | GET    | Current generation progress        |
-| `/api/cancel`   | POST   | Cancel running generation          |
-| `/api/models`   | GET    | List analyzed models               |
+### Generation & Analysis
+
+| Endpoint                      | Method | Description                                  |
+| ----------------------------- | ------ | -------------------------------------------- |
+| `/api/generate`               | POST   | Generate images (no metrics)                 |
+| `/api/analyze`                | POST   | Compute metrics on existing images           |
+| `/api/scan`                   | POST   | Generate + Analyze                           |
+| `/api/status`                 | GET    | Current generation progress                  |
+| `/api/cancel`                 | POST   | Cancel running generation                    |
+| `/api/check-params`           | POST   | Check if params match existing images        |
+| `/api/archive/{model}`        | POST   | Archive model's images to timestamped folder |
+| `/api/analyze/check-coverage` | POST   | Check prompt coverage across models          |
+
+### Models
+
+| Endpoint                      | Method | Description             |
+| ----------------------------- | ------ | ----------------------- |
+| `/api/models`                 | GET    | List analyzed models    |
+| `/api/models/download`        | POST   | Download model from URL |
+| `/api/models/download/status` | GET    | Download progress       |
+| `/api/models/{id}`            | DELETE | Remove model            |
 
 ### Generation Options
 
@@ -203,7 +227,9 @@ If an image is missing (e.g., `p001_i01` doesn't exist), the system:
   "images_per_prompt": 2,
   "num_prompts": 10,
   "width": 1024,
-  "height": 1536
+  "height": 1536,
+  "common_only": false,
+  "equalize_counts": false
 }
 ```
 
@@ -213,6 +239,8 @@ If an image is missing (e.g., `p001_i01` doesn't exist), the system:
 
 - **CLIP Score**: Prompt adherence (how well image matches text)
 - **LPIPS Diversity**: Visual diversity between images of the same prompt
+- **VQA Score**: Visual question answering based quality assessment
+- **Rating**: Aesthetic rating prediction
 
 ---
 
@@ -221,18 +249,35 @@ If an image is missing (e.g., `p001_i01` doesn't exist), the system:
 ```
 model-benchmark-explorer/
 ├── backend/
-│   ├── main.py           # FastAPI server
-│   ├── inference.py      # SDXL generation wrapper
-│   ├── metrics.py        # CLIP & LPIPS calculation
-│   ├── data_loader.py    # Model/prompt discovery
-│   ├── sd-scripts/       # Self-contained sd-scripts library
-│   └── requirements.txt
-├── src/                  # React Frontend
-│   ├── components/       # Reusable UI components
-│   ├── pages/            # View components (Dashboard, Gallery, etc.)
-│   ├── layouts/          # Main application wrapper
-│   ├── context/          # React Context (Theme, etc.)
-│   ├── services/         # API calls
-│   └── App.tsx           # Router setup
+│   ├── main.py               # Entry point
+│   ├── requirements.txt
+│   ├── app/
+│   │   ├── main.py           # FastAPI app setup
+│   │   ├── api/              # API route handlers
+│   │   │   ├── generation.py # /generate, /analyze, /scan
+│   │   │   ├── models.py     # /models endpoints
+│   │   │   ├── prompts.py    # /prompts endpoints
+│   │   │   └── system.py     # /status, /runs
+│   │   ├── services/         # Business logic
+│   │   │   ├── generation.py # Image generation
+│   │   │   ├── analysis.py   # Metrics computation
+│   │   │   ├── model_manager.py
+│   │   │   ├── prompt_manager.py
+│   │   │   └── downloader.py
+│   │   ├── lib/              # Core utilities
+│   │   │   ├── inference.py  # SDXL pipeline wrapper
+│   │   │   └── metrics.py    # CLIP & LPIPS calculation
+│   │   └── core/             # Database, state, config
+│   └── sd-scripts/           # Self-contained sd-scripts library
+├── src/                      # React Frontend
+│   ├── pages/
+│   │   ├── Dashboard.tsx     # Main view with scatter plot
+│   │   ├── Gallery.tsx       # Image browser
+│   │   ├── Compare.tsx       # Side-by-side comparison
+│   │   ├── PromptEditor.tsx  # Prompt management
+│   │   └── Database.tsx      # Benchmark history
+│   ├── components/           # Reusable UI components
+│   ├── services/api.ts       # API client
+│   └── context/              # React Context (Theme)
 └── package.json
 ```
