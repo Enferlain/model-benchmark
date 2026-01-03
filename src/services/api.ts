@@ -217,9 +217,11 @@ export async function archiveModel(modelName: string) {
 export interface CoverageCheckResult {
   all_match: boolean;
   common_count: number;
+  image_count_mismatch: boolean;
   model_coverage: Array<{
     name: string;
     count: number;
+    image_count: number;
     missing_count: number;
     extra_count: number;
   }>;

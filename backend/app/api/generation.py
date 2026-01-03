@@ -146,30 +146,31 @@ def archive_model(model_name: str):
 @router.post("/analyze/check-coverage")
 def check_coverage():
     """Check prompt coverage across all active models."""
-    model_coverage: dict[str, set[str]] = {}
+    # Track prompts AND image counts per prompt for each model
+    model_coverage: dict[str, dict[str, int]] = {}  # model -> {prompt: count}
 
     for m in state.models_db:
         output_dir = data_loader.ASSETS_DIR / "outputs" / m.name
         if not output_dir.exists():
-            model_coverage[m.name] = set()
+            model_coverage[m.name] = {}
             continue
 
         images = list(output_dir.glob("p*_i*_s*.png"))
-        prompts_found = set()
+        prompt_counts: dict[str, int] = {}
 
         for img_path in images:
             try:
                 with Image.open(img_path) as img:
                     prompt = img.info.get("prompt")
                     if prompt:
-                        prompts_found.add(prompt)
+                        prompt_counts[prompt] = prompt_counts.get(prompt, 0) + 1
             except Exception:
                 pass
 
-        model_coverage[m.name] = prompts_found
+        model_coverage[m.name] = prompt_counts
 
-    # Find common prompts (intersection of all sets)
-    all_prompt_sets = list(model_coverage.values())
+    # Find common prompts (intersection of all prompt sets)
+    all_prompt_sets = [set(pc.keys()) for pc in model_coverage.values()]
     if not all_prompt_sets or all(len(s) == 0 for s in all_prompt_sets):
         common_prompts: set[str] = set()
     else:
@@ -178,18 +179,42 @@ def check_coverage():
         for s in non_empty[1:]:
             common_prompts &= s
 
-    # Check if all models have exactly the same coverage
-    all_match = all(s == common_prompts and len(s) > 0 for s in all_prompt_sets)
+    # Check if image counts match for common prompts
+    image_count_mismatch = False
+    if common_prompts and len(model_coverage) > 1:
+        models_list = list(model_coverage.keys())
+        first_model_counts = model_coverage[models_list[0]]
+        for prompt in common_prompts:
+            expected_count = first_model_counts.get(prompt, 0)
+            for model_name in models_list[1:]:
+                actual_count = model_coverage[model_name].get(prompt, 0)
+                if actual_count != expected_count:
+                    image_count_mismatch = True
+                    break
+            if image_count_mismatch:
+                break
+
+    # Check if all models have exactly the same prompt coverage
+    prompt_sets_match = all(
+        set(pc.keys()) == common_prompts and len(pc) > 0
+        for pc in model_coverage.values()
+    )
+    all_match = prompt_sets_match and not image_count_mismatch
 
     # Build response with coverage details
     coverage_details = []
-    for name, prompts in model_coverage.items():
-        missing = list(common_prompts - prompts) if common_prompts else []
-        extra = list(prompts - common_prompts) if common_prompts else list(prompts)
+    for name, prompt_counts in model_coverage.items():
+        prompts_set = set(prompt_counts.keys())
+        missing = list(common_prompts - prompts_set) if common_prompts else []
+        extra = (
+            list(prompts_set - common_prompts) if common_prompts else list(prompts_set)
+        )
+        total_images = sum(prompt_counts.values())
         coverage_details.append(
             {
                 "name": name,
-                "count": len(prompts),
+                "count": len(prompts_set),
+                "image_count": total_images,
                 "missing_count": len(missing),
                 "extra_count": len(extra),
             }
@@ -198,5 +223,6 @@ def check_coverage():
     return {
         "all_match": all_match,
         "common_count": len(common_prompts),
+        "image_count_mismatch": image_count_mismatch,
         "model_coverage": coverage_details,
     }

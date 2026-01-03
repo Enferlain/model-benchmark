@@ -62,6 +62,9 @@ class ScanOptions(BaseModel):
     width: int = 1024
     height: int = 1536
     common_only: bool = False  # If true, only analyze prompts common to all models
+    equalize_counts: bool = (
+        False  # If true, generate to match max image count per prompt across models
+    )
 
 
 # In-memory List Cache (Populated from DB)

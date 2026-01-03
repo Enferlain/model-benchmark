@@ -210,7 +210,8 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     // First check prompt coverage
     try {
       const coverageResult = await checkCoverage();
-      if (!coverageResult.all_match && coverageResult.model_coverage.some(m => m.missing_count > 0)) {
+      // Show modal if prompts don't match OR image counts differ
+      if (!coverageResult.all_match || coverageResult.model_coverage.some(m => m.missing_count > 0)) {
         setCoverageMismatch(coverageResult);
         setShowCoverageModal(true);
         return; // Wait for user decision
@@ -244,10 +245,19 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
   const handleGenerateMissing = useCallback(async () => {
     setShowCoverageModal(false);
     setCoverageMismatch(null);
-    // Generate to fill gaps, then analyze
-    await doGenerate();
+    // Generate to fill gaps (equalize counts across models), then analyze
+    setIsScanning(true);
+    setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
+    try {
+      await generateImages({ ...scanOptions, equalize_counts: true });
+    } catch (error) {
+      console.error('Generate error:', error);
+    } finally {
+      setIsScanning(false);
+      setGenerationStatus(prev => ({ ...prev, is_running: false }));
+    }
     await doAnalyze(false);
-  }, [doGenerate, doAnalyze]);
+  }, [scanOptions, doAnalyze]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -436,13 +446,16 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
             <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 mb-4 text-sm">
               <p className="text-slate-600 dark:text-slate-300 mb-2">
                 <span className="font-medium">{coverageMismatch.common_count}</span> prompts are common to all models.
+                {coverageMismatch.image_count_mismatch && (
+                  <span className="text-orange-500 ml-2">(image counts vary)</span>
+                )}
               </p>
               <div className="space-y-1 text-slate-500 dark:text-slate-400 text-xs">
                 {coverageMismatch.model_coverage.map(m => (
                   <div key={m.name} className="flex justify-between">
-                    <span className="truncate max-w-[180px]">{m.name}</span>
+                    <span className="truncate max-w-[150px]">{m.name}</span>
                     <span>
-                      {m.count} prompts
+                      {m.image_count} images / {m.count} prompts
                       {m.missing_count > 0 && <span className="text-orange-500 ml-1">({m.missing_count} missing)</span>}
                     </span>
                   </div>

@@ -40,6 +40,42 @@ def generate_images_only(options: ScanOptions):
         for m_res in models_db:
             valid_models.append(m_res)
 
+        # If equalize_counts, first scan all models to find max image count per prompt
+        prompt_max_counts: dict[str, int] = {}
+        if options.equalize_counts:
+            for m in valid_models:
+                output_dir = data_loader.ASSETS_DIR / "outputs" / m.name
+                if not output_dir.exists():
+                    continue
+                images = list(output_dir.glob("p*_i*_s*.png"))
+                for img_path in images:
+                    try:
+                        with Image.open(img_path) as img:
+                            prompt = img.info.get("prompt")
+                            if prompt:
+                                prompt = prompt.strip()
+                                prompt_max_counts[prompt] = prompt_max_counts.get(
+                                    prompt, 0
+                                )
+                                # Count this image (we'll track per-model counts below)
+                    except Exception:
+                        pass
+                # Now count per prompt for this model
+                model_counts: dict[str, int] = {}
+                for img_path in images:
+                    try:
+                        with Image.open(img_path) as img:
+                            prompt = img.info.get("prompt")
+                            if prompt:
+                                prompt = prompt.strip()
+                                model_counts[prompt] = model_counts.get(prompt, 0) + 1
+                    except Exception:
+                        pass
+                # Update max counts
+                for p, c in model_counts.items():
+                    prompt_max_counts[p] = max(prompt_max_counts.get(p, 0), c)
+            print(f"Equalize mode: max counts = {prompt_max_counts}")
+
         for m in valid_models:
             # Use Name as ID for folder (User Request)
             output_dir = data_loader.ASSETS_DIR / "outputs" / m.name
@@ -83,7 +119,14 @@ def generate_images_only(options: ScanOptions):
             for prompt_meta in target_prompts_meta:
                 text = prompt_meta["text"].strip()
                 existing_indices = existing_counts.get(text, set())
-                needed = set(range(options.images_per_prompt))
+
+                # Use max count from other models if equalize mode, otherwise use setting
+                if options.equalize_counts and text in prompt_max_counts:
+                    target_count = prompt_max_counts[text]
+                else:
+                    target_count = options.images_per_prompt
+
+                needed = set(range(target_count))
                 missing = needed - existing_indices
 
                 if missing:

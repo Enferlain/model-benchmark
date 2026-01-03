@@ -60,6 +60,7 @@ Working prototype with:
 - [x] **Model fetching** - Fix model fetch/downloader
 - [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
 - [x] **Add visible databse tab (non editable)** - nicely presented database rows/columns, search, related options, etc.
+- [ ] **Add prompt set name option somewhere** - either to the generation tab, or at the prompt tab, figure out later
 
 ### Backend
 
@@ -77,6 +78,7 @@ Working prototype with:
 - [x] **Model downloading** - Downloading models from hf and civit
 - [ ] **Queue downloading models/list of models, cancel/interrupt downloading**
 - [ ] **Support SHA256 Hashing** - Add option to use SHA256 (standard on HF/CivitAI) for compatibility, instead of BLAKE3 default
+- [ ] **Arena results kept on a server** - Fetched to client, sent to server. json maybe? idk 
 
 ---
 
