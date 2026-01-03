@@ -32,3 +32,15 @@ package-lock.json
 *.npy
 
 __pycache__
+
+# Database files
+*.db
+
+# Backend runtime data
+backend/assets/models/
+backend/assets/outputs/
+backend/assets/model_cache.json
+backend/venv/
+
+# Root assets (legacy)
+assets/
