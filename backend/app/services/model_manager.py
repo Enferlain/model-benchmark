@@ -16,17 +16,13 @@ def compute_model_hash(file_path: Path) -> str:
     except ImportError:
         hasher = hashlib.sha256()
 
-    try:
-        with open(file_path, "rb") as f:
-            while True:
-                chunk = f.read(65536)
-                if not chunk:
-                    break
-                hasher.update(chunk)
-        return hasher.hexdigest()
-    except Exception as e:
-        print(f"Error hashing {file_path}: {e}")
-        return "error_hashing_" + str(random.randint(0, 999999))
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(65536)
+            if not chunk:
+                break
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def sync_models_with_db():
@@ -70,7 +66,11 @@ def sync_models_with_db():
             # If we are here, it's new, moved, or changed.
             if not calculated_hash:
                 print(f"Hashing {path.name}...")
-                calculated_hash = compute_model_hash(path)
+                try:
+                    calculated_hash = compute_model_hash(path)
+                except Exception as e:
+                    print(f"Error hashing {path}: {e}")
+                    continue
 
             found_hashes.add(calculated_hash)
 

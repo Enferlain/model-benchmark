@@ -23,7 +23,7 @@ export const CreatePromptModal: React.FC<CreatePromptModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="absolute inset-0 z-50 bg-white/90 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-8">
+        <div className="fixed inset-0 z-50 bg-white/90 dark:bg-slate-900/95 backdrop-blur-md flex items-center justify-center p-8">
              <div className="w-full max-w-2xl flex flex-col h-full max-h-[600px] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 animation-fade-in-up">
                 <div className="p-6 border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
                   <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Create New Prompt</h2>
