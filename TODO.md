@@ -78,7 +78,20 @@ Working prototype with:
 - [x] **Model downloading** - Downloading models from hf and civit
 - [ ] **Queue downloading models/list of models, cancel/interrupt downloading**
 - [ ] **Support SHA256 Hashing** - Add option to use SHA256 (standard on HF/CivitAI) for compatibility, instead of BLAKE3 default
-- [ ] **Arena results kept on a server** - Fetched to client, sent to server. json maybe? idk 
+- [ ] **Shared model hash lookup** - Community `known_models.json` that maps SHA256 → metadata:
+  ```json
+  {
+    "cd2180f1ab3dc85b...": {
+      "name": "Illustrious-XL-v2.0",
+      "source": "HuggingFace",
+      "url": "https://huggingface.co/...",
+      "prediction_type": "epsilon"
+    }
+  }
+  ```
+  - Auto-fill model info when hash matches a known model
+  - Keep separate from local `model_cache.json` (which stores mtime/size for speedup)
+- [ ] **Arena results kept on a server** - Fetched to client, sent to server. json maybe? idk
 
 ---
 

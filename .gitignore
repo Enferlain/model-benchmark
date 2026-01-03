@@ -40,6 +40,7 @@ __pycache__
 backend/assets/models/
 backend/assets/outputs/
 backend/assets/model_cache.json
+backend/assets/prompts_config.json
 backend/venv/
 
 # Root assets (legacy)
