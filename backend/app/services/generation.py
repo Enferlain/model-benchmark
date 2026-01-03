@@ -8,9 +8,11 @@ from ..core.state import models_db, generation_state, ScanOptions
 from ..lib import inference
 from . import prompt_manager as data_loader
 
+
 def check_cancelled():
     """Check if generation should be cancelled. Call this in generation loops."""
     return generation_state["should_cancel"]
+
 
 def generate_images_only(options: ScanOptions):
     """Generate images using robust metadata matching."""
@@ -136,9 +138,7 @@ def generate_images_only(options: ScanOptions):
                     continue
 
                 prompts_texts = [item[0]["text"] for item in generation_queue]
-                per_prompt_seeds = [
-                    options.seed + item[1] for item in generation_queue
-                ]
+                per_prompt_seeds = [options.seed + item[1] for item in generation_queue]
 
                 gen_iterator = inferencer.generate(
                     prompts=prompts_texts,
@@ -170,20 +170,41 @@ def generate_images_only(options: ScanOptions):
 
                         actual_seed = per_prompt_seeds[idx]
 
+                        # Generate unique ID for this image
+                        import uuid
+                        import json
+                        from datetime import datetime
+
+                        image_id = str(uuid.uuid4())[:8]  # Short UUID
+                        generation_time = datetime.utcnow().isoformat()
+
+                        # Build parameters dict
+                        params = {
+                            "steps": options.steps,
+                            "cfg": options.guidance_scale,
+                            "sampler": options.sampler,
+                            "seed": actual_seed,
+                            "width": options.width,
+                            "height": options.height,
+                        }
+
                         # Prepare Metadata
                         metadata = PngInfo()
+                        metadata.add_text("model_name", m.name)
                         metadata.add_text("prompt", p_meta["text"])
-                        metadata.add_text("index", str(current_p_idx))
+                        metadata.add_text("parameters", json.dumps(params))
+                        metadata.add_text("prompt_set", "")  # Future: named prompt sets
+                        metadata.add_text("id", image_id)
+                        metadata.add_text("index", str(i_idx))  # Image variant index
                         metadata.add_text("seed", str(actual_seed))
                         metadata.add_text("alias", p_meta.get("alias", "") or "")
+                        metadata.add_text("generation_time", generation_time)
                         metadata.add_text(
                             "original_filename",
                             f"p{current_p_idx:03d}_i{i_idx:02d}_s{actual_seed}.png",
                         )
 
-                        fname = (
-                            f"p{current_p_idx:03d}_i{i_idx:02d}_s{actual_seed}.png"
-                        )
+                        fname = f"p{current_p_idx:03d}_i{i_idx:02d}_s{actual_seed}.png"
                         save_path = output_dir / fname
 
                         img.save(save_path, pnginfo=metadata)

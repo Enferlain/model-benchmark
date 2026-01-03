@@ -13,6 +13,7 @@ export interface ModelData {
   rating: number;
   vqa_score?: number;
   lpips_loss?: number;
+  ztsnr?: boolean;
   metrics?: Record<MetricKey, number>;
   url: string;
 }

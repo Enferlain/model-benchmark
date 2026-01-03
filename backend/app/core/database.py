@@ -26,7 +26,9 @@ class Model(SQLModel, table=True):
     is_hidden: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    results: List["ModelResult"] = Relationship(back_populates="model")
+    results: List["ModelResult"] = Relationship(
+        back_populates="model", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
 
 class BenchmarkRun(SQLModel, table=True):

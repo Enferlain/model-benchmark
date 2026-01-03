@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Sparkles, Sun, Moon, LayoutDashboard, Images, Edit3, GitCompare, Trophy, Loader2, Menu, X } from 'lucide-react';
+import { Sparkles, Sun, Moon, LayoutDashboard, Images, Edit3, GitCompare, Trophy, Loader2, Menu, X, Database } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 interface MainLayoutProps {
@@ -21,6 +21,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ isLoading = false, model
     { to: "/prompts", icon: <Edit3 size={16}/>, label: "Prompts" },
     { to: "/compare", icon: <GitCompare size={16}/>, label: "Compare" },
     { to: "/arena", icon: <Trophy size={16}/>, label: "Arena" },
+    { to: "/database", icon: <Database size={16}/>, label: "Database" },
   ];
 
   return (

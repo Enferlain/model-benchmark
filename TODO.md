@@ -37,12 +37,12 @@ Working prototype with:
 
 ### DINOv3 smalL/large semantic consistency score, dino lpips instead of alex/vgg, object halo (saliency sparsity)
 
-|Metric Name|Using Model...|Tells|
-|---|---|---|
-Semantic  Match|vitl16 (Global)|"""Is this actually what I asked for visually?"""|
-Deep Diversity|vitb16 (Layers)|"""Is the model just repeating itself?"""|
-Object Integrity|vitl16 (Attention)|"""Did the AI mess up the body/structure?"""|
-Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"""|
+| Metric Name      | Using Model...     | Tells                                                  |
+| ---------------- | ------------------ | ------------------------------------------------------ |
+| Semantic Match   | vitl16 (Global)    | """Is this actually what I asked for visually?"""      |
+| Deep Diversity   | vitb16 (Layers)    | """Is the model just repeating itself?"""              |
+| Object Integrity | vitl16 (Attention) | """Did the AI mess up the body/structure?"""           |
+| Batch Quality    | convnext-base      | """Does this whole folder of images look 'natural'?""" |
 
 ---
 
@@ -55,11 +55,11 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 - [x] **Prompt editor** - Edit/manage test prompts in UI
 - [x] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
 - [ ] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
-- [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score 
+- [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score
 - [ ] **Export results** - CSV/JSON export of benchmark data
 - [x] **Model fetching** - Fix model fetch/downloader
 - [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
-- [ ] **Add visible databse tab (non editable)** - nicely presented database rows/columns, search, related options, etc.
+- [x] **Add visible databse tab (non editable)** - nicely presented database rows/columns, search, related options, etc.
 
 ### Backend
 
@@ -76,6 +76,7 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 - [ ] **Reference images** - Compare against ground truth
 - [x] **Model downloading** - Downloading models from hf and civit
 - [ ] **Queue downloading models/list of models, cancel/interrupt downloading**
+- [ ] **Support SHA256 Hashing** - Add option to use SHA256 (standard on HF/CivitAI) for compatibility, instead of BLAKE3 default
 
 ---
 
@@ -88,4 +89,3 @@ Batch Quality|convnext-base|"""Does this whole folder of images look 'natural'?"
 ---
 
 ## Quick Fixes Needed
-

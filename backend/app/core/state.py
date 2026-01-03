@@ -32,6 +32,7 @@ class ModelResult(BaseModel):
     # Metadata
     prediction_type: Optional[str] = None
     model_type: Optional[str] = None
+    ztsnr: bool = False
 
 
 class ScanOptions(BaseModel):

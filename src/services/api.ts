@@ -19,9 +19,21 @@ export async function fetchModels() {
   return response.json();
 }
 
+export async function scanModels() {
+  const response = await fetch(`${API_BASE}/models/scan`, { method: "POST" });
+  if (!response.ok) throw new Error("Failed to scan models");
+  return response.json();
+}
+
 export async function getStatus() {
   const response = await fetch(`${API_BASE}/status`);
   if (!response.ok) throw new Error('Failed to fetch status');
+  return response.json();
+}
+
+export async function fetchBenchmarkRuns() {
+  const response = await fetch(`${API_BASE}/runs`);
+  if (!response.ok) throw new Error('Failed to fetch benchmark runs');
   return response.json();
 }
 

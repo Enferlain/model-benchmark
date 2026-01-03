@@ -40,13 +40,18 @@
     "hash": "4882a29634fa411f9d6a98848c7a77339d2873ae9eb634755c5be268c2ee3237"
   },
   "pop3-obsv2_delta_widen6obsbaseline.safetensors": {
-    "mtime": 1758639791.4229596,
-    "size": 6938047235,
-    "hash": "c8175791ec26466c2cc238d2e13f327037c8526630d3f637449f68e22ebbfb80"
+    "mtime": 1767457530.1567423,
+    "size": 6938043314,
+    "hash": "e5aaa4cb2649c3afd463fd005cc7c5553db7c12671f74bff9279337e367126cb"
   },
   "pop3-obsv2_delta_widen6obsbaseline_v-pred.safetensors": {
     "mtime": 1758639791.4229596,
     "size": 6938047235,
     "hash": "c8175791ec26466c2cc238d2e13f327037c8526630d3f637449f68e22ebbfb80"
+  },
+  "pop3-obsv2_delta_widen6obsbaseline_vzk.safetensors": {
+    "mtime": 1767457530.1567423,
+    "size": 6938043314,
+    "hash": "e5aaa4cb2649c3afd463fd005cc7c5553db7c12671f74bff9279337e367126cb"
   }
 }

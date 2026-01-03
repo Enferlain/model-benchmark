@@ -10,30 +10,11 @@ from .services import model_manager
 from .core import state, database as db
 from .api import models, prompts, generation, system
 
-app = FastAPI(lifespan=lifespan)
-
-# Suppress uvicorn access log spam for polling endpoints
-logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-
-# Mount assets directory for serving images
-# Ensure the directory exists to avoid errors on startup if it's missing
-data_loader.ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-db.init_db()
-app.mount("/assets", StaticFiles(directory=data_loader.ASSETS_DIR), name="assets")
-
-# Enable CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Startup/Shutdown Events
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from contextlib import asynccontextmanager
+
 
 class ModelFileHandler(FileSystemEventHandler):
     def __init__(self):
@@ -58,6 +39,7 @@ class ModelFileHandler(FileSystemEventHandler):
             print("Auto-scan complete.")
         except Exception as e:
             print(f"Auto-scan failed: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -84,8 +66,30 @@ async def lifespan(app: FastAPI):
         observer.stop()
         observer.join()
 
+
+app = FastAPI(lifespan=lifespan)
+
+# Suppress uvicorn access log spam for polling endpoints
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+# Mount assets directory for serving images
+# Ensure the directory exists to avoid errors on startup if it's missing
+data_loader.ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+db.init_db()
+app.mount("/assets", StaticFiles(directory=data_loader.ASSETS_DIR), name="assets")
+
+# Enable CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Register Routers
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(prompts.router, prefix="/api", tags=["prompts"])
 app.include_router(generation.router, prefix="/api", tags=["generation"])
 app.include_router(system.router, prefix="/api", tags=["system"])
+# Reload trigger

@@ -3,18 +3,41 @@ from pathlib import Path
 from ..core import state, database as db
 from ..services import downloader
 from ..services import prompt_manager as data_loader
+from ..services import model_manager
 
 router = APIRouter()
+
 
 @router.get("/models")
 def get_models():
     return state.models_db
 
+
+@router.post("/models/scan")
+def scan_models():
+    """Triggers a re-scan of the models directory."""
+    try:
+        updated_list = model_manager.sync_models_with_db(recheck_types=True)
+        return {"status": "ok", "count": len(updated_list)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/models/{model_id}/outputs")
 def get_model_outputs(model_id: str):
-    output_dir = data_loader.ASSETS_DIR / "outputs" / model_id
-    if not output_dir.exists():
+    # Retrieve model name from state to determine correct output folder
+    # model_id is the hash, but folders are stored by Name
+    model_entry = next((m for m in state.models_db if m.id == model_id), None)
+    if not model_entry:
         return []
+
+    output_dir = data_loader.ASSETS_DIR / "outputs" / model_entry.name
+    if not output_dir.exists():
+        # Fallback: check if directory exists by ID (legacy or just in case)
+        if (data_loader.ASSETS_DIR / "outputs" / model_id).exists():
+            output_dir = data_loader.ASSETS_DIR / "outputs" / model_id
+        else:
+            return []
 
     # Get prompts (cached or reloaded)
     prompts = data_loader.load_prompts_only()
@@ -57,10 +80,10 @@ def get_model_outputs(model_id: str):
                     pass
 
                 # Construct URL: mounted /assets points to backend/assets
-                # Output dir is backend/assets/outputs/{model_id}
-                # So URL is /assets/outputs/{model_id}/{filename}
+                # Output dir is backend/assets/outputs/{model_folder_name} (usually Name)
+                # So URL is /assets/outputs/{output_dir.name}/{filename}
                 # Use standard forward slashes for URLs
-                url = f"/assets/outputs/{model_id}/{img_path.name}"
+                url = f"/assets/outputs/{output_dir.name}/{img_path.name}"
 
                 # Get mtime for cache busting
                 mtime = int(img_path.stat().st_mtime)
@@ -79,6 +102,7 @@ def get_model_outputs(model_id: str):
             print(f"Error parsing metadata for {img_path}: {e}")
 
     return images
+
 
 @router.delete("/models/{model_id}")
 def delete_model(model_id: str, delete_file: bool = False):
@@ -131,6 +155,7 @@ def delete_model(model_id: str, delete_file: bool = False):
 
     return {"status": "ok"}
 
+
 @router.post("/models/download")
 def download_model(request: state.ModelRequest, background_tasks: BackgroundTasks):
     # TOCTOU protection
@@ -147,6 +172,7 @@ def download_model(request: state.ModelRequest, background_tasks: BackgroundTask
         request.api_token,
     )
     return {"status": "started"}
+
 
 @router.get("/models/download/status")
 def get_download_status():

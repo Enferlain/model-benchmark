@@ -16,12 +16,40 @@ def get_status():
 
 @router.get("/runs")
 def get_runs():
-    """Get list of past benchmark runs."""
+    """Get list of past benchmark runs with their model results."""
     with db.get_session() as session:
         runs = session.exec(
             select(db.BenchmarkRun).order_by(desc(db.BenchmarkRun.timestamp))
         ).all()
-        return runs
+        
+        result = []
+        for run in runs:
+            # Get results for this run
+            run_results = session.exec(
+                select(db.ModelResult).where(db.ModelResult.run_id == run.id)
+            ).all()
+            
+            # Build model results with names
+            models_data = []
+            for res in run_results:
+                model = session.get(db.Model, res.model_hash)
+                models_data.append({
+                    "model_hash": res.model_hash,
+                    "model_name": model.name if model else "Unknown",
+                    "metrics": res.metrics,
+                    "image_count": res.image_count
+                })
+            
+            result.append({
+                "id": run.id,
+                "timestamp": run.timestamp.isoformat(),
+                "parameters": run.parameters,
+                "prompts": run.prompts,
+                "prompt_set_id": run.prompt_set_id,
+                "results": models_data
+            })
+        
+        return result
 
 @router.get("/notes/{note_id}")
 def get_note(note_id: str):

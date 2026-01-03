@@ -14,6 +14,7 @@ from . import model_manager
 # Initialize metrics calculator lazily
 metrics_calc = None
 
+
 def get_metrics_calc():
     global metrics_calc
     if metrics_calc is None:
@@ -21,6 +22,7 @@ def get_metrics_calc():
         metrics_calc.load_clip()  # Load on startup since requirements are installed
         metrics_calc.load_lpips()  # Load LPIPS for diversity calculation
     return metrics_calc
+
 
 def analyze_models_only(options: ScanOptions):
     """Analyze existing images and compute metrics (no generation). Persists to DB."""
@@ -30,19 +32,11 @@ def analyze_models_only(options: ScanOptions):
         return {"status": "error", "message": "No prompts found"}
 
     with db.get_session() as session:
-        # Create Benchmark Run
-        run = BenchmarkRun(
-            timestamp=datetime.utcnow(),
-            parameters=options.dict(),
-            prompts=prompts,
-            prompt_set_id="default",
-        )
-        session.add(run)
-        session.commit()
-        session.refresh(run)
-        print(f"Started Benchmark Run ID: {run.id}")
+        # Collect all unique prompts actually used across all models
+        all_used_prompts = set()
+        # Store (model_hash, metrics, image_count) tuples for later
+        model_analysis_results = []
 
-        # models = session.exec(select(Model)).all()
         # Analyze only ACTIVE SESSION models
         valid_models = models_db
 
@@ -62,16 +56,14 @@ def analyze_models_only(options: ScanOptions):
                         img.load()
                         prompt_text = src.info.get("prompt")
 
-                    # If prompt missing in metadata, fallback to index if we trust it,
-                    # but strictly we should probably limit analysis to "known" prompts?
-                    # Let's keep existing fallback logic for robustness.
+                    # If prompt missing in metadata, fallback to index if we trust it
                     if not prompt_text:
                         name = img_path.stem
                         try:
                             prompt_idx = int(name.split("_")[0][1:])
                             if prompt_idx < len(prompts):
                                 prompt_text = prompts[prompt_idx]
-                        except:
+                        except Exception:
                             pass
 
                     if not prompt_text:
@@ -79,6 +71,10 @@ def analyze_models_only(options: ScanOptions):
 
                     flat_images.append(img)
                     flat_prompts.append(prompt_text)
+
+                    # Track this prompt as actually used
+                    if prompt_text:
+                        all_used_prompts.add(prompt_text)
 
                     if prompt_text not in grouped_images:
                         grouped_images[prompt_text] = []
@@ -112,12 +108,37 @@ def analyze_models_only(options: ScanOptions):
                 except Exception as e:
                     print(f"Error metrics {m.name}: {e}")
 
-            # Save Result to DB
+            # Store results for this model (we'll save after creating the run)
+            model_analysis_results.append(
+                {
+                    "model_hash": m.hash,
+                    "metrics": metrics,
+                    "image_count": len(flat_images),
+                }
+            )
+
+        # Create Benchmark Run with only the prompts that were actually used
+        used_prompts_list = sorted(list(all_used_prompts))
+        run = BenchmarkRun(
+            timestamp=datetime.utcnow(),
+            parameters=options.dict(),
+            prompts=used_prompts_list,
+            prompt_set_id=None,  # Ad-hoc analysis
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        print(
+            f"Created Benchmark Run ID: {run.id} with {len(used_prompts_list)} prompts"
+        )
+
+        # Now save all model results with the run ID
+        for result_data in model_analysis_results:
             result = DBModelResult(
                 run_id=run.id,
-                model_hash=m.hash,
-                metrics=metrics,
-                image_count=len(flat_images),
+                model_hash=result_data["model_hash"],
+                metrics=result_data["metrics"],
+                image_count=result_data["image_count"],
             )
             session.add(result)
 

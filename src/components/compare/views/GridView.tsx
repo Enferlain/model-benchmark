@@ -12,7 +12,7 @@ interface Props {
 export const GridView: React.FC<Props> = ({ prompts, modelNames, getImagesForSelection, seed }) => {
   const [expandedImage, setExpandedImage] = useState<ModelOutput | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(150); // Default width in px
-  const [fitToScreen, setFitToScreen] = useState<boolean>(false);
+  const [fitToScreen, setFitToScreen] = useState<boolean>(true);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950">
@@ -114,6 +114,11 @@ export const GridView: React.FC<Props> = ({ prompts, modelNames, getImagesForSel
                                 className="w-full h-full object-cover"
                                 loading="lazy"
                              />
+                             {/* Floating Model Name Badge */}
+                             <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/60 backdrop-blur rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none whitespace-nowrap max-w-[90%] overflow-hidden text-ellipsis">
+                               <span className="text-[10px] text-white font-medium">{modelNames[mIdx]}</span>
+                             </div>
+
                              {/* Seed Badge */}
                              <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 backdrop-blur text-[9px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition-opacity">
                                {img.seed}
@@ -140,15 +145,21 @@ export const GridView: React.FC<Props> = ({ prompts, modelNames, getImagesForSel
             className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
             onClick={() => setExpandedImage(null)}
           >
-             <div className="relative max-w-5xl max-h-full">
+             <div 
+               className="relative max-w-5xl max-h-full flex flex-col items-center justify-center p-4" 
+             >
                 <img 
                     src={getImageUrl(expandedImage.url, expandedImage.mtime)}
                     alt="Expanded"
-                    className="max-h-[85vh] max-w-full rounded-lg shadow-2xl"
+                    className="max-h-[80vh] w-auto object-contain rounded-lg shadow-2xl flex-1 min-h-0"
+                    onClick={(e) => e.stopPropagation()}
                 />
-                <div className="mt-4 text-center">
-                    <p className="text-white font-mono text-sm opacity-80">{expandedImage.prompt}</p>
-                    <p className="text-white/50 text-xs mt-1">Seed: {expandedImage.seed}</p>
+                <div 
+                    className="mt-4 text-center flex-shrink-0 bg-black/60 backdrop-blur-md rounded-xl p-3 text-white max-w-full overflow-y-auto max-h-[15vh]"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <p className="font-mono text-sm opacity-90">{expandedImage.prompt}</p>
+                    <p className="text-white/60 text-xs mt-1">Seed: {expandedImage.seed}</p>
                 </div>
              </div>
           </div>
