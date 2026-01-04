@@ -55,7 +55,7 @@ Working prototype with:
 - [x] **Prompt editor** - Edit/manage test prompts in UI
 - [x] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
 - [x] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
-- [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score
+- [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score. Could be hosted on a remote shareable link where images aren't stored permanently, but streamed from local and then discarded after voting. Maybe webp or jxl?
 - [ ] **Export results** - CSV/JSON export of benchmark data
 - [x] **Model fetching** - Fix model fetch/downloader
 - [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
@@ -65,6 +65,7 @@ Working prototype with:
 ### Backend
 
 - [ ] **Negative prompt support** - Per-generation negative prompts
+- [ ] **Noise, color scorers** - Based on forensic noise, pca, colors, etc.
 - [ ] **Batch generation** - Queue multiple models for overnight runs
 - [x] **Cache metrics** - Don't recompute if images haven't changed
 - [ ] **LoRA support** - Test LoRA models (not just checkpoints)
