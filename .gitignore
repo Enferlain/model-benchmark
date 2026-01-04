@@ -24,6 +24,7 @@ package-lock.json
 *.sln
 *.sw?
 
+!requirements.txt
 *.txt
 *.safetensors
 *.png
