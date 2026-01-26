@@ -33,6 +33,7 @@ class ModelResult(BaseModel):
     prediction_type: Optional[str] = None
     model_type: Optional[str] = None
     ztsnr: bool = False
+    is_missing: bool = False
 
 
 class ScanOptions(BaseModel):

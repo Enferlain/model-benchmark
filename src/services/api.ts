@@ -63,6 +63,42 @@ export async function cancelOperation() {
   return response;
 }
 
+export async function registerModelPath(path: string) {
+  const response = await fetch(`${API_BASE}/models/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path }),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to register path');
+  }
+  return response.json();
+}
+
+export async function registerModelPaths(paths: string[]) {
+  const response = await fetch(`${API_BASE}/models/register-batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paths }),
+  });
+  if (!response.ok) {
+     const err = await response.json();
+     throw new Error(err.detail || 'Failed to register paths');
+  }
+  return response.json();
+} 
+
+export async function browseSystemPath(type: 'file' | 'folder' = 'folder') {
+  const response = await fetch(`${API_BASE}/system/browse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type }),
+  });
+  if (!response.ok) throw new Error('Failed to open dialog');
+  return response.json();
+}
+
 export async function downloadModel(url: string, name: string, source: string) {
   const response = await fetch(`${API_BASE}/models/download`, {
     method: "POST",

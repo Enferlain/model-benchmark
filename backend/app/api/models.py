@@ -13,6 +13,48 @@ def get_models():
     return state.models_db
 
 
+from pydantic import BaseModel
+
+
+class RegisterModelRequest(BaseModel):
+    path: str
+
+
+class RegisterBatchRequest(BaseModel):
+    paths: list[str]
+
+
+@router.post("/models/register-batch")
+def register_batch(request: RegisterBatchRequest):
+    """
+    Registers multiple paths and syncs ONCE.
+    """
+    try:
+        results = model_manager.register_paths(request.paths)
+        return results
+    except Exception as e:
+        print(f"Batch Registration Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/models/register")
+def register_model_path(request: RegisterModelRequest):
+    """
+    Registers a local path (file or folder) immediately.
+    Logs it to sources.json and adds to DB.
+    """
+    try:
+        result = model_manager.register_path(request.path)
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Registration Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/models/scan")
 def scan_models():
     """Triggers a re-scan of the models directory."""
@@ -109,34 +151,45 @@ def delete_model(model_id: str, delete_file: bool = False):
     # Find in DB first (model_id is hash now)
     target_hash = model_id
 
-    # Update Global State (Active Session)
-    if not any(m.id == model_id for m in state.models_db):
-        # If not in session, we might still want to delete the file if requested?
-        # But the ID is the hash.
-        pass
+    with db.get_session() as session:
+        # We still need to look up path from DB to be safe/correct
+        db_model = session.get(db.Model, target_hash)
 
-    # Delete File if requested
-    if delete_file:
-        with db.get_session() as session:
-            # We still need to look up path from DB to be safe/correct
-            db_model = session.get(db.Model, target_hash)
-            if db_model:
+        if not db_model:
+            # If not in DB, maybe it was just in memory?
+            # If explicit delete requested, we should probably just return OK or 404
+            pass
+        else:
+            # Delete File if requested
+            if delete_file:
                 path_str = db_model.path
                 try:
                     file_path = Path(path_str).resolve()
                     models_dir_resolved = data_loader.MODELS_DIR.resolve()
 
-                    # Security check
+                    # Security check: Only allow deleting files in models dir
+                    # But wait, what if it's an external import?
+                    # External imports should allow deletion if user says so?
+                    # The original code had a security check:
+                    # try: file_path.relative_to(models_dir_resolved)
+                    # This prevents deleting system files if path was spoofed or external.
+                    # If the user imported "C:\Windows\System32\kernel32.dll" (as a model??), we shouldn't delete it.
+                    # So we KEEP the security check.
+
+                    is_safe = False
                     try:
                         file_path.relative_to(models_dir_resolved)
+                        is_safe = True
                     except ValueError:
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Cannot delete file outside models directory",
-                        )
+                        pass
 
-                    if file_path.exists():
+                    # Also allow deleting from known outputs? No, models are input.
+
+                    if is_safe and file_path.exists():
                         if file_path.is_dir() or file_path.is_symlink():
+                            # raising error might abort DB delete.
+                            # We should probably still delete DB entry if file fails?
+                            # Or fail fully. Let's fail fully for safety.
                             raise HTTPException(
                                 status_code=403,
                                 detail="Cannot delete directories or symlinks",
@@ -144,11 +197,37 @@ def delete_model(model_id: str, delete_file: bool = False):
 
                         file_path.unlink()
                         print(f"Deleted file: {file_path}")
+                    elif not is_safe:
+                        print(
+                            f"Skipping file deletion for external/unsafe path: {file_path}"
+                        )
+                        # If user ASKED to delete file but we can't, do we error?
+                        # Probably yes, to warn them.
+                        raise HTTPException(
+                            status_code=403,
+                            detail="Cannot delete file outside models directory (External Import)",
+                        )
+
                 except HTTPException:
                     raise
                 except Exception as e:
                     print(f"Error deleting file: {e}")
                     raise HTTPException(status_code=500, detail=str(e)) from e
+
+            # ALWAYS Delete from DB
+            session.delete(db_model)
+            session.commit()
+
+            # Remove from 'sources.json' if it was there?
+            # 'sources.json' tracks imported paths. If we delete the model, we should probably remove it from sources
+            # to prevent it from re-appearing on next scan (if file still exists or if it was a folder).
+            # If it was a file import, removing from DB/File is good.
+            # But if it's in sources.json, scan might re-add it?
+            # If delete_file=True, scan won't find it.
+            # If delete_file=False (ghost cleanup), scan WILL find it again if it exists!
+            # So checking sources is tricky.
+            # However, for "ghosts", the file doesn't exist, so scan won't find it.
+            # So just DB delete is sufficient for ghosts.
 
     # Remove from Session List
     state.models_db[:] = [m for m in state.models_db if m.id != model_id]

@@ -16,6 +16,10 @@ export interface ModelData {
   ztsnr?: boolean;
   metrics?: Record<MetricKey, number>;
   url: string;
+  is_missing?: boolean;
+  model_type?: string;
+  prediction_type?: string;
+  path?: string;
 }
 
 export interface MetricOption {

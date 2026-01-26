@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { fetchBenchmarkRuns, fetchModels, scanModels } from '../services/api';
+import { fetchBenchmarkRuns, fetchModels, scanModels, deleteModel } from '../services/api';
 import { ModelData } from '../types';
-import { Database as DatabaseIcon, Table, Archive, RefreshCw, Calendar, Clock, Hash, Tag, FileText, ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react';
+import { Database as DatabaseIcon, Table, Archive, RefreshCw, Calendar, Clock, Hash, Tag, FileText, ArrowUpDown, ChevronDown, ChevronRight, Search, MoreVertical, Trash2 } from 'lucide-react';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 interface ModelResultData {
   model_hash: string;
@@ -33,6 +34,35 @@ export default function Database() {
   // Sorting State
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Actions State
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; modelId: string; modelName: string }>({
+     isOpen: false,
+     modelId: '',
+     modelName: ''
+  });
+
+  const [menuState, setMenuState] = useState<{ isOpen: boolean; x: number; y: number; modelId: string; modelName: string }>({
+      isOpen: false,
+      x: 0,
+      y: 0,
+      modelId: '',
+      modelName: ''
+  });
+
+  // Close menu on scroll or resize
+  useEffect(() => {
+    const closeMenu = () => {
+        if (menuState.isOpen) setMenuState(prev => ({ ...prev, isOpen: false }));
+    };
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu);
+    return () => {
+        window.removeEventListener('scroll', closeMenu, true);
+        window.removeEventListener('resize', closeMenu);
+    };
+  }, [menuState.isOpen]);
 
   useEffect(() => {
     loadData();
@@ -54,6 +84,32 @@ export default function Database() {
     }
   };
 
+  const handleActionClick = (e: React.MouseEvent, model: ModelData) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      setMenuState({
+          isOpen: true,
+          x: rect.left - 120,
+          y: rect.bottom + 5,
+          modelId: model.id,
+          modelName: model.name
+      });
+  };
+
+  const handleDeleteModel = async (id: string) => {
+      // Optimistic update
+      const previousModels = [...models];
+      setModels(prev => prev.filter(m => m.id !== id));
+
+      try {
+          await deleteModel(id, false); // Always false for file delete in DB tab
+      } catch (error) {
+          console.error("Error deleting model:", error);
+          setModels(previousModels); // Revert
+          // Show error toast?
+      }
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -64,7 +120,25 @@ export default function Database() {
   };
 
   const sortedModels = useMemo(() => {
-    return [...models].sort((a, b) => {
+    let result = [...models];
+
+    // Filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(m => 
+        m.name.toLowerCase().includes(q) || 
+        m.filename?.toLowerCase().includes(q) ||
+        m.hash?.toLowerCase().includes(q) || 
+        m.path?.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    return result.sort((a, b) => {
+      // Always push missing to bottom
+      if (a.is_missing && !b.is_missing) return 1;
+      if (!a.is_missing && b.is_missing) return -1;
+
       let aValue = (a[sortField as keyof ModelData] as string) || '';
       let bValue = (b[sortField as keyof ModelData] as string) || '';
       
@@ -75,7 +149,7 @@ export default function Database() {
       const comparison = aValue.localeCompare(bValue);
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [models, sortField, sortDirection]);
+  }, [models, sortField, sortDirection, searchQuery]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
@@ -143,6 +217,16 @@ export default function Database() {
         </button>
         
         <div className="ml-auto flex items-center gap-2">
+             <div className="relative mr-2">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search models..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-1.5 text-sm rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                />
+             </div>
              <button
                 onClick={async () => {
                    setIsLoading(true);
@@ -183,11 +267,11 @@ export default function Database() {
         ) : (
             <>
                 {activeTab === 'models' && (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto min-h-[400px]">
                         <table className="w-full text-left text-sm table-fixed">
                             <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
                                 <tr>
-                                    <th className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group w-[40%]" onClick={() => handleSort('name')}>
+                                    <th className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group w-[35%]" onClick={() => handleSort('name')}>
                                        <div className="flex items-center gap-2">
                                           Model Name
                                           <SortIcon field="name" />
@@ -199,21 +283,29 @@ export default function Database() {
                                           <SortIcon field="model_type" />
                                        </div>
                                     </th>
-                                    <th className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group w-[18%]" onClick={() => handleSort('prediction_type')}>
+                                    <th className="px-6 py-4 font-medium cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group w-[15%]" onClick={() => handleSort('prediction_type')}>
                                        <div className="flex items-center gap-2">
                                           Prediction
                                           <SortIcon field="prediction_type" />
                                        </div>
                                     </th>
                                     <th className="px-6 py-4 font-medium w-[15%]">Hash / ID</th>
-                                    <th className="px-6 py-4 font-medium w-[15%]">Metrics</th>
+                                    <th className="px-6 py-4 font-medium w-[13%]">Metrics</th>
+                                    <th className="px-6 py-4 font-medium w-[10%] text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {sortedModels.map((model) => (
-                                    <tr key={model.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <tr key={model.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${model.is_missing ? 'opacity-60 grayscale' : ''}`}>
                                         <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-200">
-                                            {model.name}
+                                            <div className="flex items-center gap-2">
+                                                {model.name}
+                                                {model.is_missing && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400 font-bold border border-slate-300 dark:border-slate-600">
+                                                        OFFLINE
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="text-xs font-normal text-slate-500 truncate block" title={model.path}>
                                                 {model.path}
                                             </div>
@@ -250,11 +342,20 @@ export default function Database() {
                                                 )}
                                             </div>
                                         </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button 
+                                              onClick={(e) => handleActionClick(e, model)}
+                                              className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-200 rounded-full transition-all"
+                                              title="Actions"
+                                            >
+                                              <MoreVertical size={16} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {models.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500 italic">
                                             No models found in database.
                                         </td>
                                     </tr>
@@ -385,6 +486,42 @@ export default function Database() {
             </>
         )}
       </div>
+
+       {/* Action Menu (Fixed Position) */}
+      {menuState.isOpen && (
+          <div className="fixed inset-0 z-[60] flex items-start justify-start" >
+             {/* Invisible Full Screen Closer */}
+             <div className="absolute inset-0" onClick={() => setMenuState(prev => ({ ...prev, isOpen: false }))}></div>
+             
+             {/* The Menu */}
+             <div 
+                className="absolute bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 w-40 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
+                style={{ top: menuState.y, left: menuState.x }}
+             >
+                <button
+                    onClick={() => {
+                        setDeleteModal({ isOpen: true, modelId: menuState.modelId, modelName: menuState.modelName });
+                        setMenuState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-2"
+                >
+                    <Trash2 size={14} />
+                    Delete
+                </button>
+             </div>
+          </div>
+      )}
+
+      {/* Delete Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
+        modelName={deleteModal.modelName}
+        onConfirm={() => {
+           handleDeleteModel(deleteModal.modelId);
+           setDeleteModal({ ...deleteModal, isOpen: false });
+        }}
+      />
     </div>
   );
 }

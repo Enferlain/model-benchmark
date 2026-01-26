@@ -10,9 +10,9 @@ import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "../com
 import { METRIC_OPTIONS } from "../constants";
 import { ModelData, MetricKey } from "../types";
 import { useOutletContext } from "react-router-dom";
-import { downloadModel, getDownloadStatus, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus, checkParams, archiveModel, ParamCheckResult, checkCoverage, CoverageCheckResult } from "../services/api";
+import { downloadModel, getDownloadStatus, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus, checkParams, archiveModel, ParamCheckResult, checkCoverage, CoverageCheckResult, registerModelPath, registerModelPaths, browseSystemPath } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
-import { Download, HardDrive } from "lucide-react";
+import { Download, HardDrive, FolderOpen, FileText } from "lucide-react";
 
 // Context type from the MainLayout if we were using context for shared state,
 // but currently props are passed down or managed here.
@@ -43,6 +43,11 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
 
   const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
   const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
+
+  // Import State
+  const [localPathInput, setLocalPathInput] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerResult, setRegisterResult] = useState<{status: string, message: string} | null>(null);
   
   // Parameter mismatch modal state
   const [paramMismatch, setParamMismatch] = useState<ParamCheckResult | null>(null);
@@ -339,6 +344,48 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     }
   }, [urlInput]);
 
+  const handleRegisterPath = useCallback(async () => {
+      setDownloadError(null);
+      setRegisterResult(null);
+      const trimmedPath = localPathInput.trim();
+      if (!trimmedPath) return;
+
+      setIsRegistering(true);
+      try {
+          // If the user inputs a path with quotes (common in 'Copy Path' from Windows), strip them
+          const cleanPath = trimmedPath.replace(/^"|"$/g, '');
+          
+          await registerModelPath(cleanPath);
+          setRegisterResult({ status: 'success', message: 'Model registered successfully!' });
+          setLocalPathInput('');
+          await fetchModels();
+          // Close modal after short delay? Or let user see success message
+          setTimeout(() => {
+             setRegisterResult(null);
+             // Optional: setShowAddModal(false);
+          }, 3000);
+      } catch (error: any) {
+          console.error("Error registering path:", error);
+          setDownloadError(error.message || "Failed to register path");
+      } finally {
+          setIsRegistering(false);
+      }
+  }, [localPathInput, fetchModels]);
+
+  const handleBrowse = useCallback(async (type: 'file' | 'folder') => {
+      try {
+          const result = await browseSystemPath(type);
+          if (result.path) {
+              setLocalPathInput(result.path);
+              setDownloadError(null);
+          } else if (result.error) {
+              setDownloadError(result.error);
+          }
+      } catch (error: any) {
+          console.error("Browse error:", error);
+      }
+  }, []);
+
   const handleDeleteModel = useCallback(async (id: string, deleteFile: boolean) => {
     // Save previous state for revert
     const previousModels = [...models];
@@ -492,15 +539,16 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Sidebar / Controls */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Input Glass Card */}
+            {/* Add Model Card */}
             <div className="p-6 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white/60 dark:border-white/5 bg-white/60 dark:bg-slate-800/40 backdrop-blur-xl transition-all hover:shadow-2xl hover:bg-white/80 dark:hover:bg-slate-800/50">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
                 <Plus size={14} /> Add Model
               </h2>
               <div className="space-y-4">
+                {/* URL Download Section */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1 opacity-80">
-                    MODEL URL
+                    DOWNLOAD FROM URL
                   </label>
                   <input
                     type="text"
@@ -509,7 +557,7 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                       setUrlInput(e.target.value);
                       if (downloadError) setDownloadError(null);
                     }}
-                    placeholder="https://..."
+                    placeholder="https://civitai.com/models/..."
                     className={`w-full px-4 py-3 border ${downloadError ? 'border-red-500/50 bg-red-500/5' : 'border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-black/20'} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 transition-all placeholder:text-slate-400/70 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-200 backdrop-blur-sm`}
                     onKeyDown={(e) => e.key === "Enter" && handleDownloadModel()}
                   />
@@ -546,10 +594,100 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
                     </>
                   ) : (
                     <>
-                      <Download size={16} /> Download Model
+                      <Download size={16} /> Download
                     </>
                   )}
                 </button>
+
+                {/* Divider */}
+                <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200 dark:border-white/10"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-slate-50 dark:bg-slate-900 px-2 text-slate-400">Or Import Local</span>
+                    </div>
+                </div>
+
+                {/* Import Section (Single Button Flow) */}
+                <div className="space-y-4">
+                     {registerResult && (
+                             <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 text-xs rounded-lg flex items-center gap-2">
+                                <Info size={14} /> {registerResult.message}
+                            </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={async () => {
+                                setIsRegistering(true);
+                                try {
+                                    const result = await browseSystemPath('folder');
+                                    // result.paths is now an array
+                                    if (result.paths && result.paths.length > 0) {
+                                        const response = await registerModelPaths(result.paths);
+                                        const stats = response.stats || {};
+                                        let msg = `${response.results.length} Models processed.`;
+                                        if (stats.added > 0) msg = `${stats.added} New Model(s) Imported!`;
+                                        else if (stats.updated > 0) msg = `${stats.updated} Model(s) Updated.`;
+                                        else if (stats.unchanged > 0) msg = `${stats.unchanged} Model(s) Verified (No changes).`;
+                                        
+                                        setRegisterResult({ status: 'success', message: msg });
+                                        await fetchModels();
+                                        setTimeout(() => setRegisterResult(null), 3000);
+                                    }
+                                } catch (e: any) {
+                                    console.error("Import error:", e);
+                                    setDownloadError(e.message || "Failed to import");
+                                } finally {
+                                    setIsRegistering(false);
+                                }
+                            }}
+                            disabled={isRegistering}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed font-medium py-3 px-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 shadow-lg shadow-indigo-500/20 text-xs"
+                        >
+                            {isRegistering ? <Loader2 size={20} className="animate-spin" /> : <FolderOpen size={20} />}
+                            <span>Import Folder</span>
+                        </button>
+
+                         <button
+                            onClick={async () => {
+                                setIsRegistering(true);
+                                try {
+                                    const result = await browseSystemPath('file');
+                                    if (result.paths && result.paths.length > 0) {
+                                        const response = await registerModelPaths(result.paths);
+                                        const stats = response.stats || {};
+                                        // Prioritize "Added" message
+                                        let msg = `${response.results.length} Files processed.`;
+                                        if (stats.added > 0) msg = `${stats.added} New File(s) Imported!`;
+                                        else if (stats.updated > 0) msg = `${stats.updated} File(s) Updated.`;
+                                        else if (stats.unchanged > 0) msg = `${stats.unchanged} File(s) Verified (No changes).`;
+
+                                        setRegisterResult({ status: 'success', message: msg });
+                                        await fetchModels();
+                                        setTimeout(() => setRegisterResult(null), 3000);
+                                    }
+                                } catch (e: any) {
+                                    console.error("Import error:", e);
+                                    setDownloadError(e.message || "Failed to import");
+                                } finally {
+                                    setIsRegistering(false);
+                                }
+                            }}
+                            disabled={isRegistering}
+                            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium py-3 px-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 text-xs"
+                        >
+                            {isRegistering ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}
+                            <span>Import File</span>
+                        </button>
+                    </div>
+                     {downloadError && (
+                        <p className="text-red-500 text-[10px] mt-1 ml-1">
+                            {downloadError}
+                        </p>
+                    )}
+                </div>
               </div>
             </div>
 

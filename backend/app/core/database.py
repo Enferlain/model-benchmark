@@ -24,6 +24,9 @@ class Model(SQLModel, table=True):
     compatibility: Dict = Field(default={}, sa_column=Column(JSON))
     meta: Dict = Field(default={}, sa_column=Column(JSON))
     is_hidden: bool = Field(default=False)
+    is_missing: bool = Field(
+        default=False, description="True if model file is not found on disk"
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     results: List["ModelResult"] = Relationship(
@@ -61,6 +64,22 @@ def init_db():
     # Ensure assets dir exists
     Path("assets").mkdir(exist_ok=True)
     SQLModel.metadata.create_all(engine)
+
+    # Ad-hoc migration for is_missing column
+    try:
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(engine)
+        columns = [c["name"] for c in inspector.get_columns("model")]
+        if "is_missing" not in columns:
+            print("Migrating DB: Adding is_missing column to model table...")
+            with engine.connect() as conn:
+                conn.execute(
+                    text("ALTER TABLE model ADD COLUMN is_missing BOOLEAN DEFAULT 0")
+                )
+                conn.commit()
+    except Exception as e:
+        print(f"Migration warning: {e}")
 
 
 def get_session():

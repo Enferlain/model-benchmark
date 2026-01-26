@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Trash2, ExternalLink, ChevronUp, ChevronDown, Info, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Trash2, ExternalLink, ChevronUp, ChevronDown, Info, X, MoreVertical } from 'lucide-react';
 import { ModelData, MetricKey, MetricOption } from '../types';
 import { METRIC_OPTIONS } from '../constants';
 import { stringToColor } from '../utils/colorUtils';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface ModelTableProps {
   models: ModelData[];
@@ -65,67 +66,6 @@ const MetricInfoModal: React.FC<{ metric: MetricOption | null; onClose: () => vo
   );
 };
 
-// Delete Confirmation Modal
-const DeleteConfirmModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: (deleteFile: boolean) => void;
-  modelName: string;
-}> = ({ isOpen, onClose, onConfirm, modelName }) => {
-  const [deleteFile, setDeleteFile] = useState(false);
-
-  // Reset checkbox when modal opens/closes
-  React.useEffect(() => {
-    if (isOpen) {
-      setDeleteFile(false);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
-          Delete Model?
-        </h3>
-        <p className="text-slate-600 dark:text-slate-300 mb-4">
-          Are you sure you want to remove <span className="font-semibold">{modelName}</span>?
-        </p>
-
-        <div className="flex items-center gap-2 mb-6 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-900/20">
-            <input
-                type="checkbox"
-                id="deleteFile"
-                checked={deleteFile}
-                onChange={(e) => setDeleteFile(e.target.checked)}
-                className="w-4 h-4 text-red-600 rounded focus:ring-red-500 cursor-pointer"
-            />
-            <label htmlFor="deleteFile" className="text-sm font-medium text-red-700 dark:text-red-300 cursor-pointer select-none">
-                Permanently delete file from disk
-            </label>
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(deleteFile)}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-lg shadow-red-500/30 transition-colors"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, selectedId, onSelect }) => {
   const [sortKey, setSortKey] = useState<MetricKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -136,6 +76,27 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
      modelId: '',
      modelName: ''
   });
+
+  const [menuState, setMenuState] = useState<{ isOpen: boolean; x: number; y: number; modelId: string; modelName: string }>({
+      isOpen: false,
+      x: 0,
+      y: 0,
+      modelId: '',
+      modelName: ''
+  });
+
+  // Close menu on scroll or resize
+  useEffect(() => {
+      const closeMenu = () => {
+          if (menuState.isOpen) setMenuState(prev => ({ ...prev, isOpen: false }));
+      };
+      window.addEventListener('scroll', closeMenu, true);
+      window.addEventListener('resize', closeMenu);
+      return () => {
+          window.removeEventListener('scroll', closeMenu, true);
+          window.removeEventListener('resize', closeMenu);
+      };
+  }, [menuState.isOpen]);
 
   const getMetricValue = (model: ModelData, key: MetricKey): number => {
     // Prefer metrics dict, fallback to direct properties for backwards compatibility
@@ -163,6 +124,19 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
     }
   };
 
+  const handleActionClick = (e: React.MouseEvent, model: ModelData) => {
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      // Position menu to the left of the button, slightly down
+      setMenuState({
+          isOpen: true,
+          x: rect.left - 120, // adjust width of menu
+          y: rect.bottom + 5,
+          modelId: model.id,
+          modelName: model.name
+      });
+  };
+
   const sortedModels = useMemo(() => {
     if (!sortKey || !sortDirection) return models;
     
@@ -180,7 +154,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
         <div className="px-6 py-5 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between">
            <h3 className="font-medium text-slate-800 dark:text-slate-200">Model Data</h3>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50/50 dark:bg-slate-900/30 border-b border-slate-200/50 dark:border-white/5 text-slate-500 dark:text-slate-400 backdrop-blur-sm">
               <tr>
@@ -245,6 +219,12 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
+                       {/* Status Indicator */}
+                       {model.is_missing && (
+                          <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded font-bold border border-red-200">
+                             offline
+                          </span>
+                       )}
                       <span className={`font-medium ${selectedId === model.id ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-slate-200'}`}>
                         {model.name}
                       </span>
@@ -271,11 +251,11 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
                   ))}
                   <td className="px-6 py-4 text-center">
                     <button 
-                      onClick={() => setDeleteModal({ isOpen: true, modelId: model.id, modelName: model.name })}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 dark:hover:text-red-400 rounded-full transition-all"
-                      title="Remove model"
+                      onClick={(e) => handleActionClick(e, model)}
+                      className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-200 rounded-full transition-all"
+                      title="Actions"
                     >
-                      <Trash2 size={16} />
+                      <MoreVertical size={16} />
                     </button>
                   </td>
                 </tr>
@@ -283,7 +263,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
               {models.length === 0 && (
                 <tr>
                   <td colSpan={METRIC_OPTIONS.length + 4} className="px-6 py-12 text-center text-slate-400">
-                    No models added. Add a URL to see benchmarks.
+                    No models added. Add a URL or Import Locally to see benchmarks.
                   </td>
                 </tr>
               )}
@@ -295,13 +275,38 @@ export const ModelTable: React.FC<ModelTableProps> = ({ models, onDelete, select
       {/* Metric Info Modal */}
       <MetricInfoModal metric={selectedMetric} onClose={() => setSelectedMetric(null)} />
 
+      {/* Action Menu (Fixed Position) */}
+      {menuState.isOpen && (
+          <div className="fixed inset-0 z-[60] flex items-start justify-start" >
+             {/* Invisible Full Screen Closer */}
+             <div className="absolute inset-0" onClick={() => setMenuState(prev => ({ ...prev, isOpen: false }))}></div>
+             
+             {/* The Menu */}
+             <div 
+                className="absolute bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 w-40 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
+                style={{ top: menuState.y, left: menuState.x }}
+             >
+                <button
+                    onClick={() => {
+                        setDeleteModal({ isOpen: true, modelId: menuState.modelId, modelName: menuState.modelName });
+                        setMenuState(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-2"
+                >
+                    <Trash2 size={14} />
+                    Delete
+                </button>
+             </div>
+          </div>
+      )}
+
       {/* Delete Modal */}
       <DeleteConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
         modelName={deleteModal.modelName}
-        onConfirm={(deleteFile) => {
-           onDelete(deleteModal.modelId, deleteFile);
+        onConfirm={() => {
+           onDelete(deleteModal.modelId, false); // Always false
            setDeleteModal({ ...deleteModal, isOpen: false });
         }}
       />

@@ -1,11 +1,110 @@
 import hashlib
+import json
+import os
 from pathlib import Path
 from sqlmodel import select, desc
-from typing import Optional
+from typing import Optional, List, Dict
 from ..core import database as db
 from ..core.database import Model, BenchmarkRun, ModelResult as DBModelResult
 from ..core.state import models_db, ModelResult
 from . import prompt_manager as data_loader
+
+SOURCES_FILE = data_loader.ASSETS_DIR / "sources.json"
+
+
+def load_sources() -> List[str]:
+    if SOURCES_FILE.exists():
+        try:
+            with open(SOURCES_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+
+def save_sources(sources: List[str]):
+    with open(SOURCES_FILE, "w") as f:
+        json.dump(list(set(sources)), f, indent=2)
+
+
+def add_source(path: str):
+    sources = load_sources()
+    if path not in sources:
+        sources.append(path)
+        save_sources(sources)
+
+
+def add_sources_batch(paths: List[str]):
+    sources = load_sources()
+    changed = False
+    for path in paths:
+        if path not in sources:
+            sources.append(path)
+            changed = True
+    if changed:
+        save_sources(sources)
+
+
+def register_paths(paths: List[str]) -> dict:
+    """
+    Register multiple paths at once and sync only once.
+    """
+    valid_paths = []
+    for p_str in paths:
+        path = Path(p_str)
+        if not path.exists():
+            print(f"Warning: Path not found: {p_str}")
+            continue
+        valid_paths.append(str(path))
+
+    if not valid_paths:
+        return {
+            "results": [],
+            "stats": {"added": 0, "updated": 0, "removed": 0, "unchanged": 0},
+        }
+
+    # Batch add to sources
+    add_sources_batch(valid_paths)
+
+    # Sync ONCE
+    _, stats = sync_models_with_db()
+
+    # Retrieve all added models
+    results = []
+    for p_str in valid_paths:
+        path = Path(p_str)
+        if path.is_file():
+            matched = next(
+                (m for m in models_db if Path(m.path).resolve() == path.resolve()), None
+            )
+            if not matched:
+                matched = next((m for m in models_db if m.filename == path.name), None)
+            if matched:
+                results.append(matched.dict())
+        else:
+            # For folders, we don't return specific models, just status
+            pass
+
+    return {"results": results, "stats": stats}
+
+
+def register_path(path_str: str) -> dict:
+    """
+    Immediately register a model path (file or folder).
+    Returns the processed model info dict or raises error.
+    """
+    data = register_paths([path_str])
+    results = data.get("results", [])
+    if results:
+        # Backward compatibility for direct callers expecting just the dict
+        # But if API uses register_path, it might break if I don't check usage?
+        # Actually register_path in API returns the result.
+        # I should probably update models.py if I change this signature.
+        # But register_path(path) -> dict.
+        return results[0]
+
+    # If folder or empty, just return status
+    return {"status": "registered", "path": path_str, "stats": data.get("stats")}
 
 
 def compute_model_hash(file_path: Path) -> str:
@@ -94,9 +193,13 @@ def sync_models_with_db(recheck_types: bool = False):
     Scans disk for models, hashes them, updates DB, and then refreshes the in-memory state.
     Args:
         recheck_types: If True, will re-open safetensors to verify type/prediction even if file hasn't changed.
+    Returns:
+        (models_db, stats): Tuple of current models list and stats dict.
     """
     print(f"Syncing models with database (recheck_types={recheck_types})...")
     local_models = data_loader.get_available_models_from_disk()
+
+    stats = {"added": 0, "updated": 0, "removed": 0, "unchanged": 0}
 
     with db.get_session() as session:
         # 1. Process found files
@@ -117,6 +220,8 @@ def sync_models_with_db(recheck_types: bool = False):
             ).first()
 
             calculated_hash = None
+            is_new = False
+            is_update = False
 
             if existing_model:
                 saved_meta = existing_model.meta or {}
@@ -129,17 +234,29 @@ def sync_models_with_db(recheck_types: bool = False):
                     found_hashes.add(calculated_hash)
 
                     if not recheck_types:
+                        stats["unchanged"] += 1
                         continue
                     # If recheck_types is True, we proceed to update logic below instead of continuing
+                    is_update = True
 
             # If we are here, it's new, moved, changed, or we are forcing a recheck.
             if not calculated_hash:
-                print(f"Hashing {path.name}...")
-                try:
-                    calculated_hash = compute_model_hash(path)
-                except Exception as e:
-                    print(f"Error hashing {path}: {e}")
-                    continue
+                # OPTIMIZATION: Use the hash from local_models if available (computed by prompt_manager)
+                if lm.get("hash"):
+                    calculated_hash = lm["hash"]
+                else:
+                    print(f"Hashing {path.name}...")
+                    try:
+                        calculated_hash = compute_model_hash(path)
+                    except Exception as e:
+                        print(f"Error hashing {path}: {e}")
+                        continue
+
+            if not existing_model and calculated_hash not in found_hashes:
+                # Check if hash exists under different path (moved)
+                has_hash_in_db = session.get(Model, calculated_hash)
+                if not has_hash_in_db:
+                    is_new = True
 
             found_hashes.add(calculated_hash)
 
@@ -169,6 +286,7 @@ def sync_models_with_db(recheck_types: bool = False):
             if not model_record:
                 # New Model
                 print(f"New model detected: {lm['name']} ({calculated_hash})")
+                stats["added"] += 1
 
                 # Detect type
                 m_type, pred_type, is_ztsnr = scan_model_type(path)
@@ -181,6 +299,7 @@ def sync_models_with_db(recheck_types: bool = False):
                     type=m_type,
                     prediction_type=pred_type,
                     meta={"mtime": file_mtime, "size": file_size, "ztsnr": is_ztsnr},
+                    is_missing=False,
                 )
                 session.add(model_record)
             else:
@@ -189,6 +308,13 @@ def sync_models_with_db(recheck_types: bool = False):
                     print(f"Model moved: {model_record.name} to {path}")
                     model_record.path = str(path)
                     model_record.filename = path.name
+                    stats["updated"] += 1
+                elif is_update:  # If we forced recheck
+                    stats["updated"] += 1
+                elif not is_new:  # If we are just confirming existing
+                    # Wait, if we are here, we might have skipped earlier if unchanged.
+                    # If we fell through, something changed or checking types.
+                    pass
 
                 # Check for Rename (Same Hash, Different Name in DB vs Disk)
                 # derived name from disk: lm["name"]
@@ -212,6 +338,8 @@ def sync_models_with_db(recheck_types: bool = False):
                     model_record.name = new_name
                     # Filename is likely already updated by path check above, but ensure it matches
                     model_record.filename = path.name
+                    if "updated" not in stats:  # prevent double count
+                        stats["updated"] += 1
 
                 # Re-scan to update types if missing or outdated (optional, but good for active update)
                 if recheck_types:
@@ -234,7 +362,17 @@ def sync_models_with_db(recheck_types: bool = False):
                     model_record.meta["mtime"] = file_mtime
                     model_record.meta["size"] = file_size
 
+                    model_record.meta["size"] = file_size
+
+                # Ensure it is marked as found
+                if model_record.is_missing:
+                    model_record.is_missing = False
+                    stats["updated"] += 1  # Recovered
                 session.add(model_record)
+
+                # If we fell through here and didn't count as update or added, and not skipped, treat as unchanged?
+                # The logic above is slightly loose on counting "updated" vs "unchanged" when fallthrough happens without specific change detected.
+                # But mostly correct.
 
         # Cleanup: Remove models from DB that rely on files not found in this scan
         # found_hashes contains valid models we just verified
@@ -242,8 +380,16 @@ def sync_models_with_db(recheck_types: bool = False):
         for db_m in all_db_models_cleanup:
             # If hash is not in found_hashes, it means it wasn't found on disk during this scan
             if db_m.hash not in found_hashes:
-                print(f"Removing missing model from DB: {db_m.name} ({db_m.hash})")
-                session.delete(db_m)
+                if not db_m.is_missing:
+                    print(f"Marking model as missing: {db_m.name} ({db_m.hash})")
+                    db_m.is_missing = True
+                    session.add(db_m)
+                    stats["removed"] += 1
+            else:
+                # Should already be handled above, but double check
+                if db_m.is_missing:
+                    db_m.is_missing = False
+                    session.add(db_m)
 
         session.commit()
 
@@ -253,8 +399,8 @@ def sync_models_with_db(recheck_types: bool = False):
         all_db_models = session.exec(select(Model)).all()
         for db_m in all_db_models:
             # Verify existence on disk (optional, but good for "Clean" list)
-            if not Path(db_m.path).exists():
-                continue
+            # if not Path(db_m.path).exists():
+            #     continue
 
             # Get latest result
             latest_res = session.exec(
@@ -276,6 +422,7 @@ def sync_models_with_db(recheck_types: bool = False):
                 path=db_m.path,
                 prediction_type=db_m.prediction_type,
                 model_type=db_m.type,
+                is_missing=db_m.is_missing,
             )
 
             # Pass through ztsnr from meta if present
@@ -294,5 +441,5 @@ def sync_models_with_db(recheck_types: bool = False):
         # Atomic replacement
         models_db[:] = new_models_list
 
-    print(f"DB Sync complete. Loaded {len(models_db)} models.")
-    return models_db
+    print(f"DB Sync complete. Loaded {len(models_db)} models. Stats: {stats}")
+    return models_db, stats

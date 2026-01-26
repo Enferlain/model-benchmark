@@ -38,7 +38,8 @@ def generate_images_only(options: ScanOptions):
         # Iterate over ACTIVE SESSION models only (Active Context)
         valid_models = []
         for m_res in models_db:
-            valid_models.append(m_res)
+            if not m_res.is_missing:
+                valid_models.append(m_res)
 
         # If equalize_counts, first scan all models to find max image count per prompt
         prompt_max_counts: dict[str, int] = {}
@@ -234,6 +235,9 @@ def generate_images_only(options: ScanOptions):
                         # Prepare Metadata
                         metadata = PngInfo()
                         metadata.add_text("model_name", m.name)
+                        metadata.add_text(
+                            "model_hash", m.hash
+                        )  # Critical for tracking identity
                         metadata.add_text("prompt", p_meta["text"])
                         metadata.add_text("parameters", json.dumps(params))
                         metadata.add_text("prompt_set", "")  # Future: named prompt sets

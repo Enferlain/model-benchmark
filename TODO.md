@@ -55,12 +55,20 @@ Working prototype with:
 - [x] **Prompt editor** - Edit/manage test prompts in UI
 - [x] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
 - [x] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
-- [ ] **img arena** - compare random gens fo same seed and prompt between two models to compute user score. Could be hosted on a remote shareable link where images aren't stored permanently, but streamed from local and then discarded after voting. Maybe webp or jxl?
+- [ ] **img arena** 
+  - compare random gens fo same seed and prompt between two models to compute user score. Could be hosted on a remote shareable link where images aren't stored permanently, but streamed from local and then discarded after voting. 
+  - Maybe webp or jxl?
+  - Can pull links for reference and prompt straight from danbooru or other boorus, pages, twitter, whatever, or from local prompt db (when doing this, the pulled prompt gets added to the prompt db with a tag saying where it's from, preemptive deduplication (hash/id) probably needed)
+  - Fix whitespace on arena tab "model arena" header takes too much space
 - [ ] **Export results** - CSV/JSON export of benchmark data
 - [x] **Model fetching** - Fix model fetch/downloader
 - [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
 - [x] **Add visible databse tab (non editable)** - nicely presented database rows/columns, search, related options, etc.
 - [ ] **Add prompt set name option somewhere** - either to the generation tab, or at the prompt tab, figure out later
+- [ ] **Model selection for benchmarking** - add something to the dashboard to be able to select what models will be benchmarked.
+- [ ] **database models style** - Make the prediction types into badges like model and ztsnr (red for vpred, grey for eps)
+- [ ] **benchmark runs db details** - It shows 0 models for benchmarks if the models don't exist in the db. Should show the model amount as it's historical data.
+- [ ] **Show actions menu for benchmark runs** - Options to delete, export, etc
 
 ### Backend
 
