@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Sparkles, Sun, Moon, LayoutDashboard, Images, Edit3, GitCompare, Trophy, Loader2, Menu, X, Database } from 'lucide-react';
+import { Sparkles, Sun, Moon, LayoutDashboard, Images, Edit3, GitCompare, Trophy, Loader2, Menu, X, Database, BarChart3 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 interface MainLayoutProps {
@@ -17,6 +17,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ isLoading = false, model
 
   const navItems = [
     { to: "/", icon: <LayoutDashboard size={16}/>, label: "Dashboard" },
+    { to: "/analytics", icon: <BarChart3 size={16}/>, label: "Analytics" },
     { to: "/gallery", icon: <Images size={16}/>, label: "Gallery" },
     { to: "/prompts", icon: <Edit3 size={16}/>, label: "Prompts" },
     { to: "/compare", icon: <GitCompare size={16}/>, label: "Compare" },

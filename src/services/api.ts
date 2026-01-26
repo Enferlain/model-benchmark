@@ -10,6 +10,7 @@ export interface ScanOptions {
   num_prompts?: number;
   width?: number;
   height?: number;
+  selected_model_ids?: string[];
   [key: string]: any;
 }
 

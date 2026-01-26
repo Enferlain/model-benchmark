@@ -10,106 +10,91 @@ Working prototype with:
 - ✅ Configurable generation settings (sampler, steps, CFG, seed, resolution)
 - ✅ Separate Generate/Analyze workflows with cancellation
 - ✅ Metric info modals with detailed explanations
+- ✅ **New Transfer List Interface** (Library/Queue) with filters and presets
+- ✅ **Dedicated Analytics Page**
 
 ---
 
-## Metrics To Implement
+## High Priority / Quick Fixes
 
-### High Priority
-
-- [ ] **VQA / TIFA-style scoring** - Question-answering based prompt faithfulness
-  - Requires: BLIP-2, LLaVA, or InstructBLIP model
-  - Can also use gemini api with multimodal gemma 3 27b model (uses siglip2)
-  - Parse prompts into yes/no questions, run VQA, score accuracy
-
-### Medium Priority
-
-- [ ] **MS-SSIM** - Alternative to LPIPS for diversity measurement
-  - Available in `torchmetrics` or `pytorch-msssim`
-
-### Lower Priority (Complex)
-
-- [ ] **GenEval-style detector** - Object/attribute counting
-  - Requires: YOLO/DETR object detector
-  - Check if "2 red apples" actually has 2 red apples
-
-### Aesthetic Scorers or other stuff maybe
-
-### DINOv3 smalL/large semantic consistency score, dino lpips instead of alex/vgg, object halo (saliency sparsity)
-
-| Metric Name      | Using Model...     | Tells                                                  |
-| ---------------- | ------------------ | ------------------------------------------------------ |
-| Semantic Match   | vitl16 (Global)    | """Is this actually what I asked for visually?"""      |
-| Deep Diversity   | vitb16 (Layers)    | """Is the model just repeating itself?"""              |
-| Object Integrity | vitl16 (Attention) | """Did the AI mess up the body/structure?"""           |
-| Batch Quality    | convnext-base      | """Does this whole folder of images look 'natural'?""" |
+- [ ] **Fix/Refine Prediction Type Filters** - Ensure logic correctly handles `v_prediction` vs `v_prediction` + `ztsnr` and `epsilon`
+- [ ] **Fix Location/Source Filters** - Ensure efficient filtering by model source (Civitai, HF, Local)
+- [ ] **Diversity metric label** - Rename "Diversity (⚠️ WIP)" once validated
 
 ---
 
 ## Features To Add
 
-### UI/UX
+### UI/UX & Dashboard
 
 - [x] **Image gallery viewer** - View generated images per model
 - [x] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
 - [x] **Prompt editor** - Edit/manage test prompts in UI
-- [x] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all, maybe rename? but then it would need to not rename the files so idk
-- [x] **Model comparison view** - Side-by-side image comparison, maybe with sli slider
-- [ ] **img arena** 
-  - compare random gens fo same seed and prompt between two models to compute user score. Could be hosted on a remote shareable link where images aren't stored permanently, but streamed from local and then discarded after voting. 
-  - Maybe webp or jxl?
-  - Can pull links for reference and prompt straight from danbooru or other boorus, pages, twitter, whatever, or from local prompt db (when doing this, the pulled prompt gets added to the prompt db with a tag saying where it's from, preemptive deduplication (hash/id) probably needed)
-  - Fix whitespace on arena tab "model arena" header takes too much space
+- [x] **Prompt sidebar buttons** - Shuffle prompts, enable/disable all
+- [x] **Model comparison view** - Side-by-side image comparison
+- [x] **Model selection for benchmarking** - Implemented via new Transfer List
+- [x] **Visible database tab** - Implemented as "Analytics" page
+- [ ] **Img Arena**
+  - Compare random gens of same seed/prompt between models for user voting
+  - Host on remote shareable link (generations transient)
+  - Import prompts from boorus/external links with auto-tagging
+  - _Fix:_ "model arena" header whitespace
 - [ ] **Export results** - CSV/JSON export of benchmark data
-- [x] **Model fetching** - Fix model fetch/downloader
-- [ ] **Share comparison** - Build grid plots and upload to an image sharer like imgur (or imgsli or similar)
-- [x] **Add visible databse tab (non editable)** - nicely presented database rows/columns, search, related options, etc.
-- [ ] **Add prompt set name option somewhere** - either to the generation tab, or at the prompt tab, figure out later
-- [ ] **Model selection for benchmarking** - add something to the dashboard to be able to select what models will be benchmarked.
-- [ ] **database models style** - Make the prediction types into badges like model and ztsnr (red for vpred, grey for eps)
-- [ ] **benchmark runs db details** - It shows 0 models for benchmarks if the models don't exist in the db. Should show the model amount as it's historical data.
-- [ ] **Show actions menu for benchmark runs** - Options to delete, export, etc
+- [ ] **Share comparison** - Build grid plots and upload to imgur/imgsli
+- [ ] **Prompt set name option** - Ability to name/save prompt sets
+- [ ] **Database models style** - Badge styling for prediction types (Red: vpred, Grey: eps)
+- [ ] **Benchmark runs db details** - Show model count/list in history even if models deleted
+- [ ] **Benchmark runs actions** - Delete/Export benchmark runs
+- [ ] **Metrics dropdown** - Consistent metric selection UI across all pages
 
-### Backend
+### Backend & Core
 
 - [ ] **Negative prompt support** - Per-generation negative prompts
-- [ ] **Noise, color scorers** - Based on forensic noise, pca, colors, etc.
+- [ ] **Noise/Color scorers** - Forensic noise, PCA, color distribution metrics
 - [ ] **Batch generation** - Queue multiple models for overnight runs
 - [x] **Cache metrics** - Don't recompute if images haven't changed
 - [ ] **LoRA support** - Test LoRA models (not just checkpoints)
-- [ ] **Unique identifiers for prompts** - Track image prompts by an identifier so we never regenerate or mess with existing images when generating new ones
+- [ ] **Unique identifiers for prompts** - Immutable IDs to prevent regeneration collisions
+- [ ] **Queue management** - Interrupt/Cancel specific items in download queue
 
 ### Data Management
 
 - [ ] **Prompt categories** - Group prompts by type (portrait, landscape, etc.)
 - [ ] **Prompt difficulty** - Tag prompts as easy/medium/hard
 - [ ] **Reference images** - Compare against ground truth
-- [x] **Model downloading** - Downloading models from hf and civit
-- [ ] **Queue downloading models/list of models, cancel/interrupt downloading**
-- [ ] **Support SHA256 Hashing** - Add option to use SHA256 (standard on HF/CivitAI) for compatibility, instead of BLAKE3 default
-- [ ] **Shared model hash lookup** - Community `known_models.json` that maps SHA256 → metadata:
-  ```json
-  {
-    "cd2180f1ab3dc85b...": {
-      "name": "Illustrious-XL-v2.0",
-      "source": "HuggingFace",
-      "url": "https://huggingface.co/...",
-      "prediction_type": "epsilon"
-    }
-  }
-  ```
-  - Auto-fill model info when hash matches a known model
-  - Keep separate from local `model_cache.json` (which stores mtime/size for speedup)
-- [ ] **Arena results kept on a server** - Fetched to client, sent to server. json maybe? idk
+- [x] **Model downloading** - Downloading models from HF and Civitai
+- [ ] **Support SHA256 Hashing** - Logic for standard SHA256 (HF/CivitAI compatibility)
+- [ ] **Shared model hash lookup** - Map SHA256 → Metadata (Community `known_models.json`)
+- [ ] **Remote Arena Results** - Sync voting results to server
+
+---
+
+## Metrics Research
+
+### High Priority
+
+- [ ] **VQA / TIFA-style scoring** - Question-answering based prompt faithfulness (BLIP-2/LLaVA)
+
+### Medium Priority
+
+- [ ] **MS-SSIM** - Alternative to LPIPS for diversity
+
+### Lower Priority / Experimental
+
+- [ ] **GenEval-style detector** - Object/attribute counting (YOLO/DETR)
+- [ ] **DINOv3 / Semantic Consistency** - Advanced semantic matching
+- [ ] **Aesthetic Scorers**
+
+| Metric Name      | Using Model...     | Purpose                                            |
+| ---------------- | ------------------ | -------------------------------------------------- |
+| Semantic Match   | vitl16 (Global)    | "Is this actually what I asked for visually?"      |
+| Deep Diversity   | vitb16 (Layers)    | "Is the model just repeating itself?"              |
+| Object Integrity | vitl16 (Attention) | "Did the AI mess up the body/structure?"           |
+| Batch Quality    | convnext-base      | "Does this whole folder of images look 'natural'?" |
 
 ---
 
 ## Known Issues
 
-- [ ] VQA score currently mocked (returns random values)
-- [ ] Diversity metric label still says "Diversity (⚠️ WIP)" - cross-prompt version
+- [ ] VQA score currently mocked
 - [ ] Old image naming (`gen_000.png`) not recognized by new system
-
----
-
-## Quick Fixes Needed

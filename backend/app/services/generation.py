@@ -39,6 +39,10 @@ def generate_images_only(options: ScanOptions):
         valid_models = []
         for m_res in models_db:
             if not m_res.is_missing:
+                # Filter by selected IDs if provided
+                if options.selected_model_ids is not None:
+                    if m_res.id not in options.selected_model_ids:
+                        continue
                 valid_models.append(m_res)
 
         # If equalize_counts, first scan all models to find max image count per prompt

@@ -5,7 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 2026-01-26
+
+### Added
+
+- **Transfer List Interface**: Implemented a comprehensive drag-and-drop interface for model selection using `dnd-kit`.
+  - **Library Panel**: Searchable list of all available models with "Filter" capabilities.
+  - **Queue Panel**: Manage selected models for benchmarking, including a "Preset" system to save/load queue configurations.
+  - **Visual Feedback**: Added drag highlights, dashed drop zones, and active state indicators.
+- **Analytics Page**: Migrated the detailed metrics table to a dedicated `/analytics` route to declutter the main dashboard.
+- **Preset System**: Added local storage-based persistence for Benchmark Queues, allowing users to save sets of models.
+- **Filters**: Added advanced filtering to the Library panel for:
+  - Model Type (e.g., SDXL, SD1.5)
+  - Prediction Type (Epsilon, V-Prediction, Zero-SNR)
+  - Source (Civitai, HuggingFace, Local)
+
+### Fixed
+
+- **Drag Interaction**: Resolved "teleporting" bug by separating visual `ListItem` from logic-bearing `SortableListItem` and using Portals for the drag overlay.
+- **Scroll Issues**: Fixed horizontal scrollbars appearing during drag operations by enforcing `overflow-x-hidden`.
+- **Backend Integration**: Updated generation endpoints to respect the `selected_model_ids` list, allowing for partial benchmark runs.
+- **Layout**: Optimized search bar layout to include actionable tool buttons (Filter/Preset) inline.
+
+---
+
+## [0.1.0] - 2026-01
 
 ### Added
 

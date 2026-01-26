@@ -70,7 +70,13 @@ def analyze_models_only(options: ScanOptions):
         model_analysis_results = []
 
         # Analyze only ACTIVE SESSION models
-        valid_models = models_db
+        valid_models = []
+        for m in models_db:
+            if not m.is_missing:
+                if options.selected_model_ids is not None:
+                    if m.id not in options.selected_model_ids:
+                        continue
+                valid_models.append(m)
 
         for m in valid_models:
             output_dir = data_loader.ASSETS_DIR / "outputs" / m.name

@@ -66,6 +66,7 @@ class ScanOptions(BaseModel):
     equalize_counts: bool = (
         False  # If true, generate to match max image count per prompt across models
     )
+    selected_model_ids: Optional[List[str]] = None  # If set, only process these models
 
 
 # In-memory List Cache (Populated from DB)

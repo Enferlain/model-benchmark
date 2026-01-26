@@ -5,7 +5,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { ScatterPlot } from "../components/ScatterPlot";
-import { ModelTable } from "../components/ModelTable";
+import { TransferList } from "../components/TransferList";
 import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "../components/ScanSettingsPanel";
 import { METRIC_OPTIONS } from "../constants";
 import { ModelData, MetricKey } from "../types";
@@ -40,6 +40,9 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
      status: 'idle',
      filename: ''
   });
+  
+  // Model Selection for Benchmark
+  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
 
   const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
   const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
@@ -164,20 +167,25 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
     }
     
     await doGenerate();
-  }, [scanOptions]);
+  }, [scanOptions, selectedModelIds]);
   
   const doGenerate = useCallback(async () => {
     setIsScanning(true);
     setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
     try {
-      await generateImages(scanOptions);
+      // Include selected model IDs in options
+      const finalOptions = {
+        ...scanOptions,
+        selected_model_ids: selectedModelIds.length > 0 ? selectedModelIds : undefined
+      };
+      await generateImages(finalOptions);
     } catch (error) {
       console.error('Generate error:', error);
     } finally {
       setIsScanning(false);
       setGenerationStatus(prev => ({ ...prev, is_running: false }));
     }
-  }, [scanOptions]);
+  }, [scanOptions, selectedModelIds]);
   
   const handleMatchExisting = useCallback(() => {
     if (paramMismatch?.existing_params) {
@@ -805,34 +813,61 @@ export default function Dashboard({ models, setModels, isLoading, fetchModels }:
           {/* Main Content */}
           <div className="lg:col-span-9 space-y-8">
             {/* Chart Area */}
-            <div className="relative">
-              {isLoading ? (
-                <div className="h-[650px] flex items-center justify-center text-slate-400 bg-white/50 dark:bg-slate-800/30 rounded-3xl">
-                  <div className="text-center">
-                    <Loader2 className="animate-spin mx-auto mb-2" />
-                    <p>Loading Models...</p>
+            <div className="p-1 rounded-3xl bg-gradient-to-br from-white/40 to-white/10 dark:from-white/5 dark:to-transparent backdrop-blur-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-white/5">
+               <div className="bg-white/50 dark:bg-slate-900/40 rounded-[22px] p-6 backdrop-blur-sm min-h-[500px] flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
+                         Performance Landscape
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                        Comparing {models.length} models on {xMetric.label} vs {yMetric.label}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <ScatterPlot
-                  data={models}
-                  xMetric={xMetric}
-                  yMetric={yMetric}
-                  isDarkMode={isDarkMode}
-                  selectedId={selectedModelId}
-                  onSelect={setSelectedModelId}
-                />
-              )}
+                  
+                  <div className="flex-1 w-full min-h-0 relative">
+                    {isLoading ? (
+                        <div className="absolute inset-0 flex items-center justify-center text-slate-400">
+                        <div className="text-center">
+                            <Loader2 className="animate-spin mx-auto mb-2" />
+                            <p>Loading Models...</p>
+                        </div>
+                        </div>
+                    ) : (
+                        <ScatterPlot
+                        data={models}
+                        xMetric={xMetric}
+                        yMetric={yMetric}
+                        isDarkMode={isDarkMode}
+                        selectedId={selectedModelId}
+                        onSelect={setSelectedModelId}
+                        />
+                    )}
+                  </div>
+               </div>
             </div>
 
-            {/* Table Area */}
-            <div className="pt-2">
-              <ModelTable 
-                 models={models} 
-                 onDelete={handleDeleteModel}
-                 selectedId={selectedModelId}
-                 onSelect={setSelectedModelId}
-              />
+            {/* Transfer List Section */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                        Benchmark Configuration
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Select models for the next benchmark run
+                    </p>
+                </div>
+                
+                <div className="p-1 rounded-3xl bg-gradient-to-br from-white/40 to-white/10 dark:from-white/5 dark:to-transparent backdrop-blur-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-white/5">
+                    <div className="bg-white/50 dark:bg-slate-900/40 rounded-[22px] p-6 backdrop-blur-sm">
+                        <TransferList 
+                          models={models}
+                          selectedModelIds={selectedModelIds}
+                          onChange={setSelectedModelIds}
+                        />
+                    </div>
+                </div>
             </div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import PromptEditor from "./pages/PromptEditor";
 import Compare from "./pages/Compare";
 import Arena from "./pages/Arena";
 import Database from "./pages/Database";
+import Analytics from "./pages/Analytics";
 import { ModelData } from "./types";
 import { fetchModels as apiFetchModels } from "./services/api";
 
@@ -48,6 +49,13 @@ export default function App() {
               <Route path="gallery" element={<Gallery />} />
               <Route path="prompts" element={<PromptEditor />} />
               <Route path="compare" element={<Compare />} />
+              <Route path="analytics" element={
+                <Analytics
+                  models={models}
+                  setModels={setModels}
+                  fetchModels={fetchModels}
+                />
+              } />
               <Route path="arena" element={<Arena />} />
               <Route path="database" element={<Database />} />
             </Route>
