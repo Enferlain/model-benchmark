@@ -1,3 +1,5 @@
+DRAFT_ARENA.txt
+
 # Logs
 logs
 *.log
@@ -31,7 +33,6 @@ package-lock.json
 *.jpg
 *.npx
 *.npy
-
 __pycache__
 
 # Database files
