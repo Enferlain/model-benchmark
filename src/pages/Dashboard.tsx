@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useData } from "../context/DataContext";
 import { AddModelCard } from "../components/dashboard/AddModelCard";
 import { DatasetSelector } from "../components/dashboard/DatasetSelector";
 import { MetricInfoCard } from "../components/dashboard/MetricInfoCard";
@@ -15,25 +16,22 @@ import { METRIC_OPTIONS } from "../constants";
 import { useTheme } from "../context/ThemeContext";
 import { useDashboardStatus } from "../hooks/useDashboardStatus";
 import {
-	API_BASE,
 	analyzeImages,
 	archiveModel,
-	type CoverageCheckResult,
 	checkCoverage,
 	checkParams,
 	generateImages,
+	type CoverageCheckResult,
 	type ParamCheckResult,
 } from "../services/api";
-import type { BenchmarkRun, MetricKey, ModelData } from "../types";
+import type { MetricKey, ModelData } from "../types";
 
-interface DashboardProps {
-	models: ModelData[];
-	setModels: (models: ModelData[]) => void;
-	isLoading: boolean;
-	fetchModels: () => Promise<void>;
-}
-
-export default function Dashboard({ models, fetchModels }: DashboardProps) {
+export default function Dashboard() {
+	const {
+		models,
+		refreshModels,
+		runs: benchmarkRuns,
+	} = useData();
 	const { isDarkMode } = useTheme();
 	const [urlInput, setUrlInput] = useState("");
 
@@ -47,12 +45,27 @@ export default function Dashboard({ models, fetchModels }: DashboardProps) {
 		generationStatus,
 		setGenerationStatus,
 		setIsScanning,
-	} = useDashboardStatus({ fetchModels });
+	} = useDashboardStatus({ fetchModels: refreshModels });
 
 	// Model Selection for Benchmark
-	const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
-	const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
-	const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
+	const [selectedModelIds, setSelectedModelIds] = useState<string[]>(() => {
+		try {
+			const stored = localStorage.getItem("dashboard_selectedModelIds");
+			return stored ? JSON.parse(stored) : [];
+		} catch {
+			return [];
+		}
+	});
+	const [xMetricKey, setXMetricKey] = useState<MetricKey>(() => {
+		return (
+			(localStorage.getItem("dashboard_xMetricKey") as MetricKey) || "accuracy"
+		);
+	});
+	const [yMetricKey, setYMetricKey] = useState<MetricKey>(() => {
+		return (
+			(localStorage.getItem("dashboard_yMetricKey") as MetricKey) || "diversity"
+		);
+	});
 
 	const [paramMismatch, setParamMismatch] = useState<ParamCheckResult | null>(
 		null,
@@ -67,26 +80,56 @@ export default function Dashboard({ models, fetchModels }: DashboardProps) {
 	const yMetric =
 		METRIC_OPTIONS.find((m) => m.value === yMetricKey) || METRIC_OPTIONS[1];
 
-	const [scanOptions, setScanOptions] = useState(DEFAULT_SCAN_OPTIONS);
+	const [scanOptions, setScanOptions] = useState(() => {
+		try {
+			const stored = localStorage.getItem("dashboard_scanOptions");
+			return stored ? JSON.parse(stored) : DEFAULT_SCAN_OPTIONS;
+		} catch {
+			return DEFAULT_SCAN_OPTIONS;
+		}
+	});
 	const [activeSource, setActiveSource] = useState<{
 		type: "all" | "queue" | "run" | "preset";
 		id?: string | number;
-	}>({ type: "all" });
-	const [chartSearchQuery, setChartSearchQuery] = useState("");
-	const [benchmarkRuns, setBenchmarkRuns] = useState<BenchmarkRun[]>([]);
+	}>(() => {
+		try {
+			const stored = localStorage.getItem("dashboard_activeSource");
+			return stored ? JSON.parse(stored) : { type: "all" };
+		} catch {
+			return { type: "all" };
+		}
+	});
+	const [chartSearchQuery, setChartSearchQuery] = useState(() => {
+		return localStorage.getItem("dashboard_chartSearchQuery") || "";
+	});
 
-	// Fetch benchmark runs on mount
+	// Persistence Effects
 	useEffect(() => {
-		const loadRuns = async () => {
-			try {
-				const runs = await (await fetch(`${API_BASE}/runs`)).json();
-				setBenchmarkRuns(runs);
-			} catch (e) {
-				console.error("Failed to fetch benchmark runs", e);
-			}
-		};
-		loadRuns();
-	}, []);
+		localStorage.setItem(
+			"dashboard_selectedModelIds",
+			JSON.stringify(selectedModelIds),
+		);
+	}, [selectedModelIds]);
+
+	useEffect(() => {
+		localStorage.setItem("dashboard_xMetricKey", xMetricKey);
+	}, [xMetricKey]);
+
+	useEffect(() => {
+		localStorage.setItem("dashboard_yMetricKey", yMetricKey);
+	}, [yMetricKey]);
+
+	useEffect(() => {
+		localStorage.setItem("dashboard_scanOptions", JSON.stringify(scanOptions));
+	}, [scanOptions]);
+
+	useEffect(() => {
+		localStorage.setItem("dashboard_activeSource", JSON.stringify(activeSource));
+	}, [activeSource]);
+
+	useEffect(() => {
+		localStorage.setItem("dashboard_chartSearchQuery", chartSearchQuery);
+	}, [chartSearchQuery]);
 
 	// Load presets from local storage
 	const [presets, setPresets] = useState<Preset[]>([]);
@@ -250,14 +293,14 @@ export default function Dashboard({ models, fetchModels }: DashboardProps) {
 			setIsScanning(true);
 			try {
 				await analyzeImages({ ...scanOptions, common_only: commonOnly });
-				await fetchModels();
+				await refreshModels();
 			} catch (error) {
 				console.error("Analyze error:", error);
 			} finally {
 				setIsScanning(false);
 			}
 		},
-		[scanOptions, fetchModels, setIsScanning],
+		[scanOptions, refreshModels, setIsScanning],
 	);
 
 	const handleAnalyze = useCallback(async () => {
@@ -334,7 +377,7 @@ export default function Dashboard({ models, fetchModels }: DashboardProps) {
 							downloadError={downloadError}
 							setDownloadError={setDownloadError}
 							handleDownloadModel={handleDownloadModel}
-							fetchModels={fetchModels}
+							fetchModels={refreshModels}
 						/>
 
 						<ScanSettingsPanel
@@ -344,7 +387,7 @@ export default function Dashboard({ models, fetchModels }: DashboardProps) {
 							onAnalyze={handleAnalyze}
 							onCancel={handleCancel}
 							status={generationStatus}
-							onRefreshModels={fetchModels}
+							onRefreshModels={refreshModels}
 						/>
 
 						<ViewSettingsCard

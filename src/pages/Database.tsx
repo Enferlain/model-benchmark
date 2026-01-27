@@ -14,12 +14,8 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
-import {
-	deleteModel,
-	fetchBenchmarkRuns,
-	fetchModels,
-	scanModels,
-} from "../services/api";
+import { useData } from "../context/DataContext";
+import { deleteModel, scanModels } from "../services/api";
 import type { ModelData } from "../types";
 
 interface ModelResultData {
@@ -41,18 +37,51 @@ interface BenchmarkRun {
 type SortField = "name" | "model_type" | "prediction_type";
 
 export default function Database() {
-	const [activeTab, setActiveTab] = useState<"models" | "runs">("models");
-	const [models, setModels] = useState<ModelData[]>([]);
-	const [runs, setRuns] = useState<BenchmarkRun[]>([]);
-	const [isLoading, setIsLoading] = useState(false);
+	const {
+		models,
+		runs,
+		isLoadingModels: isLoading,
+		refreshAll: loadData,
+	} = useData();
+
+	const [activeTab, setActiveTab] = useState<"models" | "runs">(
+		() =>
+			(localStorage.getItem("database_activeTab") as "models" | "runs") ||
+			"models",
+	);
 
 	// Expanded runs state
 	const [expandedRunIds, setExpandedRunIds] = useState<Set<number>>(new Set());
 
 	// Sorting State
-	const [sortField, setSortField] = useState<SortField>("name");
-	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-	const [searchQuery, setSearchQuery] = useState("");
+	const [sortField, setSortField] = useState<SortField>(
+		() => (localStorage.getItem("database_sortField") as SortField) || "name",
+	);
+	const [sortDirection, setSortDirection] = useState<"asc" | "desc">(
+		() =>
+			(localStorage.getItem("database_sortDirection") as "asc" | "desc") ||
+			"asc",
+	);
+	const [searchQuery, setSearchQuery] = useState(
+		() => localStorage.getItem("database_searchQuery") || "",
+	);
+
+	// Persistence Effects
+	useEffect(() => {
+		localStorage.setItem("database_activeTab", activeTab);
+	}, [activeTab]);
+
+	useEffect(() => {
+		localStorage.setItem("database_sortField", sortField);
+	}, [sortField]);
+
+	useEffect(() => {
+		localStorage.setItem("database_sortDirection", sortDirection);
+	}, [sortDirection]);
+
+	useEffect(() => {
+		localStorage.setItem("database_searchQuery", searchQuery);
+	}, [searchQuery]);
 
 	// Actions State
 	const [deleteModal, setDeleteModal] = useState<{
@@ -93,26 +122,6 @@ export default function Database() {
 		};
 	}, [menuState.isOpen]);
 
-	const loadData = useCallback(async () => {
-		setIsLoading(true);
-		try {
-			const [modelsData, runsData] = await Promise.all([
-				fetchModels(),
-				fetchBenchmarkRuns(),
-			]);
-			setModels(modelsData);
-			setRuns(runsData);
-		} catch (err) {
-			console.error("Failed to load data", err);
-		} finally {
-			setIsLoading(false);
-		}
-	}, []);
-
-	useEffect(() => {
-		loadData();
-	}, [loadData]);
-
 	const handleActionClick = (e: React.MouseEvent, model: ModelData) => {
 		e.stopPropagation();
 		const rect = e.currentTarget.getBoundingClientRect();
@@ -126,16 +135,11 @@ export default function Database() {
 	};
 
 	const handleDeleteModel = async (id: string) => {
-		// Optimistic update
-		const previousModels = [...models];
-		setModels((prev) => prev.filter((m) => m.id !== id));
-
 		try {
-			await deleteModel(id, false); // Always false for file delete in DB tab
+			await deleteModel(id, false);
+			loadData();
 		} catch (error) {
 			console.error("Error deleting model:", error);
-			setModels(previousModels); // Revert
-			// Show error toast?
 		}
 	};
 
@@ -151,7 +155,6 @@ export default function Database() {
 	const sortedModels = useMemo(() => {
 		let result = [...models];
 
-		// Filter
 		if (searchQuery) {
 			const q = searchQuery.toLowerCase();
 			result = result.filter(
@@ -163,16 +166,13 @@ export default function Database() {
 			);
 		}
 
-		// Sort
 		return result.sort((a, b) => {
-			// Always push missing to bottom
 			if (a.is_missing && !b.is_missing) return 1;
 			if (!a.is_missing && b.is_missing) return -1;
 
 			let aValue = (a[sortField as keyof ModelData] as string) || "";
 			let bValue = (b[sortField as keyof ModelData] as string) || "";
 
-			// Handle null/undefined gracefully
 			if (aValue === undefined || aValue === null) aValue = "";
 			if (bValue === undefined || bValue === null) bValue = "";
 
@@ -214,7 +214,6 @@ export default function Database() {
 
 	return (
 		<div className="max-w-[1800px] mx-auto px-6 py-8">
-			{/* Header */}
 			<div className="flex flex-col mb-8">
 				<h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
 					<DatabaseIcon className="w-6 h-6 text-indigo-500" />
@@ -225,9 +224,9 @@ export default function Database() {
 				</p>
 			</div>
 
-			{/* Tabs */}
 			<div className="flex items-center gap-4 mb-6 border-b border-slate-200 dark:border-slate-700">
 				<button
+					type="button"
 					onClick={() => setActiveTab("models")}
 					className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
 						activeTab === "models"
@@ -242,6 +241,7 @@ export default function Database() {
 					</span>
 				</button>
 				<button
+					type="button"
 					onClick={() => setActiveTab("runs")}
 					className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
 						activeTab === "runs"
@@ -271,15 +271,13 @@ export default function Database() {
 						/>
 					</div>
 					<button
+						type="button"
 						onClick={async () => {
-							setIsLoading(true);
 							try {
 								await scanModels();
 								await loadData();
 							} catch (e) {
 								console.error("Scan failed", e);
-							} finally {
-								setIsLoading(false);
 							}
 						}}
 						disabled={isLoading}
@@ -293,6 +291,7 @@ export default function Database() {
 					<div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-2"></div>
 
 					<button
+						type="button"
 						onClick={loadData}
 						disabled={isLoading}
 						className="p-2 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors"
@@ -303,7 +302,6 @@ export default function Database() {
 				</div>
 			</div>
 
-			{/* Content */}
 			<div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
 				{isLoading &&
 				(activeTab === "models" ? models.length === 0 : runs.length === 0) ? (
@@ -419,6 +417,7 @@ export default function Database() {
 												</td>
 												<td className="px-6 py-4 text-center">
 													<button
+														type="button"
 														onClick={(e) => handleActionClick(e, model)}
 														className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-200 rounded-full transition-all"
 														title="Actions"
@@ -521,7 +520,6 @@ export default function Database() {
 																className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50"
 															>
 																<div className="space-y-4">
-																	{/* Models Table */}
 																	<div>
 																		<h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
 																			Models & Metrics
@@ -574,7 +572,6 @@ export default function Database() {
 																		)}
 																	</div>
 
-																	{/* Prompts */}
 																	<div>
 																		<h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
 																			Prompts ({run.prompts?.length || 0})
@@ -622,21 +619,19 @@ export default function Database() {
 				)}
 			</div>
 
-			{/* Action Menu (Fixed Position) */}
 			{menuState.isOpen && (
 				<div className="fixed inset-0 z-[60] flex items-start justify-start">
-					{/* Invisible Full Screen Closer */}
 					<div
 						className="absolute inset-0"
 						onClick={() => setMenuState((prev) => ({ ...prev, isOpen: false }))}
 					></div>
 
-					{/* The Menu */}
 					<div
 						className="absolute bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 w-40 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
 						style={{ top: menuState.y, left: menuState.x }}
 					>
 						<button
+							type="button"
 							onClick={() => {
 								setDeleteModal({
 									isOpen: true,
@@ -654,7 +649,6 @@ export default function Database() {
 				</div>
 			)}
 
-			{/* Delete Modal */}
 			<DeleteConfirmModal
 				isOpen={deleteModal.isOpen}
 				onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}

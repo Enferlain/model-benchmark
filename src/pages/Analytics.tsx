@@ -1,37 +1,30 @@
 import { BarChart3 } from "lucide-react";
-import type React from "react";
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ModelTable } from "../components/ModelTable";
+import { useData } from "../context/DataContext";
 import { deleteModel } from "../services/api";
-import type { ModelData } from "../types";
 
-interface AnalyticsProps {
-	models: ModelData[];
-	setModels: React.Dispatch<React.SetStateAction<ModelData[]>>;
-	fetchModels: () => Promise<void>;
-}
+export default function Analytics() {
+	const { models, refreshModels: fetchModels } = useData();
+	const [selectedId, setSelectedId] = useState<string | null>(() => {
+		return localStorage.getItem("analytics_selectedId");
+	});
 
-export default function Analytics({
-	models,
-	setModels,
-	fetchModels,
-}: AnalyticsProps) {
-	const [selectedId, setSelectedId] = useState<string | null>(null);
+	useEffect(() => {
+		if (selectedId) {
+			localStorage.setItem("analytics_selectedId", selectedId);
+		} else {
+			localStorage.removeItem("analytics_selectedId");
+		}
+	}, [selectedId]);
 
 	const handleDeleteModel = async (id: string, deleteFile: boolean) => {
-		// Save previous state for revert
-		const previousModels = [...models];
-
-		// Optimistic update
-		setModels((prev) => prev.filter((m) => m.id !== id));
-
 		try {
 			await deleteModel(id, deleteFile);
 			if (selectedId === id) setSelectedId(null);
+			fetchModels();
 		} catch (error) {
 			console.error("Error deleting model:", error);
-			// Revert state on error
-			setModels(previousModels);
 			// Ideally show a toast here
 		}
 	};
@@ -50,7 +43,6 @@ export default function Analytics({
 			</div>
 
 			<div className="space-y-6">
-				{/* We can re-add the chart here later if requested, for now the table is the main focus as requested */}
 				<ModelTable
 					models={models}
 					onDelete={handleDeleteModel}

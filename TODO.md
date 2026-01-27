@@ -30,11 +30,12 @@ Working prototype with:
 - [x] **Model comparison view** - Side-by-side image comparison
 - [x] **Model selection for benchmarking** - Implemented via new Transfer List
 - [x] **Visible database tab** - Implemented as "Analytics" page
-- [ ] **Img Arena**
-  - Compare random gens of same seed/prompt between models for user voting
-  - Host on remote shareable link (generations transient)
-  - Import prompts from boorus/external links with auto-tagging
-  - _Fix:_ "model arena" header whitespace
+- [x] **Img Arena**
+  - [x] Compare random gens of same seed/prompt between models for user voting
+  - [ ] Host on remote shareable link (generations transient)
+  - [ ] Import prompts from boorus/external links with auto-tagging
+  - [x] _Fix:_ "model arena" header whitespace
+- [x] **Global Data Caching & State Persistence** - Centralized `DataContext` for instant page switching and saved UI states.
 - [ ] **Export results** - CSV/JSON export of benchmark data
 - [ ] **Share comparison** - Build grid plots and upload to imgur/imgsli
 - [ ] **Prompt set name option** - Ability to name/save prompt sets

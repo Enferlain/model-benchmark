@@ -20,9 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type Safety**: Fixed several type errors and resolved implicit `any` usage in `App.tsx`, `Dashboard.tsx`, `Gallery.tsx`, and `PromptEditor.tsx`.
 - **Environment Handling**: Fixed missing `import.meta.env` types for Vite environment variables.
 - **Backend Logic**: Fixed critical "Undefined name" and unreachable code bugs in `prompt_manager.py`.
+- **Arena Layout Overhaul**:
+  - Implemented **"Clustered Layout"** to eliminate side-spacing and group images tightly in the center.
+  - **Zero-Bar Fitting**: Standardized container logic to shrink-wrap all images (Portrait, Landscape, Square) with `h-fit` and `min-w-0`, enabling 100% pixel coverage without padding bars.
+  - **1:1:1 Fairness**: Restored strict triple-flex distribution to ensure Model A, Reference, and Model B are identically sized when expanded.
+  - **Symmetrical Animations**: Synchronized expanding/shrinking transitions with a shared 500ms ease-in-out curve and cross-fading opacity for a polished feel.
+  - **State Stability**: Added re-mount logic to prevent "stuck" aspect ratios when switching between samples.
 
 ### Added
 
+- **Unified Data Caching**: Implemented a global `DataContext` to centralize model, prompt, and benchmark run data.
+  - Eliminated redundant API calls when navigating between pages.
+  - Provided instant page transitions by serving data from a centralized cache.
+- **Global State Persistence**: Enforced `localStorage` persistence for all major UI states (selected models, active tabs, filters, and search queries) across the entire application.
+- **Robust Error Handling**: Added explicit error tracking to the global data context to provide better feedback during fetch failures.
 - **Repository Tooling**: Integrated **Biome** (frontend) and **Ruff** (backend) for high-performance linting/formatting across the entire monorepo.
 - **Backend Infrastructure**: Introduced `pyproject.toml` to standardise backend metadata, dependencies, and tool configurations.
 - **Type Checking**: Enabled project-wide type verification using `tsc` for the frontend and **Ty** for the backend.
@@ -37,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Restored rich metric descriptions and "higher is better" indicators.
   - Reorganized dashboard into a cleaner vertical stack layout.
   - Implemented glassmorphism styling for dashboard cards with optimized blur and borders.
+
+### Changed
+
+- **UI Architecture Migration**: Refactored all application pages (`Dashboard`, `Database`, `PromptEditor`, `Arena`, `Analytics`, `Compare`, `Gallery`) to consume the centralized `DataContext`.
+- **Context Consolidation**: Deprecated and merged redundant `GalleryContext` into the unified `DataContext`.
 
 ---
 

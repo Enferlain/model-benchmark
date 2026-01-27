@@ -1,337 +1,209 @@
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Image as ImageIcon } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreatePromptModal } from "../components/prompts/CreatePromptModal";
 import { PromptDetailEditor } from "../components/prompts/PromptDetailEditor";
 import { PromptList } from "../components/prompts/PromptList";
 import {
-	API_BASE,
 	createPrompt,
 	deletePrompt,
-	fetchPrompts,
 	setAllPromptsEnabled,
 	shufflePrompts,
 	updatePromptText,
 } from "../services/api";
-import type { PromptData } from "../types";
+import { useData } from "../context/DataContext";
+
 
 export default function PromptEditor() {
-	const [prompts, setPrompts] = useState<PromptData[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const {
+		allPrompts: prompts,
+		isLoadingPrompts: isLoading,
+		refreshPrompts: loadPrompts,
+	} = useData();
+	const [selectedId, setSelectedId] = useState<string | null>(() => {
+		return localStorage.getItem("promptEditor_selectedId");
+	});
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 
-	// Editor State
-	const [editText, setEditText] = useState("");
-	const [editAlias, setEditAlias] = useState("");
-	const [isSaving, setIsSaving] = useState(false);
-	const [isDirty, setIsDirty] = useState(false);
+	const selectedPrompt = useMemo(() => {
+		return prompts.find((p) => p.id === selectedId) || null;
+	}, [prompts, selectedId]);
 
-	// Creation State
-	const [isCreating, setIsCreating] = useState(false);
-	const [newPromptText, setNewPromptText] = useState("");
-	const [newPromptImage, setNewPromptImage] = useState<File | null>(null);
-	const [isDraggingOver, setIsDraggingOver] = useState(false);
-
-	// Global Drag and Drop
 	useEffect(() => {
-		const handleDragEnter = (e: DragEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			if (e.dataTransfer?.types.includes("Files")) {
-				setIsDraggingOver(true);
-			}
-		};
+		if (selectedId) {
+			localStorage.setItem("promptEditor_selectedId", selectedId);
+		} else {
+			localStorage.removeItem("promptEditor_selectedId");
+		}
+	}, [selectedId]);
 
-		const handleDragLeave = (e: DragEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
+	const handleDragEnd = useCallback(
+		async (event: DragEndEvent) => {
+			const { active, over } = event;
 
-			const relatedTarget = e.relatedTarget as EventTarget | null;
-			if (!relatedTarget || !document.contains(relatedTarget as Node)) {
-				setIsDraggingOver(false);
-			}
-		};
+			if (over && active.id !== over.id) {
+				const oldIndex = prompts.findIndex((p) => p.id === (active as any).id);
+				const newIndex = prompts.findIndex((p) => p.id === (over as any).id);
 
-		const handleDragOver = (e: DragEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			if (e.dataTransfer?.types.includes("Files")) {
-				setIsDraggingOver(true);
-			}
-		};
-
-		const handleDrop = (e: DragEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			setIsDraggingOver(false);
-
-			if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-				const file = e.dataTransfer.files[0];
-				if (file.type.startsWith("image/")) {
-					setNewPromptImage(file);
-					setIsCreating(true);
+				const newPrompts = arrayMove(prompts, oldIndex, newIndex);
+				// Update backend
+				try {
+					await updatePromptText("order", {
+						order: newPrompts.map((p) => p.id),
+					});
+					await loadPrompts();
+				} catch (error) {
+					console.error("Error updating prompt order:", error);
 				}
 			}
-		};
-
-		window.addEventListener("dragenter", handleDragEnter);
-		window.addEventListener("dragleave", handleDragLeave);
-		window.addEventListener("dragover", handleDragOver);
-		window.addEventListener("drop", handleDrop);
-
-		return () => {
-			window.removeEventListener("dragenter", handleDragEnter);
-			window.removeEventListener("dragleave", handleDragLeave);
-			window.removeEventListener("dragover", handleDragOver);
-			window.removeEventListener("drop", handleDrop);
-		};
-	}, []);
-
-	const loadPrompts = useCallback(async () => {
-		setIsLoading(true);
-		try {
-			const data = await fetchPrompts();
-			if (Array.isArray(data)) {
-				setPrompts(data);
-			} else {
-				console.error("Fetched prompts is not an array:", data);
-				setPrompts([]);
-			}
-		} catch (err) {
-			console.error("Failed to load prompts", err);
-			setPrompts([]);
-		} finally {
-			setIsLoading(false);
-		}
-	}, []);
-
-	// Fetch on mount
-	useEffect(() => {
-		loadPrompts();
-	}, [loadPrompts]);
-
-	// Selection Logic
-	const selectedPrompt = useMemo(
-		() => prompts.find((p) => p.id === selectedId),
-		[prompts, selectedId],
+		},
+		[prompts, loadPrompts],
 	);
 
-	useEffect(() => {
-		if (selectedPrompt) {
-			setEditText(selectedPrompt.text);
-			setEditAlias(selectedPrompt.alias || "");
-			setIsDirty(false);
-		}
-	}, [selectedPrompt]);
+	const handleToggleEnable = useCallback(
+		async (id: string, enabled: boolean) => {
+			try {
+				await updatePromptText(id, { enabled });
+				await loadPrompts();
+			} catch (error) {
+				console.error("Error toggling prompt:", error);
+			}
+		},
+		[loadPrompts],
+	);
 
-	// Handlers
-	const handleSave = async () => {
-		if (!selectedPrompt) return;
-		setIsSaving(true);
-		try {
-			await updatePromptText(selectedPrompt.filename, {
-				text: editText,
-				alias: editAlias,
-			});
-			setIsDirty(false);
-			setPrompts((prev) =>
-				prev.map((p) =>
-					p.id === selectedId ? { ...p, text: editText, alias: editAlias } : p,
-				),
-			);
-		} catch (_err) {
-			alert("Failed to save prompt");
-		} finally {
-			setIsSaving(false);
-		}
-	};
+	const handleUpdateText = useCallback(
+		async (id: string, text: string) => {
+			try {
+				await updatePromptText(id, text);
+				await loadPrompts();
+			} catch (error) {
+				console.error("Error updating prompt:", error);
+			}
+		},
+		[loadPrompts],
+	);
 
-	const handleShuffle = async () => {
-		setIsLoading(true);
+	const handleShuffle = useCallback(async () => {
 		try {
 			await shufflePrompts();
 			await loadPrompts();
-		} catch (_err) {
-			alert("Failed to shuffle prompts");
-			setIsLoading(false);
+		} catch (error) {
+			console.error("Error shuffling prompts:", error);
 		}
-	};
+	}, [loadPrompts]);
 
-	const handleEnableAll = async (enabled: boolean) => {
-		setIsLoading(true);
-		try {
-			await setAllPromptsEnabled(enabled);
-			setPrompts((prev) => prev.map((p) => ({ ...p, enabled })));
-		} catch (_err) {
-			alert("Failed to update prompts");
-			await loadPrompts();
-		} finally {
-			setIsLoading(false);
-		}
-	};
+	const handleEnableAll = useCallback(
+		async (enabled: boolean) => {
+			try {
+				await setAllPromptsEnabled(enabled);
+				await loadPrompts();
+			} catch (error) {
+				console.error("Error enabling/disabling all prompts:", error);
+			}
+		},
+		[loadPrompts],
+	);
 
-	const handleCreate = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!newPromptText) return;
-
-		setIsSaving(true);
-		try {
+	const handleCreatePrompt = useCallback(
+		async (text: string, image: File | null) => {
 			const formData = new FormData();
-			formData.append("text", newPromptText);
-			if (newPromptImage) {
-				formData.append("image", newPromptImage);
-			}
-
-			const res = await createPrompt(formData);
-			if (res.status === "success") {
-				setIsCreating(false);
-				setNewPromptText("");
-				setNewPromptImage(null);
-				loadPrompts();
-			}
-		} catch (_err) {
-			alert("Failed to create prompt");
-		} finally {
-			setIsSaving(false);
-		}
-	};
-
-	const handleToggle = useCallback(
-		async (e: React.MouseEvent, prompt: PromptData) => {
-			e.stopPropagation();
-			const previousEnabled = prompt.enabled;
-			try {
-				const newStatus = !prompt.enabled;
-				setPrompts((prev) =>
-					prev.map((p) =>
-						p.id === prompt.id ? { ...p, enabled: newStatus } : p,
-					),
-				);
-				await updatePromptText(prompt.filename, { enabled: newStatus });
-			} catch (_err) {
-				// Rollback on failure
-				setPrompts((prev) =>
-					prev.map((p) =>
-						p.id === prompt.id ? { ...p, enabled: previousEnabled } : p,
-					),
-				);
-				alert("Failed to toggle prompt");
-			}
-		},
-		[],
-	);
-
-	const selectedIdRef = React.useRef(selectedId);
-	useEffect(() => {
-		selectedIdRef.current = selectedId;
-	}, [selectedId]);
-
-	const handleDelete = useCallback(
-		async (e: React.MouseEvent, id: string) => {
-			e.stopPropagation();
-			if (!confirm("Are you sure you want to delete this prompt?")) return;
-
-			const promptToDelete = prompts.find((x) => x.id === id);
-			if (!promptToDelete) return;
-
-			// Optimistic update
-			setPrompts((prev) => prev.filter((x) => x.id !== id));
-			if (selectedIdRef.current === id) setSelectedId(null);
+			formData.append("text", text);
+			if (image) formData.append("image", image);
 
 			try {
-				await deletePrompt(promptToDelete.filename);
-			} catch (_err) {
-				// Rollback on failure (simplified, append at end)
-				setPrompts((prev) => [...prev, promptToDelete]);
-				alert("Failed to delete prompt");
+				const result = await createPrompt(formData);
+				await loadPrompts();
+				setSelectedId(result.id);
+				setIsCreateModalOpen(false);
+			} catch (error) {
+				console.error("Error creating prompt:", error);
 			}
 		},
-		[prompts],
+		[loadPrompts],
 	);
 
-	const handleDragEnd = async (event: DragEndEvent) => {
-		const { active, over } = event;
+	const handleDeletePrompt = useCallback(
+		async (id: string) => {
+			try {
+				await deletePrompt(id);
+				if (selectedId === id) setSelectedId(null);
+				await loadPrompts();
+			} catch (error) {
+				console.error("Error deleting prompt:", error);
+			}
+		},
+		[selectedId, loadPrompts],
+	);
 
-		if (over && active.id !== over.id) {
-			setPrompts((items) => {
-				const oldIndex = items.findIndex((i) => i.id === active.id);
-				const newIndex = items.findIndex((i) => i.id === over.id);
+	const handleSetDefaultImage = useCallback(
+		async (id: string, imagePath: string) => {
+			try {
+				await updatePromptText(id, { default_image: imagePath });
+				await loadPrompts();
+			} catch (error) {
+				console.error("Error setting default image:", error);
+			}
+		},
+		[loadPrompts],
+	);
 
-				const newItems = arrayMove(items, oldIndex, newIndex);
-
-				const order = (newItems as PromptData[]).map((p) => p.filename);
-				fetch(`${API_BASE}/prompts/reorder`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ order }),
-				}).catch((err) => {
-					console.error("Failed to save order", err);
-				});
-
-				return newItems;
-			});
-		}
-	};
+	const filteredPrompts = useMemo(() => {
+		if (!searchQuery) return prompts;
+		const query = searchQuery.toLowerCase();
+		return prompts.filter((p) => p.text.toLowerCase().includes(query));
+	}, [prompts, searchQuery]);
 
 	return (
-		<div className="max-w-[1800px] mx-auto h-[calc(100vh-100px)] pt-6 px-6 flex gap-6">
-			<PromptList
-				prompts={prompts}
-				isLoading={isLoading}
-				searchQuery={searchQuery}
-				selectedId={selectedId}
-				onSearchChange={setSearchQuery}
-				onSelect={setSelectedId}
-				onCreate={() => setIsCreating(true)}
-				onShuffle={handleShuffle}
-				onEnableAll={handleEnableAll}
-				onToggle={handleToggle}
-				onDelete={handleDelete}
-				onDragEnd={handleDragEnd}
-			/>
-
-			<PromptDetailEditor
-				prompt={selectedPrompt}
-				editText={editText}
-				editAlias={editAlias}
-				isSaving={isSaving}
-				isDirty={isDirty}
-				onTextChange={(val) => {
-					setEditText(val);
-					setIsDirty(true);
-				}}
-				onAliasChange={(val) => {
-					setEditAlias(val);
-					setIsDirty(true);
-				}}
-				onSave={handleSave}
-			/>
-
-			{/* Drag Overlay */}
-			{isDraggingOver && (
-				<div className="fixed inset-0 z-[60] bg-blue-500/20 backdrop-blur-sm flex items-center justify-center pointer-events-none border-4 border-blue-500 border-dashed m-4 rounded-3xl">
-					<div className="bg-white/90 dark:bg-slate-900/90 p-8 rounded-2xl shadow-2xl text-center">
-						<ImageIcon size={64} className="mx-auto text-blue-500 mb-4" />
-						<h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-							Drop Image to Interrogate
-						</h3>
-						<p className="text-slate-500 dark:text-slate-400 mt-2">
-							Release to create a new prompt from this image
-						</p>
-					</div>
+		<div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+			<div className="flex-1 flex overflow-hidden">
+				<div className="w-80 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col overflow-hidden">
+					<PromptList
+						prompts={filteredPrompts}
+						selectedId={selectedId}
+						onSelect={setSelectedId}
+						onToggleEnable={handleToggleEnable}
+						onDragEnd={handleDragEnd}
+						onShuffle={handleShuffle}
+						onEnableAll={handleEnableAll}
+						onCreateClick={() => setIsCreateModalOpen(true)}
+						searchQuery={searchQuery}
+						onSearchChange={setSearchQuery}
+						isLoading={isLoading}
+					/>
 				</div>
-			)}
+
+				<div className="flex-1 bg-white dark:bg-slate-800 overflow-y-auto">
+					{selectedPrompt ? (
+						<PromptDetailEditor
+							prompt={selectedPrompt}
+							onUpdateText={handleUpdateText}
+							onDelete={handleDeletePrompt}
+							onSetDefaultImage={handleSetDefaultImage}
+						/>
+					) : (
+						<div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+							<div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-4">
+								<ImageIcon size={32} className="text-slate-300" />
+							</div>
+							<h3 className="text-lg font-medium text-slate-600 dark:text-slate-300">
+								No Prompt Selected
+							</h3>
+							<p className="max-w-xs mt-2">
+								Select a prompt from the list to edit its details or view its
+								associated benchmark images.
+							</p>
+						</div>
+					)}
+				</div>
+			</div>
 
 			<CreatePromptModal
-				isOpen={isCreating}
-				onClose={() => setIsCreating(false)}
-				onCreate={handleCreate}
-				newPromptText={newPromptText}
-				setNewPromptText={setNewPromptText}
-				newPromptImage={newPromptImage}
-				setNewPromptImage={setNewPromptImage}
+				isOpen={isCreateModalOpen}
+				onClose={() => setIsCreateModalOpen(false)}
+				onConfirm={handleCreatePrompt}
 			/>
 		</div>
 	);

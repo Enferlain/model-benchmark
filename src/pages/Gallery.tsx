@@ -2,14 +2,14 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { getImageUrl } from "../components/compare/utils";
 import { SkeletonGrid } from "../components/SkeletonGrid";
-import { useGalleryContext } from "../context/GalleryContext";
-import { fetchModelOutputs, fetchModels } from "../services/api";
-import type { ModelData, ModelOutput } from "../types";
+import { useData } from "../context/DataContext";
+import { fetchModelOutputs } from "../services/api";
+import type { ModelOutput } from "../types";
 
 export default function Gallery() {
-	const [models, setModels] = useState<ModelData[]>([]);
-	// Use global state for selection and caching
 	const {
+		models,
+		allPrompts,
 		selectedModel,
 		setSelectedModel,
 		selectedPrompt,
@@ -18,20 +18,18 @@ export default function Gallery() {
 		setSelectedSeed,
 		outputCache,
 		setOutputCache,
-		allPrompts,
-	} = useGalleryContext();
+		errors,
+	} = useData();
 
 	const [outputs, setOutputs] = useState<ModelOutput[]>([]);
 	const [loading, setLoading] = useState<boolean>(false);
-	const [error, setError] = useState<string | null>(null);
+	const [localError, setLocalError] = useState<string | null>(null);
 
 	// Lightbox state
 	const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
 	const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
 
 	// Derived state for filters
-	// Use allPrompts for the dropdown, but we can still sort/filter if needed.
-	// uniqueSeeds still depends on outputs, as we don't have a master seed list.
 	const uniqueSeeds = Array.from(new Set(outputs.map((o) => o.seed))).sort(
 		(a, b) => (a as number) - (b as number),
 	);
@@ -45,47 +43,26 @@ export default function Gallery() {
 		return true;
 	});
 
-	// Flat list for lightbox navigation (based on filtered results)
+	// Flat list for lightbox navigation
 	const lightboxImages = filteredOutputs;
-
-	const loadModels = useCallback(async () => {
-		try {
-			const data = await fetchModels();
-			setModels(data);
-			// Only set selected model if none is currently selected in global state
-			if (data.length > 0 && !selectedModel) {
-				setSelectedModel(data[0].id);
-			} else if (data.length > 0 && selectedModel) {
-				// Verify selected model still exists
-				if (!data.find((m) => m.id === selectedModel)) {
-					setSelectedModel(data[0].id);
-				}
-			}
-		} catch (err) {
-			console.error("Failed to load models", err);
-			setError("Failed to load models");
-		}
-	}, [selectedModel, setSelectedModel]);
 
 	const loadOutputs = useCallback(
 		async (modelId: string) => {
-			// Check global cache first
 			if (outputCache[modelId]) {
 				setOutputs(outputCache[modelId]);
 				return;
 			}
 
 			setLoading(true);
-			setOutputs([]); // Clear previous data to avoid stale counts
-			setError(null);
+			setOutputs([]);
+			setLocalError(null);
 			try {
 				const data = await fetchModelOutputs(modelId);
 				setOutputs(data);
 				setOutputCache((prev) => ({ ...prev, [modelId]: data }));
-				// Persist filters across model switches (do not reset to "All")
 			} catch (err) {
 				console.error("Failed to load outputs", err);
-				setError("Failed to load outputs");
+				setLocalError("Failed to load outputs");
 			} finally {
 				setLoading(false);
 			}
@@ -93,9 +70,15 @@ export default function Gallery() {
 		[outputCache, setOutputCache],
 	);
 
+	// Improved Auto-Selection & Validation
 	useEffect(() => {
-		loadModels();
-	}, [loadModels]);
+		if (models.length > 0) {
+			const isValid = models.some((m) => m.id === selectedModel);
+			if (!selectedModel || !isValid) {
+				setSelectedModel(models[0].id);
+			}
+		}
+	}, [models, selectedModel, setSelectedModel]);
 
 	useEffect(() => {
 		if (selectedModel) {
@@ -110,23 +93,28 @@ export default function Gallery() {
 		setLightboxOpen(true);
 	};
 
-	const closeLightbox = () => {
+	const closeLightbox = useCallback(() => {
 		setLightboxOpen(false);
-	};
+	}, []);
 
-	const nextImage = (e?: React.MouseEvent) => {
-		e?.stopPropagation();
-		setCurrentImageIndex((prev) => (prev + 1) % lightboxImages.length);
-	};
+	const nextImage = useCallback(
+		(e?: React.MouseEvent) => {
+			e?.stopPropagation();
+			setCurrentImageIndex((prev) => (prev + 1) % lightboxImages.length);
+		},
+		[lightboxImages.length],
+	);
 
-	const prevImage = (e?: React.MouseEvent) => {
-		e?.stopPropagation();
-		setCurrentImageIndex(
-			(prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length,
-		);
-	};
+	const prevImage = useCallback(
+		(e?: React.MouseEvent) => {
+			e?.stopPropagation();
+			setCurrentImageIndex(
+				(prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length,
+			);
+		},
+		[lightboxImages.length],
+	);
 
-	// Keyboard navigation for lightbox
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (!lightboxOpen) return;
@@ -138,7 +126,6 @@ export default function Gallery() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [lightboxOpen, closeLightbox, nextImage, prevImage]);
 
-	// Group by prompt for better viewing (only if not filtering by specific prompt)
 	const groupedOutputs = filteredOutputs.reduce(
 		(acc, output) => {
 			if (!acc[output.prompt]) {
@@ -150,6 +137,8 @@ export default function Gallery() {
 		{} as Record<string, ModelOutput[]>,
 	);
 
+	const activeError = errors.models || localError;
+
 	return (
 		<div className="max-w-[1800px] mx-auto px-6 py-8">
 			<div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
@@ -158,7 +147,6 @@ export default function Gallery() {
 				</h2>
 
 				<div className="flex flex-wrap items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-					{/* Model Selector */}
 					<div className="flex flex-col gap-1">
 						<label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 							Model
@@ -177,7 +165,6 @@ export default function Gallery() {
 						</select>
 					</div>
 
-					{/* Prompt Filter - Now uses allPrompts and is never disabled */}
 					<div className="flex flex-col gap-1">
 						<label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 							Prompt
@@ -198,7 +185,6 @@ export default function Gallery() {
 						</select>
 					</div>
 
-					{/* Seed Filter */}
 					<div className="flex flex-col gap-1">
 						<label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
 							Seed
@@ -224,9 +210,9 @@ export default function Gallery() {
 				</div>
 			</div>
 
-			{error && (
-				<div className="p-4 mb-6 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md">
-					{error}
+			{activeError && (
+				<div className="p-4 mb-6 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md border border-red-200 dark:border-red-800 font-medium">
+					⚠️ {activeError}
 				</div>
 			)}
 
@@ -236,11 +222,12 @@ export default function Gallery() {
 				</div>
 			)}
 
-			{!loading && filteredOutputs.length === 0 && selectedModel && (
+			{!loading && filteredOutputs.length === 0 && selectedModel && !activeError && (
 				<div className="text-center py-12 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
 					<p className="text-lg">No images found matching current filters.</p>
 					{(selectedPrompt !== "All" || selectedSeed !== "All") && (
 						<button
+							type="button"
 							onClick={() => {
 								setSelectedPrompt("All");
 								setSelectedSeed("All");
@@ -253,11 +240,9 @@ export default function Gallery() {
 				</div>
 			)}
 
-			{/* Gallery Grid */}
 			{!loading &&
 				Object.keys(groupedOutputs).map((prompt, idx) => (
 					<div key={idx} className="mb-8 animate-fadeIn">
-						{/* Only show prompt header if we are showing ALL prompts, or if it's the specific selected prompt */}
 						<div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-lg mb-4 border-l-4 border-indigo-500">
 							<h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-1">
 								Prompt {outputs.find((o) => o.prompt === prompt)?.prompt_idx}:
@@ -269,7 +254,6 @@ export default function Gallery() {
 
 						<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
 							{groupedOutputs[prompt].map((output) => {
-								// Find global index for lightbox
 								const globalIndex = lightboxImages.findIndex(
 									(o) => o.filename === output.filename,
 								);
@@ -316,13 +300,13 @@ export default function Gallery() {
 					</div>
 				))}
 
-			{/* Lightbox Modal */}
 			{lightboxOpen && lightboxImages.length > 0 && (
 				<div
 					className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm"
 					onClick={closeLightbox}
 				>
 					<button
+						type="button"
 						className="absolute top-4 right-4 text-white/70 hover:text-white p-2 z-50"
 						onClick={closeLightbox}
 					>
@@ -343,6 +327,7 @@ export default function Gallery() {
 					</button>
 
 					<button
+						type="button"
 						className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-4 z-50 hover:bg-white/10 rounded-full transition-colors"
 						onClick={prevImage}
 					>
@@ -362,6 +347,7 @@ export default function Gallery() {
 					</button>
 
 					<button
+						type="button"
 						className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-4 z-50 hover:bg-white/10 rounded-full transition-colors"
 						onClick={nextImage}
 					>

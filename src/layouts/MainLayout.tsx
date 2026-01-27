@@ -18,15 +18,12 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 
-interface MainLayoutProps {
-	isLoading?: boolean;
-	modelCount?: number;
-}
+import { useData } from "../context/DataContext";
 
-export const MainLayout: React.FC<MainLayoutProps> = ({
-	isLoading = false,
-	modelCount = 0,
-}) => {
+export const MainLayout: React.FC = () => {
+	const { models, isLoadingModels } = useData();
+	const modelCount = models.length;
+	const isLoading = isLoadingModels;
 	const { isDarkMode, toggleTheme } = useTheme();
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

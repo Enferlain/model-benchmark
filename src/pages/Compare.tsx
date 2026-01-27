@@ -4,13 +4,14 @@ import { GridView } from "../components/compare/views/GridView";
 import { ProximityView } from "../components/compare/views/ProximityView";
 import { SideBySideView } from "../components/compare/views/SideBySideView";
 import { SliderView } from "../components/compare/views/SliderView";
-import { fetchModels, fetchNote, saveNote } from "../services/api";
-import type { ModelData } from "../types";
+import { fetchNote, saveNote } from "../services/api";
+import { useData } from "../context/DataContext";
+
 
 type ViewMode = "side-by-side" | "slider" | "proximity" | "grid";
 
 export default function Compare() {
-	const [models, setModels] = useState<ModelData[]>([]);
+	const { models } = useData();
 
 	// Initialize state from LocalStorage if available
 	const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -35,41 +36,39 @@ export default function Compare() {
 
 	// Load models on mount
 	useEffect(() => {
-		fetchModels().then((data) => {
-			setModels(data);
+		if (models.length === 0) return;
 
-			// Try to load selection from storage
-			const storedIds = localStorage.getItem("compare_selectedModelIds");
-			let applied = false;
+		// Try to load selection from storage
+		const storedIds = localStorage.getItem("compare_selectedModelIds");
+		let applied = false;
 
-			if (storedIds) {
-				try {
-					const parsed = JSON.parse(storedIds);
-					if (Array.isArray(parsed)) {
-						// Validate IDs exist
-						const validIds = parsed.filter((id) =>
-							data.find((m) => m.id === id),
-						);
-						if (validIds.length > 0) {
-							setSelectedModelIds(validIds);
-							applied = true;
-						}
+		if (storedIds) {
+			try {
+				const parsed = JSON.parse(storedIds);
+				if (Array.isArray(parsed)) {
+					// Validate IDs exist
+					const validIds = parsed.filter((id) =>
+						models.find((m) => m.id === id),
+					);
+					if (validIds.length > 0) {
+						setSelectedModelIds(validIds);
+						applied = true;
 					}
-				} catch (e) {
-					console.error("Failed to parse stored model IDs", e);
 				}
+			} catch (e) {
+				console.error("Failed to parse stored model IDs", e);
 			}
+		}
 
-			// Default if no storage or invalid
-			if (!applied) {
-				if (data.length >= 2) {
-					setSelectedModelIds([data[0].id, data[1].id]);
-				} else if (data.length === 1) {
-					setSelectedModelIds([data[0].id]);
-				}
+		// Default if no storage or invalid
+		if (!applied) {
+			if (models.length >= 2) {
+				setSelectedModelIds([models[0].id, models[1].id]);
+			} else if (models.length === 1) {
+				setSelectedModelIds([models[0].id]);
 			}
-		});
-	}, []);
+		}
+	}, [models]);
 
 	// Persistence Effects
 	useEffect(() => {
@@ -99,7 +98,6 @@ export default function Compare() {
 		commonSeeds,
 		getImagesForSelection,
 		getAllImagesForPrompt,
-		loadingMap,
 	} = useComparisonData(models, selectedModelIds);
 
 	// Auto-select first common prompt/seed if current selection is invalid
@@ -200,7 +198,7 @@ export default function Compare() {
 	};
 
 	return (
-		<div className="max-w-[1800px] mx-auto px-4 py-4">
+		<div className="max-w-[1800px] mx-auto px-6 py-8">
 			<div className="flex flex-col gap-4">
 				<h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
 					Model Comparison
@@ -210,15 +208,13 @@ export default function Compare() {
 				<div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 space-y-4">
 					{/* 1. Model Selection (Chips) */}
 					<div className="flex flex-col gap-2">
-						<label className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
-							Selected Models ({selectedModelIds.length})
-						</label>
 						<div className="flex flex-wrap gap-2">
 							{models.map((m) => {
 								const isSelected = selectedModelIds.includes(m.id);
 								return (
 									<button
 										key={m.id}
+										type="button"
 										onClick={() => toggleModelSelection(m.id)}
 										className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border ${
 											isSelected
@@ -238,10 +234,11 @@ export default function Compare() {
 					<div className="flex flex-wrap gap-4 items-end border-t border-slate-100 dark:border-slate-700 pt-4">
 						{/* Prompt Selector */}
 						<div className="flex flex-col gap-2 flex-[2] min-w-[300px]">
-							<label className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+							<label htmlFor="prompt-selector" className="text-sm font-semibold text-slate-600 dark:text-slate-400">
 								Common Prompt
 							</label>
 							<select
+								id="prompt-selector"
 								className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md truncate disabled:opacity-50"
 								value={selectedPrompt}
 								onChange={(e) => setSelectedPrompt(e.target.value)}
@@ -254,8 +251,8 @@ export default function Compare() {
 										{commonPrompts.length === 0 && (
 											<option value="All">No common prompts found</option>
 										)}
-										{commonPrompts.map((p, i) => (
-											<option key={i} value={p}>
+										{commonPrompts.map((p) => (
+											<option key={p} value={p}>
 												{p.substring(0, 80)}
 												{p.length > 80 ? "..." : ""}
 											</option>
@@ -267,10 +264,11 @@ export default function Compare() {
 
 						{/* Seed Selector */}
 						<div className="flex flex-col gap-2 flex-none w-[120px]">
-							<label className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+							<label htmlFor="seed-selector" className="text-sm font-semibold text-slate-600 dark:text-slate-400">
 								Common Seed
 							</label>
 							<select
+								id="seed-selector"
 								className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
 								value={viewMode === "proximity" ? "All" : selectedSeed}
 								onChange={(e) => setSelectedSeed(e.target.value)}
@@ -303,6 +301,7 @@ export default function Compare() {
 								(mode) => (
 									<button
 										key={mode}
+										type="button"
 										onClick={() => setViewMode(mode)}
 										disabled={
 											mode === "slider" && selectedModelIds.length !== 2
@@ -376,14 +375,16 @@ export default function Compare() {
 						</div>
 					)}
 
-					{/* Prompt Text Footer */}
-					{selectedPrompt !== "All" && viewMode !== "grid" && (
-						<div className="p-4 bg-white/50 dark:bg-black/50 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 text-center">
-							<p className="font-mono text-sm text-slate-700 dark:text-slate-300">
-								{selectedPrompt}
-							</p>
-						</div>
-					)}
+					{/* Prompt Text Footer - only show if there are common prompts and one is selected */}
+					{commonPrompts.length > 0 &&
+						selectedPrompt !== "All" &&
+						viewMode !== "grid" && (
+							<div className="p-4 bg-white/50 dark:bg-black/50 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 text-center">
+								<p className="font-mono text-sm text-slate-700 dark:text-slate-300">
+									{selectedPrompt}
+								</p>
+							</div>
+						)}
 				</div>
 
 				{/* Notes Section */}
@@ -407,6 +408,7 @@ export default function Compare() {
 							/>
 							<div className="flex justify-end">
 								<button
+									type="button"
 									onClick={handleSaveNote}
 									disabled={noteSaving}
 									className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 flex items-center gap-2"
