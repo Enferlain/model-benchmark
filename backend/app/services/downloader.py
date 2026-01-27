@@ -4,6 +4,9 @@ import re
 import traceback
 from typing import Optional
 from . import prompt_manager as data_loader
+from . import model_manager
+from ..core import database as db
+from ..core.database import Model
 from ..core.state import download_state, download_state_lock, models_db, ModelResult
 
 def download_model_task(url: str, name: str, source: str, api_token: Optional[str] = None):
@@ -140,27 +143,61 @@ def download_model_task(url: str, name: str, source: str, api_token: Optional[st
 
         print("Download complete.")
 
-        # Add to models_db
+        # Calculate Hash
+        print("Calculating hash for downloaded model...")
+        model_hash = model_manager.compute_model_hash(save_path)
+
+        # Detect Type
+        m_type, pred_type, is_ztsnr = model_manager.scan_model_type(save_path)
+
+        # Update Database
+        with db.get_session() as session:
+             stat = save_path.stat()
+
+             # Check if exists
+             existing = session.get(Model, model_hash)
+             if existing:
+                 existing.source = source # Update source as we just downloaded it from there
+                 existing.path = str(save_path)
+                 existing.filename = save_path.name
+                 existing.is_missing = False
+                 session.add(existing)
+             else:
+                 new_db_model = Model(
+                     hash=model_hash,
+                     name=name or save_path.stem.replace("-", " ").title(),
+                     filename=save_path.name,
+                     path=str(save_path),
+                     source=source,
+                     type=m_type,
+                     prediction_type=pred_type,
+                     meta={"mtime": stat.st_mtime, "size": stat.st_size, "ztsnr": is_ztsnr},
+                     is_missing=False
+                 )
+                 session.add(new_db_model)
+
+             session.commit()
+
+        # Add to in-memory models_db (Quick update without full sync)
         new_model = {
-            "id": save_path.stem,
+            "id": model_hash,
+            "hash": model_hash,
             "name": name or save_path.stem.replace("-", " ").title(),
             "source": source,
-            "url": url,
+            "url": "", # Outputs not generated yet
             "path": str(save_path),
             "accuracy": 0.0,
             "diversity": 0.0,
             "rating": 0.0,
-            "metrics": {"accuracy": 0.0, "diversity": 0.0}
+            "metrics": {"accuracy": 0.0, "diversity": 0.0},
+            "model_type": m_type,
+            "prediction_type": pred_type,
+            "ztsnr": is_ztsnr,
+            "is_missing": False
         }
 
-        # Check if exists
-        exists = False
-        for m in models_db:
-             if m.id == new_model["id"]:
-                 exists = True
-                 break
-        if not exists:
-             models_db.append(ModelResult(**new_model))
+        # Atomic update: filter and append in single assignment
+        models_db[:] = [m for m in models_db if m.id != model_hash] + [ModelResult(**new_model)]
 
     except Exception as e:
         print(f"Download error details: {traceback.format_exc()}")

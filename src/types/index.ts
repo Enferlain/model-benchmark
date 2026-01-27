@@ -1,6 +1,6 @@
 export type MetricKey = 'accuracy' | 'diversity' | 'rating' | 'vqa_score' | 'lpips_loss';
 
-export type ModelSource = 'Civitai' | 'HuggingFace' | 'Unknown';
+export type ModelSource = 'Civitai' | 'HuggingFace' | 'Local' | 'Unknown';
 
 export interface ModelData {
   id: string;

@@ -18,6 +18,7 @@ class Model(SQLModel, table=True):
     filename: str
     path: str
     type: str = Field(default="unknown", description="e.g. sd15, sdxl")
+    source: str = Field(default="Local", description="Civitai, HuggingFace, or Local")
     prediction_type: str = Field(
         default="epsilon", description="epsilon or v_prediction"
     )
@@ -76,6 +77,14 @@ def init_db():
             with engine.connect() as conn:
                 conn.execute(
                     text("ALTER TABLE model ADD COLUMN is_missing BOOLEAN DEFAULT 0")
+                )
+                conn.commit()
+
+        if "source" not in columns:
+            print("Migrating DB: Adding source column to model table...")
+            with engine.connect() as conn:
+                conn.execute(
+                    text("ALTER TABLE model ADD COLUMN source VARCHAR DEFAULT 'Local'")
                 )
                 conn.commit()
     except Exception as e:
