@@ -23,8 +23,10 @@ except ImportError:
     LPIPS_AVAILABLE = False
     print("Warning: lpips not installed. LPIPS diversity will use mock values.")
 
+HAS_LPW_UTILS = False
 try:
     from . import lpw_utils
+    HAS_LPW_UTILS = True
 except ImportError:
     pass
 
@@ -76,11 +78,16 @@ class MetricsCalculator:
             try:
                 # 1. Parse and Tokenize with Weights (Get full list of tokens)
                 # Max length large enough to hold all tokens
-                token_ids_list, weights_list = lpw_utils.get_prompts_with_weights(
-                    self.clip_processor.tokenizer, [prompt], max_length=77*5 
-                )
-                
-                token_ids = token_ids_list[0] # List of ints
+                if HAS_LPW_UTILS:
+                    token_ids_list, weights_list = lpw_utils.get_prompts_with_weights(
+                        self.clip_processor.tokenizer, [prompt], max_length=77*5
+                    )
+                    token_ids = token_ids_list[0] # List of ints
+                else:
+                    # Fallback: Use tokenizer directly (no weight support, simple tokenization)
+                    # We tokenize without truncation first to get all tokens
+                    inputs = self.clip_processor.tokenizer(prompt, add_special_tokens=False)
+                    token_ids = inputs.input_ids
                 
                 # 2. Chunk into 75-token segments (leaving room for BOS/EOS)
                 chunk_len = 75

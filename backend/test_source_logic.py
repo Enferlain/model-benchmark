@@ -32,7 +32,7 @@ def test_sync_models_sets_local_source(mock_db_get_session):
     with patch("app.services.prompt_manager.get_available_models_from_disk") as mock_get_models, \
          patch("app.services.model_manager.compute_model_hash", return_value="hash123"), \
          patch("app.services.model_manager.scan_model_type", return_value=("sd1.5", "epsilon", False)), \
-         patch("app.core.database.Session.exec") as mock_exec, \
+         patch("app.core.database.Session.exec"), \
          patch("pathlib.Path.exists", return_value=True), \
          patch("pathlib.Path.stat") as mock_stat:
 
@@ -113,7 +113,13 @@ def test_downloader_updates_source():
         mock_session.reset_mock()
 
         # Scenario 2: Existing Model (Update)
-        existing_model = Model(hash="hash_dl", name="Old Name", source="Local")
+        existing_model = Model(
+            hash="hash_dl",
+            name="Old Name",
+            source="Local",
+            filename="old.safetensors",
+            path="/old/path.safetensors"
+        )
         mock_session.get.return_value = existing_model
 
         # Execute

@@ -196,9 +196,8 @@ def download_model_task(url: str, name: str, source: str, api_token: Optional[st
             "is_missing": False
         }
 
-        # Remove old entry if hash existed (to update)
-        models_db[:] = [m for m in models_db if m.id != model_hash]
-        models_db.append(ModelResult(**new_model))
+        # Atomic update: filter and append in single assignment
+        models_db[:] = [m for m in models_db if m.id != model_hash] + [ModelResult(**new_model)]
 
     except Exception as e:
         print(f"Download error details: {traceback.format_exc()}")
