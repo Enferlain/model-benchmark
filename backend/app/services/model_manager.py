@@ -1,28 +1,30 @@
 import hashlib
 import json
-import os
 from pathlib import Path
-from sqlmodel import select, desc
-from typing import Optional, List, Dict
+
+from sqlmodel import desc, select
+
 from ..core import database as db
-from ..core.database import Model, BenchmarkRun, ModelResult as DBModelResult
-from ..core.state import models_db, ModelResult
+from ..core.database import BenchmarkRun, Model
+from ..core.database import ModelResult as DBModelResult
+from ..core.state import ModelResult, models_db
 from . import prompt_manager as data_loader
+
 
 SOURCES_FILE = data_loader.ASSETS_DIR / "sources.json"
 
 
-def load_sources() -> List[str]:
+def load_sources() -> list[str]:
     if SOURCES_FILE.exists():
         try:
-            with open(SOURCES_FILE, "r") as f:
+            with open(SOURCES_FILE) as f:
                 return json.load(f)
         except:
             return []
     return []
 
 
-def save_sources(sources: List[str]):
+def save_sources(sources: list[str]):
     with open(SOURCES_FILE, "w") as f:
         json.dump(list(set(sources)), f, indent=2)
 
@@ -34,7 +36,7 @@ def add_source(path: str):
         save_sources(sources)
 
 
-def add_sources_batch(paths: List[str]):
+def add_sources_batch(paths: list[str]):
     sources = load_sources()
     changed = False
     for path in paths:
@@ -45,7 +47,7 @@ def add_sources_batch(paths: List[str]):
         save_sources(sources)
 
 
-def register_paths(paths: List[str]) -> dict:
+def register_paths(paths: list[str]) -> dict:
     """
     Register multiple paths at once and sync only once.
     """

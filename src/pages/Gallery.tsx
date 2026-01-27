@@ -33,7 +33,7 @@ export default function Gallery() {
 	// Use allPrompts for the dropdown, but we can still sort/filter if needed.
 	// uniqueSeeds still depends on outputs, as we don't have a master seed list.
 	const uniqueSeeds = Array.from(new Set(outputs.map((o) => o.seed))).sort(
-		(a, b) => a - b,
+		(a, b) => (a as number) - (b as number),
 	);
 
 	// Filtered outputs

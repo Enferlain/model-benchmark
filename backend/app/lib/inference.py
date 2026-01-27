@@ -1,9 +1,9 @@
-import os
-import sys
-import subprocess
 import logging
-from typing import List
+import os
+import subprocess
+import sys
 from pathlib import Path
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class SDXLInferencer:
         # No-op for subprocess method, just storing key info if needed
         self.ckpt_path = str(ckpt_path)
 
-    def generate(self, prompts: List[str], negative_prompt="", steps=20, guidance_scale=7.0, width=1024, height=1024, seed=42, sampler="euler_a", images_per_prompt=1, extra_args=None, per_prompt_seeds=None):
+    def generate(self, prompts: list[str], negative_prompt="", steps=20, guidance_scale=7.0, width=1024, height=1024, seed=42, sampler="euler_a", images_per_prompt=1, extra_args=None, per_prompt_seeds=None):
         """
         Generate images from prompts.
         
@@ -131,8 +131,9 @@ class SDXLInferencer:
             print(f"Running subprocess: {' '.join(cmd)}")
             
             # 4. Execute and yield images as they're saved
-            from PIL import Image
             import time
+
+            from PIL import Image
             
             process = subprocess.Popen(
                 cmd,

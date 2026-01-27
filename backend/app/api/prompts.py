@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Form
-from PIL import Image
 import io
+
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile
+from PIL import Image
+
 from ..services import prompt_manager
+
 
 router = APIRouter()
 

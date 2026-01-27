@@ -1,0 +1,94 @@
+[project]
+name = "model-benchmark-explorer-backend"
+version = "0.1.0"
+description = "FastAPI backend for model benchmarking and analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# =============================================================================
+# Ruff - Linting and Formatting
+# =============================================================================
+[tool.ruff]
+target-version = "py310"
+line-length = 140
+
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "*.egg-info",
+    "assets",
+    "sd-scripts",
+    "a1111-sd-webui-tagcomplete",
+    "test_*.py",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "C4",     # flake8-comprehensions
+]
+
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "E741",   # ambiguous variable name
+    "B008",   # function call in default argument
+    "B905",   # zip without strict=
+    "SIM108", # ternary operator
+    "TID252", # allow relative imports (standard in this project)
+    "E722",   # allow bare except (for now, common in project)
+    "SIM102", # allow nested ifs (sometimes more readable in ML loops)
+    "E402",   # allow imports not at top (needed for path-dependent logic)
+    "B904",   # allow raising without 'from' (standard in this project)
+    "B007",   # allow unused loop variables (common in ML)
+    "F841",   # allow unused local variables (common during dev/ML)
+    "C414",   # allow unnecessary list() in sorted()
+    "SIM105", # allow try-except-pass (sometimes more explicit than suppress)
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["I", "F401", "E402", "T201", "F811"] # Ignore sorting, unused imports, prints, and redefinitions in flat tests
+"tests/*" = ["S101"]
+"scripts/*" = ["T201"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# =============================================================================
+# ty - Type Checking
+# =============================================================================
+[tool.ty.environment]
+python-version = "3.10"
+python = "./venv"
+
+[tool.ty.src]
+exclude = [
+    "assets",
+]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "warn"
+invalid-argument-type = "warn"
+possibly-missing-attribute = "warn"
+unresolved-attribute = "warn"

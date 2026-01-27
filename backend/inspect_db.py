@@ -1,5 +1,5 @@
+from database import BenchmarkRun, Model, ModelResult, engine
 from sqlmodel import Session, select
-from database import engine, Model, BenchmarkRun, ModelResult
 
 
 def inspect():

@@ -1,22 +1,22 @@
-from pydantic import BaseModel
-from typing import List, Optional, Literal, Dict
 import threading
+from typing import Literal
+
+from pydantic import BaseModel
 
 
 class ModelRequest(BaseModel):
     url: str
-    name: Optional[str] = None
-    source: Optional[str] = "Unknown"
-    api_token: Optional[str] = None
+    name: str | None = None
+    source: str | None = "Unknown"
+    api_token: str | None = None
 
 
-from datetime import datetime
 
 
 # Forward compatibility for API responses
 class ModelResult(BaseModel):
     id: str  # Kept for frontend compatibility (hash or filename-based)
-    hash: Optional[str] = None
+    hash: str | None = None
     name: str
     source: str = "Local"
     accuracy: float = 0.0
@@ -24,14 +24,14 @@ class ModelResult(BaseModel):
     rating: float = 0.0
     vqa_score: float = 0.0
     lpips_loss: float = 0.0
-    metrics: Dict[str, float] = {}
+    metrics: dict[str, float] = {}
     url: str = ""
-    path: Optional[str] = None
+    path: str | None = None
     image_count: int = 0
 
     # Metadata
-    prediction_type: Optional[str] = None
-    model_type: Optional[str] = None
+    prediction_type: str | None = None
+    model_type: str | None = None
     ztsnr: bool = False
     is_missing: bool = False
 
@@ -66,13 +66,13 @@ class ScanOptions(BaseModel):
     equalize_counts: bool = (
         False  # If true, generate to match max image count per prompt across models
     )
-    selected_model_ids: Optional[List[str]] = None  # If set, only process these models
+    selected_model_ids: list[str] | None = None  # If set, only process these models
 
 
 # In-memory List Cache (Populated from DB)
 # We will treat this as a read-only cache for GET requests to avoid hitting DB on every poll if needed,
 # but for now let's keep it sync.
-models_db: List[ModelResult] = []
+models_db: list[ModelResult] = []
 
 # Generation state management
 generation_state = {

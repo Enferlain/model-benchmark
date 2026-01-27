@@ -1,8 +1,9 @@
-from typing import Optional, List, Dict, Any
 from datetime import datetime
-from sqlmodel import Field, SQLModel, create_engine, Session, Relationship
-from sqlalchemy import Column, JSON
 from pathlib import Path
+
+from sqlalchemy import JSON, Column
+from sqlmodel import Field, Relationship, Session, SQLModel, create_engine
+
 
 # Database setup
 DATABASE_FILE = "assets/database.db"
@@ -22,35 +23,35 @@ class Model(SQLModel, table=True):
     prediction_type: str = Field(
         default="epsilon", description="epsilon or v_prediction"
     )
-    compatibility: Dict = Field(default={}, sa_column=Column(JSON))
-    meta: Dict = Field(default={}, sa_column=Column(JSON))
+    compatibility: dict = Field(default={}, sa_column=Column(JSON))
+    meta: dict = Field(default={}, sa_column=Column(JSON))
     is_hidden: bool = Field(default=False)
     is_missing: bool = Field(
         default=False, description="True if model file is not found on disk"
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    results: List["ModelResult"] = Relationship(
+    results: list["ModelResult"] = Relationship(
         back_populates="model", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
 
 
 class BenchmarkRun(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    parameters: Dict = Field(default={}, sa_column=Column(JSON))
-    prompts: List[str] = Field(default=[], sa_column=Column(JSON))
-    prompt_set_id: Optional[str] = Field(default=None, index=True)
+    parameters: dict = Field(default={}, sa_column=Column(JSON))
+    prompts: list[str] = Field(default=[], sa_column=Column(JSON))
+    prompt_set_id: str | None = Field(default=None, index=True)
 
-    results: List["ModelResult"] = Relationship(back_populates="run")
+    results: list["ModelResult"] = Relationship(back_populates="run")
 
 
 class ModelResult(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     run_id: int = Field(foreign_key="benchmarkrun.id")
     model_hash: str = Field(foreign_key="model.hash")
 
-    metrics: Dict = Field(default={}, sa_column=Column(JSON))
+    metrics: dict = Field(default={}, sa_column=Column(JSON))
     image_count: int = Field(default=0)
 
     run: BenchmarkRun = Relationship(back_populates="results")

@@ -1,7 +1,8 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
+
 
 # Constants
 # Assuming assets are relative to backend root, which is 2 levels up from services/notes_manager.py
@@ -12,13 +13,13 @@ NOTES_FILE = ASSETS_DIR / "notes.json"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def _load_notes_db() -> Dict[str, Any]:
+def _load_notes_db() -> dict[str, Any]:
     """Loads the notes database from the JSON file."""
     if not NOTES_FILE.exists():
         return {}
 
     try:
-        with open(NOTES_FILE, "r", encoding="utf-8") as f:
+        with open(NOTES_FILE, encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError:
         logger.error(f"Failed to decode {NOTES_FILE}. Returning empty db.")
@@ -27,7 +28,7 @@ def _load_notes_db() -> Dict[str, Any]:
         logger.exception("Error loading notes")
         return {}
 
-def _save_notes_db(db: Dict[str, Any]) -> None:
+def _save_notes_db(db: dict[str, Any]) -> None:
     """Saves the notes database to the JSON file."""
     # Ensure directory exists
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
@@ -38,12 +39,12 @@ def _save_notes_db(db: Dict[str, Any]) -> None:
     except Exception:
         logger.exception("Error saving notes")
 
-def get_note(note_id: str) -> Dict[str, Any]:
+def get_note(note_id: str) -> dict[str, Any]:
     """Retrieves a note by ID."""
     db = _load_notes_db()
     return db.get(note_id, {})
 
-def update_note(note_id: str, content: Dict[str, Any]) -> Dict[str, Any]:
+def update_note(note_id: str, content: dict[str, Any]) -> dict[str, Any]:
     """Updates or creates a note for the given ID. Merges with existing data."""
     db = _load_notes_db()
 

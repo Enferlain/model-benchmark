@@ -53,3 +53,18 @@ export interface PromptData {
 	enabled?: boolean;
 	alias?: string;
 }
+export interface RunResult {
+	model_hash: string;
+	model_name: string;
+	metrics: Record<string, number>;
+	image_count: number;
+}
+
+export interface BenchmarkRun {
+	id: number;
+	timestamp: string;
+	parameters: Record<string, any>;
+	prompts: string[];
+	prompt_set_id?: string;
+	results: RunResult[];
+}

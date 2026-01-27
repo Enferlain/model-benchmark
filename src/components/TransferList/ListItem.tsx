@@ -13,6 +13,7 @@ export interface ListItemProps {
 	isDragging?: boolean;
 	dragHandleProps?: any;
 	style?: React.CSSProperties;
+	key?: React.Key;
 }
 
 // 1. Pure Visual Component (No dnd hooks)

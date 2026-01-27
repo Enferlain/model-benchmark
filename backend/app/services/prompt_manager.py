@@ -1,8 +1,7 @@
-import os
-import sys
 from pathlib import Path
+
 from PIL import Image
-from typing import List, Tuple
+
 
 ASSETS_DIR = Path(__file__).parents[2] / "assets"
 MODELS_DIR = ASSETS_DIR / "models"
@@ -18,6 +17,7 @@ if OLD_ASSETS_DIR.exists() and not ASSETS_DIR.exists():
 
 import json
 import time
+
 
 try:
     import blake3
@@ -46,7 +46,7 @@ def calculate_hash(filepath: Path) -> str:
 def get_model_cache():
     if CACHE_FILE.exists():
         try:
-            with open(CACHE_FILE, "r") as f:
+            with open(CACHE_FILE) as f:
                 return json.load(f)
         except:
             return {}
@@ -61,17 +61,17 @@ def save_model_cache(cache):
 SOURCES_FILE = ASSETS_DIR / "sources.json"
 
 
-def load_sources() -> List[str]:
+def load_sources() -> list[str]:
     if SOURCES_FILE.exists():
         try:
-            with open(SOURCES_FILE, "r") as f:
+            with open(SOURCES_FILE) as f:
                 return json.load(f)
         except:
             return []
     return []
 
 
-def save_sources(sources: List[str]):
+def save_sources(sources: list[str]):
     with open(SOURCES_FILE, "w") as f:
         json.dump(list(set(sources)), f, indent=2)
 
@@ -180,11 +180,6 @@ def get_available_models_from_disk():
 
     return models
 
-    if not deleted:
-        raise FileNotFoundError(f"No files found to delete for {filename}")
-
-    return True
-
 
 CONFIG_PATH = ASSETS_DIR / "prompts_config.json"
 
@@ -200,7 +195,7 @@ CONFIG_PATH = ASSETS_DIR / "prompts_config.json"
 def load_prompt_config() -> dict:
     if CONFIG_PATH.exists():
         try:
-            with open(CONFIG_PATH, "r") as f:
+            with open(CONFIG_PATH) as f:
                 data = json.load(f)
                 # Migration from v1 (simple dict) to v2
                 if "version" not in data:
@@ -246,7 +241,7 @@ def set_prompt_alias(filename: str, alias: str):
     return True
 
 
-def save_prompt_order(filenames: List[str]):
+def save_prompt_order(filenames: list[str]):
     config = load_prompt_config()
     config["order"] = filenames
     save_prompt_config(config)
@@ -304,7 +299,7 @@ def get_all_prompts_metadata():
             text_content = ""
             if txt_path.exists():
                 try:
-                    with open(txt_path, "r", encoding="utf-8") as f:
+                    with open(txt_path, encoding="utf-8") as f:
                         text_content = f.read().strip()
                 except:
                     pass
@@ -327,7 +322,7 @@ def get_all_prompts_metadata():
             pid = clean_id(txt_path)
             if not any(p["id"] == pid for p in prompts_data):
                 try:
-                    with open(txt_path, "r", encoding="utf-8") as f:
+                    with open(txt_path, encoding="utf-8") as f:
                         content = f.read().strip()
                     prompts_data.append(
                         {
@@ -365,7 +360,7 @@ def get_all_prompts_metadata():
 
 
 # Update filtering in load functions
-def load_test_data() -> Tuple[List[Image.Image], List[str]]:
+def load_test_data() -> tuple[list[Image.Image], list[str]]:
     images = []
     prompts = []
     config = load_prompt_config()
@@ -402,18 +397,18 @@ def load_test_data() -> Tuple[List[Image.Image], List[str]]:
         if txt_path.exists():
             try:
                 img = Image.open(img_path).convert("RGB")
-                with open(txt_path, "r", encoding="utf-8") as f:
+                with open(txt_path, encoding="utf-8") as f:
                     prompt = f.read().strip()
 
                 images.append(img)
                 prompts.append(prompt)
-            except Exception as e:
+            except Exception:
                 pass
 
     return images, prompts
 
 
-def load_prompts_only() -> List[str]:
+def load_prompts_only() -> list[str]:
     """Load only active prompts."""
     # This one is tricky because it mixes two sources.
     # We should gather all items, sort them, then extract content.
@@ -435,7 +430,7 @@ def load_prompts_only() -> List[str]:
             txt_path = img_path.with_suffix(".txt")
             if txt_path.exists():
                 try:
-                    with open(txt_path, "r", encoding="utf-8") as f:
+                    with open(txt_path, encoding="utf-8") as f:
                         prompts_map[img_path.name] = f.read().strip()
                 except:
                     pass
@@ -448,7 +443,7 @@ def load_prompts_only() -> List[str]:
             # Avoid duplicates if paired already handled it? (Assuming filenames unique)
             if txt_path.name not in prompts_map:
                 try:
-                    with open(txt_path, "r", encoding="utf-8") as f:
+                    with open(txt_path, encoding="utf-8") as f:
                         prompts_map[txt_path.name] = f.read().strip()
                 except:
                     pass
@@ -469,7 +464,6 @@ def load_prompts_only() -> List[str]:
 
 def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = None):
     """Create a new prompt. If image provided, save to paired dir. Else text dir."""
-    import time
     import re
 
     # Generate ID/Filename

@@ -100,7 +100,7 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 	};
 
 	return (
-		<div className="p-6 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white/60 dark:border-white/5 bg-white/60 dark:bg-slate-800/40 backdrop-blur-xl transition-all">
+		<div className="p-6 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white/60 dark:border-white/5 bg-white/90 dark:bg-slate-800/80 backdrop-blur-md transition-shadow hover:shadow-2xl">
 			<button
 				onClick={() => setIsExpanded(!isExpanded)}
 				className="w-full flex items-center justify-between mb-4"

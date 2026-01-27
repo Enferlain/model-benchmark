@@ -1,19 +1,21 @@
+import logging
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import logging
-import threading
-
-# Import backend modules
-from .services import prompt_manager as data_loader
-from .services import model_manager
-from .core import state, database as db
-from .api import models, prompts, generation, system
+from watchdog.events import FileSystemEventHandler
 
 # Startup/Shutdown Events
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from contextlib import asynccontextmanager
+
+from .api import generation, models, prompts, system
+from .core import database as db
+from .services import model_manager
+
+# Import backend modules
+from .services import prompt_manager as data_loader
 
 
 class ModelFileHandler(FileSystemEventHandler):

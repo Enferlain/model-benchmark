@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pathlib import Path
-from ..core import state, database as db
-from ..services import downloader
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
+from ..core import database as db
+from ..core import state
+from ..services import downloader, model_manager
 from ..services import prompt_manager as data_loader
-from ..services import model_manager
+
 
 router = APIRouter()
 

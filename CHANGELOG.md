@@ -10,9 +10,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Drag and Drop Precision**: Significantly improved model transfer UX in the Dashboard.
-  - Switched to `pointerWithin` collision detection to prevent unintentional "auto-dropping" to nearby fields when dragging outside panels.
-  - Tied drop activation to valid targets only; panels no longer show "active" highlights when dragging an item over its own source container.
-  - Expanded droppable hit area to the entire panel (including borders and header), providing immediate visual feedback when the cursor enters a valid target.
+  - Switched to `pointerWithin` collision detection to prevent unintentional "auto-dropping" to nearby fields.
+  - Tied drop activation to valid targets only; panels no longer show "active" highlights when dragging over self.
+  - Expanded droppable hit area to the entire panel for immediate visual feedback.
+- **Compare Tab Quality**: Filtered "Common Prompt" list to only include prompts with at least one common seed across all models, preventing empty comparison views.
+- **Reference Errors**: Fixed `headerExtra` ReferenceError in `ScatterPlot` by correctly destructuring props.
+- **Chart Visibility**: Resolved issue where chart content would disappear during active dataset searches.
+- **Full-Screen Positioning**: Fixed portal-based full-screen view positioning to correctly ignore parent container transforms.
+- **Type Safety**: Fixed several type errors and resolved implicit `any` usage in `App.tsx`, `Dashboard.tsx`, `Gallery.tsx`, and `PromptEditor.tsx`.
+- **Environment Handling**: Fixed missing `import.meta.env` types for Vite environment variables.
+- **Backend Logic**: Fixed critical "Undefined name" and unreachable code bugs in `prompt_manager.py`.
+
+### Added
+
+- **Repository Tooling**: Integrated **Biome** (frontend) and **Ruff** (backend) for high-performance linting/formatting across the entire monorepo.
+- **Backend Infrastructure**: Introduced `pyproject.toml` to standardise backend metadata, dependencies, and tool configurations.
+- **Type Checking**: Enabled project-wide type verification using `tsc` for the frontend and **Ty** for the backend.
+- **Quality Control Scripts**: Added `npm run check:backend` and `npm run check:all` to standardise development workflow and allow holistic repository verification.
+- **Dataset Selector**: Implemented a unified data source switcher for the primary dashboard chart.
+  - Support for **All Models**, **Current Queue**, **Past Benchmark Runs**, and **Saved Presets**.
+  - Integrated search bar to filter both the data source menu and the chart points simultaneously.
+  - Real-time filtering of chart points by model name, ID, and type.
+- **Chart Header**: Enhanced chart header with active source indicators and a settings menu for dataset selection.
+- **UI Architecture**: Implemented React Portals for the expanded chart view to avoid clipping and layout issues.
+- **Visual Polish**:
+  - Restored rich metric descriptions and "higher is better" indicators.
+  - Reorganized dashboard into a cleaner vertical stack layout.
+  - Implemented glassmorphism styling for dashboard cards with optimized blur and borders.
 
 ---
 

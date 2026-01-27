@@ -1,11 +1,12 @@
 import random
-from typing import List, Optional, Any, Dict
+from typing import Any
+
 
 try:
-    import torch
     import numpy as np
+    import torch
     from PIL import Image
-    from transformers import CLIPProcessor, CLIPModel
+    from transformers import CLIPModel, CLIPProcessor
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
@@ -60,7 +61,7 @@ class MetricsCalculator:
             print("Loading LPIPS model (alex)...")
             self.lpips_model = lpips.LPIPS(net='vgg').to(self.device)
     
-    def calculate_clip_score(self, images: List[Any], prompts: List[str]) -> float:
+    def calculate_clip_score(self, images: list[Any], prompts: list[str]) -> float:
         """
         Calculates the average cosine similarity between images and prompts, checking 
         long prompts by chunking and averaging chunks (simple "long CLIP" approximation).
@@ -142,7 +143,7 @@ class MetricsCalculator:
             
         return float(sum(scores) / len(scores))
 
-    def calculate_diversity(self, images: List[Any]) -> float:
+    def calculate_diversity(self, images: list[Any]) -> float:
         """
         Calculates diversity score using CLIP embeddings.
         NOTE: This is cross-prompt diversity (not ideal). Use calculate_lpips_diversity for proper intra-prompt diversity.
@@ -171,7 +172,7 @@ class MetricsCalculator:
         # Diversity = 1 - average_similarity
         return 1.0 - avg_sim.item()
 
-    def calculate_lpips_diversity(self, grouped_images: Dict[int, List[Any]]) -> float:
+    def calculate_lpips_diversity(self, grouped_images: dict[int, list[Any]]) -> float:
         """
         Calculates proper intra-prompt diversity using LPIPS.
         
@@ -216,7 +217,7 @@ class MetricsCalculator:
             
         return float(sum(all_lpips_scores) / len(all_lpips_scores))
 
-    def calculate_metrics(self, images: List[Any], prompts: List[str], grouped_images: Dict[int, List[Any]] = None) -> dict:
+    def calculate_metrics(self, images: list[Any], prompts: list[str], grouped_images: dict[int, list[Any]] = None) -> dict:
         """
         Calculate all available metrics.
         

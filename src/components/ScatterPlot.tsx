@@ -1,5 +1,6 @@
 import { Maximize2, Minimize2 } from "lucide-react";
 import React, { useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
 	CartesianGrid,
 	Label,
@@ -21,6 +22,7 @@ interface ScatterPlotProps {
 	isDarkMode?: boolean;
 	selectedId: string | null;
 	onSelect: (id: string | null) => void;
+	headerExtra?: React.ReactNode;
 }
 
 const CustomTooltip = ({ active, payload, isDarkMode }: any) => {
@@ -146,6 +148,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 	isDarkMode = false,
 	selectedId,
 	onSelect,
+	headerExtra,
 }) => {
 	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [hoveredId, setHoveredId] = React.useState<string | null>(null);
@@ -173,7 +176,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 		}
 	};
 
-	return (
+	const chartContent = (
 		<div
 			className={`rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border flex flex-col transition-all duration-300 overflow-hidden backdrop-blur-xl ${
 				isDarkMode
@@ -181,8 +184,8 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 					: "bg-white/60 border-white/60"
 			} ${
 				isExpanded
-					? "fixed inset-0 z-50 p-6 m-0 h-screen w-screen rounded-none bg-slate-100/90 dark:bg-slate-900/90"
-					: "w-full h-[650px] p-4 relative"
+					? "fixed inset-0 z-[10000] p-6 m-0 h-screen w-screen rounded-none bg-slate-100/90 dark:bg-slate-900/90"
+					: "w-full h-full p-4 relative"
 			}`}
 		>
 			<style>{`
@@ -190,30 +193,36 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
         :focus { outline: none !important; }
       `}</style>
 
-			{/* Controls */}
-			<div className="flex justify-between items-center mb-2 h-8 shrink-0 px-2">
-				<div
-					className={`text-sm font-medium ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}
-				>
-					{isExpanded ? `${yMetric.label} vs ${xMetric.label}` : ""}
+			<div className="flex items-center justify-between mb-4">
+				<div className="flex items-center gap-4">
+					<h3
+						className={`text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${
+							isDarkMode
+								? "from-white to-slate-400"
+								: "from-slate-900 to-slate-600"
+						}`}
+					>
+						Performance Landscape
+					</h3>
+					{headerExtra}
 				</div>
 				<button
 					onClick={() => setIsExpanded(!isExpanded)}
-					className={`p-2 rounded-full transition-colors absolute right-6 top-6 z-10 ${
-						isDarkMode
-							? "text-slate-400 hover:text-slate-200 bg-white/5 hover:bg-white/10"
-							: "text-slate-400 hover:text-slate-700 bg-black/5 hover:bg-black/10"
+					className={`p-2 rounded-full transition-all z-[10000] cursor-pointer ${
+						isExpanded
+							? "fixed right-8 top-8 bg-white/20 hover:bg-white/40 dark:bg-black/20 dark:hover:bg-black/40 text-slate-800 dark:text-white shadow-lg"
+							: "absolute right-6 top-6 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
 					}`}
 					title={isExpanded ? "Exit Full Screen" : "Full Screen"}
 				>
-					{isExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+					{isExpanded ? <Minimize2 size={24} /> : <Maximize2 size={18} />}
 				</button>
 			</div>
 
 			<div className="flex-1 min-h-0 w-full select-none">
 				<ResponsiveContainer width="100%" height="100%">
 					<ScatterChart
-						margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+						margin={{ top: 20, right: 40, bottom: 40, left: 20 }}
 						onClick={handleChartClick}
 					>
 						<CartesianGrid
@@ -226,7 +235,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 							dataKey={xMetric.value}
 							name={xMetric.label}
 							stroke={axisColor}
-							fontSize={12}
+							fontSize={isExpanded ? 14 : 12}
 							tickLine={false}
 							axisLine={{ stroke: axisLineColor, strokeOpacity: 0.5 }}
 							tick={{ fill: textColor }}
@@ -234,12 +243,12 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 						>
 							<Label
 								value={xMetric.label}
-								offset={-10}
+								offset={-20}
 								position="insideBottom"
 								style={{
 									fill: textColor,
-									fontSize: "12px",
-									fontWeight: 500,
+									fontSize: isExpanded ? "16px" : "12px",
+									fontWeight: 600,
 									opacity: 0.8,
 								}}
 							/>
@@ -249,7 +258,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 							dataKey={yMetric.value}
 							name={yMetric.label}
 							stroke={axisColor}
-							fontSize={12}
+							fontSize={isExpanded ? 14 : 12}
 							tickLine={false}
 							axisLine={{ stroke: axisLineColor, strokeOpacity: 0.5 }}
 							tick={{ fill: textColor }}
@@ -259,10 +268,11 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 								value={yMetric.label}
 								angle={-90}
 								position="insideLeft"
+								offset={isExpanded ? 10 : 0}
 								style={{
 									fill: textColor,
-									fontSize: "12px",
-									fontWeight: 500,
+									fontSize: isExpanded ? "16px" : "12px",
+									fontWeight: 600,
 									opacity: 0.8,
 								}}
 							/>
@@ -327,4 +337,10 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 			</div>
 		</div>
 	);
+
+	if (isExpanded) {
+		return createPortal(chartContent, document.body);
+	}
+
+	return <div className="w-full h-[650px] relative">{chartContent}</div>;
 };

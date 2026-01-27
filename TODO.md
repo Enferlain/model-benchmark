@@ -44,11 +44,18 @@ Working prototype with:
 - [ ] **Metrics dropdown** - Consistent metric selection UI across all pages
 - [ ] **Diversity metric label** - Rename "Diversity (⚠️ WIP)" once validated
 
+### 🔗 External Integration (Long Term Goal)
+
+- [ ] **A1111/ComfyUI API Support** - Connect as generation providers (replacing internal inference) <!-- id: 18 -->
+- [ ] **Provider Configuration UI** - Settings to manage API endpoints and keys <!-- id: 19 -->
+- [ ] **Shared model path mapping** - Map local files to external API paths <!-- id: 20 -->
+
 ### Backend & Core
 
 - [ ] **Negative prompt support** - Per-generation negative prompts
 - [ ] **Noise/Color scorers** - Forensic noise, PCA, color distribution metrics
 - [ ] **Batch generation** - Queue multiple models for overnight runs
+- [ ] **Legacy: Internal Inference** - Complete/Maintain `sd-scripts` wrapper (to be deprecated by APIs) <!-- id: 21 -->
 - [x] **Cache metrics** - Don't recompute if images haven't changed
 - [ ] **LoRA support** - Test LoRA models (not just checkpoints)
 - [ ] **Unique identifiers for prompts** - Immutable IDs to prevent regeneration collisions

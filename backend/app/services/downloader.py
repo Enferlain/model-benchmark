@@ -1,15 +1,17 @@
 import os
-import requests
 import re
 import traceback
-from typing import Optional
-from . import prompt_manager as data_loader
-from . import model_manager
+
+import requests
+
 from ..core import database as db
 from ..core.database import Model
-from ..core.state import download_state, download_state_lock, models_db, ModelResult
+from ..core.state import ModelResult, download_state, download_state_lock, models_db
+from . import model_manager
+from . import prompt_manager as data_loader
 
-def download_model_task(url: str, name: str, source: str, api_token: Optional[str] = None):
+
+def download_model_task(url: str, name: str, source: str, api_token: str | None = None):
     global download_state
 
     with download_state_lock:

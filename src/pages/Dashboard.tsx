@@ -1,877 +1,398 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AddModelCard } from "../components/dashboard/AddModelCard";
+import { DatasetSelector } from "../components/dashboard/DatasetSelector";
+import { MetricInfoCard } from "../components/dashboard/MetricInfoCard";
+import { MismatchModals } from "../components/dashboard/MismatchModals";
+import { TransferListSection } from "../components/dashboard/ModelSelection/TransferListSection";
+import { ViewSettingsCard } from "../components/dashboard/ViewSettingsCard";
 import {
-  Plus,
-  Info,
-  Loader2,
-} from "lucide-react";
+	DEFAULT_SCAN_OPTIONS,
+	ScanSettingsPanel,
+} from "../components/ScanSettingsPanel";
 import { ScatterPlot } from "../components/ScatterPlot";
-import { TransferList } from "../components/TransferList";
-import { ScanSettingsPanel, ScanOptionsType, DEFAULT_SCAN_OPTIONS } from "../components/ScanSettingsPanel";
+import type { Preset } from "../components/TransferList/PresetMenu";
 import { METRIC_OPTIONS } from "../constants";
-import { ModelData, MetricKey } from "../types";
-import { useOutletContext } from "react-router-dom";
-import { downloadModel, getDownloadStatus, deleteModel, generateImages, analyzeImages, cancelOperation, getStatus, checkParams, archiveModel, ParamCheckResult, checkCoverage, CoverageCheckResult, registerModelPath, registerModelPaths, browseSystemPath } from "../services/api";
 import { useTheme } from "../context/ThemeContext";
-import { Download, HardDrive, FolderOpen, FileText } from "lucide-react";
-
-// Context type from the MainLayout if we were using context for shared state,
-// but currently props are passed down or managed here.
-// For now, we'll manage model state here or lift it up if needed.
-// Since Dashboard is the main viewer, it can own the data for now.
+import { useDashboardStatus } from "../hooks/useDashboardStatus";
+import {
+	API_BASE,
+	analyzeImages,
+	archiveModel,
+	type CoverageCheckResult,
+	checkCoverage,
+	checkParams,
+	generateImages,
+	type ParamCheckResult,
+} from "../services/api";
+import type { BenchmarkRun, MetricKey, ModelData } from "../types";
 
 interface DashboardProps {
-  models: ModelData[];
-  setModels: React.Dispatch<React.SetStateAction<ModelData[]>>;
-  isLoading: boolean;
-  fetchModels: () => Promise<void>;
+	models: ModelData[];
+	setModels: (models: ModelData[]) => void;
+	isLoading: boolean;
+	fetchModels: () => Promise<void>;
 }
 
-export default function Dashboard({ models, setModels, isLoading, fetchModels }: DashboardProps) {
-  const { isDarkMode } = useTheme();
-  const [urlInput, setUrlInput] = useState("");
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanOptions, setScanOptions] = useState<ScanOptionsType>(DEFAULT_SCAN_OPTIONS);
+export default function Dashboard({ models, fetchModels }: DashboardProps) {
+	const { isDarkMode } = useTheme();
+	const [urlInput, setUrlInput] = useState("");
 
-  const [downloadProgress, setDownloadProgress] = useState({
-     current: 0,
-     total: 0,
-     status: 'idle',
-     filename: ''
-  });
-  
-  // Model Selection for Benchmark
-  const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+	const {
+		isDownloading,
+		downloadError,
+		downloadProgress,
+		setDownloadError,
+		handleDownloadModel,
+		handleCancel,
+		generationStatus,
+		setGenerationStatus,
+		setIsScanning,
+	} = useDashboardStatus({ fetchModels });
 
-  const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
-  const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
+	// Model Selection for Benchmark
+	const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+	const [xMetricKey, setXMetricKey] = useState<MetricKey>("accuracy");
+	const [yMetricKey, setYMetricKey] = useState<MetricKey>("diversity");
 
-  // Import State
-  const [localPathInput, setLocalPathInput] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [registerResult, setRegisterResult] = useState<{status: string, message: string} | null>(null);
-  
-  // Parameter mismatch modal state
-  const [paramMismatch, setParamMismatch] = useState<ParamCheckResult | null>(null);
-  const [showMismatchModal, setShowMismatchModal] = useState(false);
-  
-  // Coverage mismatch modal state
-  const [coverageMismatch, setCoverageMismatch] = useState<CoverageCheckResult | null>(null);
-  const [showCoverageModal, setShowCoverageModal] = useState(false);
+	const [paramMismatch, setParamMismatch] = useState<ParamCheckResult | null>(
+		null,
+	);
+	const [showMismatchModal, setShowMismatchModal] = useState(false);
+	const [coverageMismatch, setCoverageMismatch] =
+		useState<CoverageCheckResult | null>(null);
+	const [showCoverageModal, setShowCoverageModal] = useState(false);
 
-  const xMetric =
-    METRIC_OPTIONS.find((m) => m.value === xMetricKey) || METRIC_OPTIONS[0];
-  const yMetric =
-    METRIC_OPTIONS.find((m) => m.value === yMetricKey) || METRIC_OPTIONS[1];
+	const xMetric =
+		METRIC_OPTIONS.find((m) => m.value === xMetricKey) || METRIC_OPTIONS[0];
+	const yMetric =
+		METRIC_OPTIONS.find((m) => m.value === yMetricKey) || METRIC_OPTIONS[1];
 
-  // Status for generation progress (polled from backend)
-  const [generationStatus, setGenerationStatus] = useState({
-    is_running: false,
-    current_model: null as string | null,
-    progress: { current: 0, total: 0 }
-  });
+	const [scanOptions, setScanOptions] = useState(DEFAULT_SCAN_OPTIONS);
+	const [activeSource, setActiveSource] = useState<{
+		type: "all" | "queue" | "run" | "preset";
+		id?: string | number;
+	}>({ type: "all" });
+	const [chartSearchQuery, setChartSearchQuery] = useState("");
+	const [benchmarkRuns, setBenchmarkRuns] = useState<BenchmarkRun[]>([]);
 
-  // Poll download status
-  useEffect(() => {
-    // Check initial status on mount
-    const checkInitialStatus = async () => {
-        try {
-            const status = await getDownloadStatus();
-            if (status.is_downloading || status.status === 'downloading') {
-                setIsDownloading(true);
-                setDownloadProgress({
-                    current: status.progress,
-                    total: status.total,
-                    status: status.status,
-                    filename: status.current_file
-                });
-            }
-            
-            const genStatus = await getStatus();
-            if (genStatus.is_running) {
-                setIsScanning(true);
-                setGenerationStatus(genStatus);
-            }
-        } catch (e) {
-            console.error("Failed to restore status:", e);
-        }
-    };
-    
-    checkInitialStatus();
-  }, []); // Run once on mount
+	// Fetch benchmark runs on mount
+	useEffect(() => {
+		const loadRuns = async () => {
+			try {
+				const runs = await (await fetch(`${API_BASE}/runs`)).json();
+				setBenchmarkRuns(runs);
+			} catch (e) {
+				console.error("Failed to fetch benchmark runs", e);
+			}
+		};
+		loadRuns();
+	}, []);
 
-  useEffect(() => {
-    if (!isDownloading) return;
+	// Load presets from local storage
+	const [presets, setPresets] = useState<Preset[]>([]);
+	useEffect(() => {
+		try {
+			const stored = localStorage.getItem("model_benchmark_presets");
+			if (stored) setPresets(JSON.parse(stored));
+		} catch (e) {
+			console.error("Failed to load presets", e);
+		}
+	}, []);
 
-    const interval = setInterval(async () => {
-        try {
-            const status = await getDownloadStatus();
-            setDownloadProgress({
-                current: status.progress,
-                total: status.total,
-                status: status.status,
-                filename: status.current_file
-            });
+	// Derive data for chart
+	const chartData = useMemo(() => {
+		let baseData: ModelData[] = [];
 
-            if (status.status === 'completed' || status.status === 'error') {
-                setIsDownloading(false);
-                if (status.status === 'completed') {
-                    await fetchModels();
-                    setUrlInput("");
-                } else {
-                    setDownloadError(status.error || "Download failed");
-                }
-            }
-        } catch (e) {
-            console.error('Download status poll error:', e);
-            setDownloadError("Error polling download status");
-            setIsDownloading(false);
-        }
-    }, 1000);
+		if (activeSource.type === "all") {
+			baseData = models;
+		} else if (activeSource.type === "queue") {
+			baseData = models.filter((m) => selectedModelIds.includes(m.id));
+		} else if (activeSource.type === "run") {
+			const run = benchmarkRuns.find((r) => r.id === activeSource.id);
+			if (run) {
+				// Convert RunResults to ModelData
+				baseData = run.results.map((res) => {
+					const baseModel = models.find((m) => m.id === res.model_hash);
+					return {
+						...(baseModel || {
+							id: res.model_hash,
+							name: res.model_name,
+							source: "Unknown",
+							url: "",
+							accuracy: 0,
+							diversity: 0,
+							rating: 0,
+						}),
+						metrics: res.metrics,
+						accuracy: (res.metrics as Record<string, number>).accuracy || 0,
+						diversity: (res.metrics as Record<string, number>).diversity || 0,
+					} as ModelData;
+				});
+			}
+		} else if (activeSource.type === "preset") {
+			const preset = presets.find((p) => p.id === activeSource.id);
+			if (preset) {
+				baseData = models.filter((m) => preset.modelIds.includes(m.id));
+			}
+		}
 
-    return () => clearInterval(interval);
-  }, [isDownloading, fetchModels]);
+		// Filter by search query
+		if (chartSearchQuery.trim()) {
+			const query = chartSearchQuery.toLowerCase();
+			const filtered = baseData.filter(
+				(m) =>
+					m.name.toLowerCase().includes(query) ||
+					m.id.toLowerCase().includes(query) ||
+					m.model_type?.toLowerCase().includes(query),
+			);
 
-  // Poll status when scanning
-  useEffect(() => {
-    if (!isScanning) return;
-    
-    const interval = setInterval(async () => {
-      try {
-        const status = await getStatus();
-        setGenerationStatus(status);
-        if (!status.is_running) {
-          setIsScanning(false);
-        }
-      } catch (e) {
-        console.error('Status poll error:', e);
-      }
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [isScanning]);
+			// Heuristic: If we matched NO models, but the query matches a Run or Preset name,
+			// don't filter the chart yet (the user is likely searching for a source).
+			const matchesSource =
+				benchmarkRuns.some((r) =>
+					`run #${r.id}`.toLowerCase().includes(query),
+				) || presets.some((p) => p.name.toLowerCase().includes(query));
 
-  const handleGenerate = useCallback(async () => {
-    // First check if params match existing images
-    try {
-      const checkResult = await checkParams(scanOptions);
-      if (!checkResult.matches && checkResult.mismatched_models.length > 0) {
-        setParamMismatch(checkResult);
-        setShowMismatchModal(true);
-        return; // Don't generate yet, wait for user decision
-      }
-    } catch (error) {
-      console.error('Check params error:', error);
-      // Continue with generation if check fails
-    }
-    
-    await doGenerate();
-  }, [scanOptions, selectedModelIds]);
-  
-  const doGenerate = useCallback(async () => {
-    setIsScanning(true);
-    setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
-    try {
-      // Include selected model IDs in options
-      const finalOptions = {
-        ...scanOptions,
-        selected_model_ids: selectedModelIds.length > 0 ? selectedModelIds : undefined
-      };
-      await generateImages(finalOptions);
-    } catch (error) {
-      console.error('Generate error:', error);
-    } finally {
-      setIsScanning(false);
-      setGenerationStatus(prev => ({ ...prev, is_running: false }));
-    }
-  }, [scanOptions, selectedModelIds]);
-  
-  const handleMatchExisting = useCallback(() => {
-    if (paramMismatch?.existing_params) {
-      setScanOptions(prev => ({
-        ...prev,
-        steps: paramMismatch.existing_params!.steps,
-        guidance_scale: paramMismatch.existing_params!.cfg,
-        sampler: paramMismatch.existing_params!.sampler,
-        width: paramMismatch.existing_params!.width,
-        height: paramMismatch.existing_params!.height,
-      }));
-    }
-    setShowMismatchModal(false);
-    setParamMismatch(null);
-  }, [paramMismatch]);
-  
-  const handleArchiveAndGenerate = useCallback(async () => {
-    if (!paramMismatch) return;
-    
-    // Archive all mismatched models
-    for (const model of paramMismatch.mismatched_models) {
-      try {
-        await archiveModel(model.name);
-      } catch (error) {
-        console.error(`Failed to archive ${model.name}:`, error);
-      }
-    }
-    
-    setShowMismatchModal(false);
-    setParamMismatch(null);
-    await doGenerate();
-  }, [paramMismatch, doGenerate]);
+			if (filtered.length === 0 && matchesSource) {
+				return baseData;
+			}
 
-  const handleAnalyze = useCallback(async () => {
-    // First check prompt coverage
-    try {
-      const coverageResult = await checkCoverage();
-      // Show modal if prompts don't match OR image counts differ
-      if (!coverageResult.all_match || coverageResult.model_coverage.some(m => m.missing_count > 0)) {
-        setCoverageMismatch(coverageResult);
-        setShowCoverageModal(true);
-        return; // Wait for user decision
-      }
-    } catch (error) {
-      console.error('Coverage check error:', error);
-      // Continue with analysis if check fails
-    }
-    
-    await doAnalyze(false);
-  }, [scanOptions]);
-  
-  const doAnalyze = useCallback(async (commonOnly: boolean) => {
-    setIsScanning(true);
-    try {
-      await analyzeImages({ ...scanOptions, common_only: commonOnly });
-      await fetchModels();
-    } catch (error) {
-      console.error('Analyze error:', error);
-    } finally {
-      setIsScanning(false);
-    }
-  }, [scanOptions, fetchModels]);
-  
-  const handleAnalyzeCommonOnly = useCallback(async () => {
-    setShowCoverageModal(false);
-    setCoverageMismatch(null);
-    await doAnalyze(true);
-  }, [doAnalyze]);
-  
-  const handleGenerateMissing = useCallback(async () => {
-    setShowCoverageModal(false);
-    setCoverageMismatch(null);
-    // Generate to fill gaps (equalize counts across models), then analyze
-    setIsScanning(true);
-    setGenerationStatus({ is_running: true, current_model: null, progress: { current: 0, total: 0 } });
-    try {
-      await generateImages({ ...scanOptions, equalize_counts: true });
-    } catch (error) {
-      console.error('Generate error:', error);
-    } finally {
-      setIsScanning(false);
-      setGenerationStatus(prev => ({ ...prev, is_running: false }));
-    }
-    await doAnalyze(false);
-  }, [scanOptions, doAnalyze]);
+			return filtered;
+		}
 
-  const handleCancel = useCallback(async () => {
-    try {
-      await cancelOperation();
-    } catch (error) {
-      console.error('Cancel error:', error);
-    }
-  }, []);
+		return baseData;
+	}, [
+		models,
+		selectedModelIds,
+		activeSource,
+		benchmarkRuns,
+		presets,
+		chartSearchQuery,
+	]);
 
-  const parseUrl = (
-    url: string
-  ): { name: string; source: "Civitai" | "HuggingFace" | "Unknown" } | null => {
-    try {
-      const urlObj = new URL(url);
+	const doGenerate = useCallback(async () => {
+		setIsScanning(true);
+		setGenerationStatus({
+			is_running: true,
+			current_model: null,
+			progress: { current: 0, total: 0 },
+		});
+		try {
+			await generateImages({
+				...scanOptions,
+				selected_model_ids:
+					selectedModelIds.length > 0 ? selectedModelIds : undefined,
+			});
+		} catch (error) {
+			console.error("Generate error:", error);
+		} finally {
+			setIsScanning(false);
+			setGenerationStatus((prev) => ({ ...prev, is_running: false }));
+		}
+	}, [scanOptions, selectedModelIds, setIsScanning, setGenerationStatus]);
 
-      if (url.includes("civitai.com")) {
-        const parts = urlObj.pathname.split("/").filter(Boolean);
-        const namePart =
-          parts.length >= 3 ? parts[2] : parts[1] || "Civitai Model";
-        return {
-          name: namePart
-            .replace(/-/g, " ")
-            .replace(/\b\w/g, (l) => l.toUpperCase()),
-          source: "Civitai",
-        };
-      }
+	const handleGenerate = useCallback(async () => {
+		try {
+			const checkResult = await checkParams(scanOptions);
+			if (!checkResult.matches && checkResult.mismatched_models.length > 0) {
+				setParamMismatch(checkResult);
+				setShowMismatchModal(true);
+				return;
+			}
+		} catch (error) {
+			console.error("Check params error:", error);
+		}
+		await doGenerate();
+	}, [scanOptions, doGenerate]);
 
-      if (url.includes("huggingface.co")) {
-        const parts = urlObj.pathname.split("/").filter(Boolean);
-        const lastPart = parts[parts.length - 1];
+	const handleMatchExisting = useCallback(() => {
+		const existing = paramMismatch?.existing_params;
+		if (existing) {
+			setScanOptions((prev) => ({
+				...prev,
+				steps: existing.steps,
+				guidance_scale: existing.cfg,
+				sampler: existing.sampler,
+				width: existing.width,
+				height: existing.height,
+			}));
+		}
+		setShowMismatchModal(false);
+		setParamMismatch(null);
+	}, [paramMismatch]);
 
-        // Check if the URL points directly to a model file
-        if (lastPart && /\.(safetensors|ckpt|pt|bin|pth)$/i.test(lastPart)) {
-             return {
-                 name: lastPart,
-                 source: "HuggingFace"
-             };
-        }
+	const handleArchiveAndGenerate = useCallback(async () => {
+		if (!paramMismatch) return;
 
-        const namePart =
-          parts.length >= 2 ? `${parts[0]}/${parts[1]}` : "HF Model";
-        return {
-          name: namePart,
-          source: "HuggingFace",
-        };
-      }
+		const archiveErrors: string[] = [];
+		for (const model of paramMismatch.mismatched_models) {
+			try {
+				await archiveModel(model.name);
+			} catch (error) {
+				console.error(`Failed to archive ${model.name}:`, error);
+				archiveErrors.push(model.name);
+			}
+		}
 
-      // Allow generic URLs for testing if needed
-      if (url) {
-        return { name: "Unknown Model", source: "Unknown" };
-      }
+		if (archiveErrors.length > 0) {
+			alert(
+				`Warning: Failed to archive images for: ${archiveErrors.join(", ")}. Generation will proceed anyway.`,
+			);
+		}
 
-      return null;
-    } catch (e) {
-      return null;
-    }
-  };
+		setShowMismatchModal(false);
+		setParamMismatch(null);
+		await doGenerate();
+	}, [paramMismatch, doGenerate]);
 
-  const handleDownloadModel = useCallback(async () => {
-    setDownloadError(null);
-    const trimmedUrl = urlInput.trim();
-    if (!trimmedUrl) return;
+	const doAnalyze = useCallback(
+		async (commonOnly: boolean) => {
+			setIsScanning(true);
+			try {
+				await analyzeImages({ ...scanOptions, common_only: commonOnly });
+				await fetchModels();
+			} catch (error) {
+				console.error("Analyze error:", error);
+			} finally {
+				setIsScanning(false);
+			}
+		},
+		[scanOptions, fetchModels, setIsScanning],
+	);
 
-    const info = parseUrl(trimmedUrl);
-    if (!info) {
-      setDownloadError("Please enter a valid Civitai or HuggingFace model URL.");
-      return;
-    }
+	const handleAnalyze = useCallback(async () => {
+		try {
+			const coverageResult = await checkCoverage();
+			if (
+				!coverageResult.all_match ||
+				coverageResult.model_coverage.some((m) => m.missing_count > 0)
+			) {
+				setCoverageMismatch(coverageResult);
+				setShowCoverageModal(true);
+				return;
+			}
+		} catch (error) {
+			console.error("Coverage check error:", error);
+		}
+		await doAnalyze(false);
+	}, [doAnalyze]);
 
-    setIsDownloading(true);
-    setDownloadProgress({ current: 0, total: 0, status: 'downloading', filename: info.name });
+	const handleAnalyzeCommonOnly = useCallback(async () => {
+		setShowCoverageModal(false);
+		setCoverageMismatch(null);
+		await doAnalyze(true);
+	}, [doAnalyze]);
 
-    try {
-      await downloadModel(trimmedUrl, info.name, info.source);
-    } catch (error: any) {
-      console.error("Error starting download:", error);
-      setDownloadError(error.message || "Error connecting to backend or starting download.");
-      setIsDownloading(false);
-    }
-  }, [urlInput]);
+	const handleGenerateMissing = useCallback(async () => {
+		setShowCoverageModal(false);
+		setCoverageMismatch(null);
+		setIsScanning(true);
+		setGenerationStatus({
+			is_running: true,
+			current_model: null,
+			progress: { current: 0, total: 0 },
+		});
+		try {
+			await generateImages({ ...scanOptions, equalize_counts: true });
+		} catch (error) {
+			console.error("Generate error:", error);
+		} finally {
+			setIsScanning(false);
+			setGenerationStatus((prev) => ({ ...prev, is_running: false }));
+		}
+		await doAnalyze(false);
+	}, [scanOptions, doAnalyze, setIsScanning, setGenerationStatus]);
 
-  const handleRegisterPath = useCallback(async () => {
-      setDownloadError(null);
-      setRegisterResult(null);
-      const trimmedPath = localPathInput.trim();
-      if (!trimmedPath) return;
+	const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
 
-      setIsRegistering(true);
-      try {
-          // If the user inputs a path with quotes (common in 'Copy Path' from Windows), strip them
-          const cleanPath = trimmedPath.replace(/^"|"$/g, '');
-          
-          await registerModelPath(cleanPath);
-          setRegisterResult({ status: 'success', message: 'Model registered successfully!' });
-          setLocalPathInput('');
-          await fetchModels();
-          // Close modal after short delay? Or let user see success message
-          setTimeout(() => {
-             setRegisterResult(null);
-             // Optional: setShowAddModal(false);
-          }, 3000);
-      } catch (error: any) {
-          console.error("Error registering path:", error);
-          setDownloadError(error.message || "Failed to register path");
-      } finally {
-          setIsRegistering(false);
-      }
-  }, [localPathInput, fetchModels]);
+	return (
+		<>
+			<MismatchModals
+				showMismatchModal={showMismatchModal}
+				setShowMismatchModal={setShowMismatchModal}
+				paramMismatch={paramMismatch}
+				setParamMismatch={setParamMismatch}
+				handleMatchExisting={handleMatchExisting}
+				handleArchiveAndGenerate={handleArchiveAndGenerate}
+				showCoverageModal={showCoverageModal}
+				setShowCoverageModal={setShowCoverageModal}
+				coverageMismatch={coverageMismatch}
+				setCoverageMismatch={setCoverageMismatch}
+				handleAnalyzeCommonOnly={handleAnalyzeCommonOnly}
+				handleGenerateMissing={handleGenerateMissing}
+			/>
 
-  const handleBrowse = useCallback(async (type: 'file' | 'folder') => {
-      try {
-          const result = await browseSystemPath(type);
-          if (result.path) {
-              setLocalPathInput(result.path);
-              setDownloadError(null);
-          } else if (result.error) {
-              setDownloadError(result.error);
-          }
-      } catch (error: any) {
-          console.error("Browse error:", error);
-      }
-  }, []);
+			<div className="max-w-[1800px] mx-auto px-6 py-8">
+				<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+					{/* Sidebar / Controls */}
+					<div className="lg:col-span-3 space-y-6">
+						<AddModelCard
+							urlInput={urlInput}
+							setUrlInput={setUrlInput}
+							isDownloading={isDownloading}
+							downloadProgress={downloadProgress}
+							downloadError={downloadError}
+							setDownloadError={setDownloadError}
+							handleDownloadModel={handleDownloadModel}
+							fetchModels={fetchModels}
+						/>
 
-  const handleDeleteModel = useCallback(async (id: string, deleteFile: boolean) => {
-    // Save previous state for revert
-    const previousModels = [...models];
+						<ScanSettingsPanel
+							options={scanOptions}
+							onChange={setScanOptions}
+							onGenerate={handleGenerate}
+							onAnalyze={handleAnalyze}
+							onCancel={handleCancel}
+							status={generationStatus}
+							onRefreshModels={fetchModels}
+						/>
 
-    // Optimistic update
-    setModels((prev) => prev.filter((m) => m.id !== id));
+						<ViewSettingsCard
+							xMetricKey={xMetricKey}
+							setXMetricKey={setXMetricKey}
+							yMetricKey={yMetricKey}
+							setYMetricKey={setYMetricKey}
+						/>
 
-    try {
-      await deleteModel(id, deleteFile);
-    } catch (error) {
-      console.error("Error deleting model:", error);
-      // Revert state on error
-      setModels(previousModels);
-      alert("Failed to delete model.");
-    }
-  }, [models, setModels]);
+						<MetricInfoCard xMetric={xMetric} yMetric={yMetric} />
+					</div>
 
-  // Shared selection state for Chart and Table
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+					{/* Main Content Area */}
+					<div className="lg:col-span-9 space-y-8">
+						<div className="flex flex-col gap-8 min-h-[600px]">
+							<div className="bg-white/90 dark:bg-slate-800/80 rounded-[22px] backdrop-blur-md min-h-[500px] flex flex-col border border-slate-200/50 dark:border-white/5 shadow-xl transition-shadow hover:shadow-2xl overflow-hidden">
+								<div className="flex-1 w-full min-h-0 relative">
+									<ScatterPlot
+										data={chartData}
+										xMetric={xMetric}
+										yMetric={yMetric}
+										onSelect={setSelectedModelId}
+										selectedId={selectedModelId}
+										isDarkMode={isDarkMode}
+										headerExtra={
+											<DatasetSelector
+												activeSource={activeSource}
+												onSelect={setActiveSource}
+												searchQuery={chartSearchQuery}
+												onSearchChange={setChartSearchQuery}
+												runs={benchmarkRuns}
+												presets={presets}
+												isDarkMode={isDarkMode}
+											/>
+										}
+									/>
+								</div>
+							</div>
 
-  return (
-    <>
-      {/* Parameter Mismatch Modal */}
-      {showMismatchModal && paramMismatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                <span className="text-amber-600 dark:text-amber-400 text-xl">⚠️</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Parameter Mismatch</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Existing images have different settings</p>
-              </div>
-            </div>
-            
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 mb-4 space-y-2 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-medium text-slate-400 mb-1">Existing Settings</p>
-                  <div className="space-y-1 text-slate-600 dark:text-slate-300">
-                    <p>Steps: {paramMismatch.existing_params?.steps}</p>
-                    <p>CFG: {paramMismatch.existing_params?.cfg}</p>
-                    <p>Sampler: {paramMismatch.existing_params?.sampler}</p>
-                    <p>Size: {paramMismatch.existing_params?.width}×{paramMismatch.existing_params?.height}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-slate-400 mb-1">Your Settings</p>
-                  <div className="space-y-1 text-slate-600 dark:text-slate-300">
-                    <p>Steps: {paramMismatch.current_params.steps}</p>
-                    <p>CFG: {paramMismatch.current_params.cfg}</p>
-                    <p>Sampler: {paramMismatch.current_params.sampler}</p>
-                    <p>Size: {paramMismatch.current_params.width}×{paramMismatch.current_params.height}</p>
-                  </div>
-                </div>
-              </div>
-              
-              {paramMismatch.mismatched_models.length > 0 && (
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-700 mt-2">
-                  <p className="text-xs text-slate-500">Affected models: {paramMismatch.mismatched_models.map(m => m.name).join(', ')}</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={handleMatchExisting}
-                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
-              >
-                Match Existing
-              </button>
-              <button
-                onClick={handleArchiveAndGenerate}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                Archive & Regenerate
-              </button>
-            </div>
-            
-            <button
-              onClick={() => { setShowMismatchModal(false); setParamMismatch(null); }}
-              className="w-full mt-3 px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Coverage Mismatch Modal */}
-      {showCoverageModal && coverageMismatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4 border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <span className="text-orange-600 dark:text-orange-400 text-xl">📊</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Prompt Coverage Mismatch</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Models have different prompt coverage</p>
-              </div>
-            </div>
-            
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 mb-4 text-sm">
-              <p className="text-slate-600 dark:text-slate-300 mb-2">
-                <span className="font-medium">{coverageMismatch.common_count}</span> prompts are common to all models.
-                {coverageMismatch.image_count_mismatch && (
-                  <span className="text-orange-500 ml-2">(image counts vary)</span>
-                )}
-              </p>
-              <div className="space-y-1 text-slate-500 dark:text-slate-400 text-xs">
-                {coverageMismatch.model_coverage.map(m => (
-                  <div key={m.name} className="flex justify-between">
-                    <span className="truncate max-w-[150px]">{m.name}</span>
-                    <span>
-                      {m.image_count} images / {m.count} prompts
-                      {m.missing_count > 0 && <span className="text-orange-500 ml-1">({m.missing_count} missing)</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={handleAnalyzeCommonOnly}
-                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
-              >
-                Analyze Common Only
-              </button>
-              <button
-                onClick={handleGenerateMissing}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                Generate Missing
-              </button>
-            </div>
-            
-            <button
-              onClick={() => { setShowCoverageModal(false); setCoverageMismatch(null); }}
-              className="w-full mt-3 px-4 py-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 text-sm transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      
-      <div className="max-w-[1800px] mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sidebar / Controls */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Add Model Card */}
-            <div className="p-6 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white/60 dark:border-white/5 bg-white/60 dark:bg-slate-800/40 backdrop-blur-xl transition-all hover:shadow-2xl hover:bg-white/80 dark:hover:bg-slate-800/50">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
-                <Plus size={14} /> Add Model
-              </h2>
-              <div className="space-y-4">
-                {/* URL Download Section */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1 opacity-80">
-                    DOWNLOAD FROM URL
-                  </label>
-                  <input
-                    type="text"
-                    value={urlInput}
-                    onChange={(e) => {
-                      setUrlInput(e.target.value);
-                      if (downloadError) setDownloadError(null);
-                    }}
-                    placeholder="https://civitai.com/models/..."
-                    className={`w-full px-4 py-3 border ${downloadError ? 'border-red-500/50 bg-red-500/5' : 'border-slate-200/60 dark:border-white/5 bg-white/50 dark:bg-black/20'} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 transition-all placeholder:text-slate-400/70 dark:placeholder:text-slate-600 text-slate-800 dark:text-slate-200 backdrop-blur-sm`}
-                    onKeyDown={(e) => e.key === "Enter" && handleDownloadModel()}
-                  />
-                  {downloadError && (
-                    <p className="text-red-500 text-[10px] mt-1 ml-1 animate-pulse">
-                      {downloadError}
-                    </p>
-                  )}
-                </div>
-                {isDownloading && downloadProgress.total > 0 && (
-                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 mb-1 overflow-hidden">
-                      <div
-                         className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                         style={{ width: `${Math.min(100, (downloadProgress.current / downloadProgress.total) * 100)}%` }}
-                      ></div>
-                   </div>
-                )}
-                {isDownloading && (
-                    <p className="text-[10px] text-slate-400 text-center mb-2">
-                        {downloadProgress.total > 0
-                            ? `${(downloadProgress.current / 1024 / 1024).toFixed(1)} / ${(downloadProgress.total / 1024 / 1024).toFixed(1)} MB`
-                            : "Starting download..."
-                        }
-                    </p>
-                )}
-                <button
-                  onClick={handleDownloadModel}
-                  disabled={!urlInput || isDownloading}
-                  className="w-full bg-blue-600/90 hover:bg-blue-600 dark:bg-blue-500/80 dark:hover:bg-blue-500 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800/50 disabled:text-slate-400 disabled:cursor-not-allowed font-medium py-3 px-4 rounded-xl transition-all duration-300 text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 dark:shadow-blue-900/20 backdrop-blur-sm"
-                >
-                  {isDownloading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" /> Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={16} /> Download
-                    </>
-                  )}
-                </button>
-
-                {/* Divider */}
-                <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200 dark:border-white/10"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-slate-50 dark:bg-slate-900 px-2 text-slate-400">Or Import Local</span>
-                    </div>
-                </div>
-
-                {/* Import Section (Single Button Flow) */}
-                <div className="space-y-4">
-                     {registerResult && (
-                             <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 text-xs rounded-lg flex items-center gap-2">
-                                <Info size={14} /> {registerResult.message}
-                            </div>
-                    )}
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            onClick={async () => {
-                                setIsRegistering(true);
-                                try {
-                                    const result = await browseSystemPath('folder');
-                                    // result.paths is now an array
-                                    if (result.paths && result.paths.length > 0) {
-                                        const response = await registerModelPaths(result.paths);
-                                        const stats = response.stats || {};
-                                        let msg = `${response.results.length} Models processed.`;
-                                        if (stats.added > 0) msg = `${stats.added} New Model(s) Imported!`;
-                                        else if (stats.updated > 0) msg = `${stats.updated} Model(s) Updated.`;
-                                        else if (stats.unchanged > 0) msg = `${stats.unchanged} Model(s) Verified (No changes).`;
-                                        
-                                        setRegisterResult({ status: 'success', message: msg });
-                                        await fetchModels();
-                                        setTimeout(() => setRegisterResult(null), 3000);
-                                    }
-                                } catch (e: any) {
-                                    console.error("Import error:", e);
-                                    setDownloadError(e.message || "Failed to import");
-                                } finally {
-                                    setIsRegistering(false);
-                                }
-                            }}
-                            disabled={isRegistering}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed font-medium py-3 px-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 shadow-lg shadow-indigo-500/20 text-xs"
-                        >
-                            {isRegistering ? <Loader2 size={20} className="animate-spin" /> : <FolderOpen size={20} />}
-                            <span>Import Folder</span>
-                        </button>
-
-                         <button
-                            onClick={async () => {
-                                setIsRegistering(true);
-                                try {
-                                    const result = await browseSystemPath('file');
-                                    if (result.paths && result.paths.length > 0) {
-                                        const response = await registerModelPaths(result.paths);
-                                        const stats = response.stats || {};
-                                        // Prioritize "Added" message
-                                        let msg = `${response.results.length} Files processed.`;
-                                        if (stats.added > 0) msg = `${stats.added} New File(s) Imported!`;
-                                        else if (stats.updated > 0) msg = `${stats.updated} File(s) Updated.`;
-                                        else if (stats.unchanged > 0) msg = `${stats.unchanged} File(s) Verified (No changes).`;
-
-                                        setRegisterResult({ status: 'success', message: msg });
-                                        await fetchModels();
-                                        setTimeout(() => setRegisterResult(null), 3000);
-                                    }
-                                } catch (e: any) {
-                                    console.error("Import error:", e);
-                                    setDownloadError(e.message || "Failed to import");
-                                } finally {
-                                    setIsRegistering(false);
-                                }
-                            }}
-                            disabled={isRegistering}
-                            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium py-3 px-4 rounded-xl transition-all duration-300 flex flex-col items-center justify-center gap-1 text-xs"
-                        >
-                            {isRegistering ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}
-                            <span>Import File</span>
-                        </button>
-                    </div>
-                     {downloadError && (
-                        <p className="text-red-500 text-[10px] mt-1 ml-1">
-                            {downloadError}
-                        </p>
-                    )}
-                </div>
-              </div>
-            </div>
-
-            {/* Sample Settings Panel */}
-            <ScanSettingsPanel
-              options={scanOptions}
-              onChange={setScanOptions}
-              onGenerate={handleGenerate}
-              onAnalyze={handleAnalyze}
-              onCancel={handleCancel}
-              status={generationStatus}
-              onRefreshModels={fetchModels}
-            />
-
-            {/* Plot Settings Glass Card */}
-            <div className="p-6 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white/60 dark:border-white/5 bg-white/60 dark:bg-slate-800/40 backdrop-blur-xl transition-all">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-4">
-                View Settings
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1 opacity-80">
-                    X-AXIS METRIC
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={xMetricKey}
-                      onChange={(e) =>
-                        setXMetricKey(e.target.value as MetricKey)
-                      }
-                      className="w-full px-4 py-3 bg-white/50 dark:bg-black/20 border border-slate-200/60 dark:border-white/5 rounded-xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 text-slate-800 dark:text-slate-200 cursor-pointer backdrop-blur-sm"
-                    >
-                      {METRIC_OPTIONS.map((opt) => (
-                        <option
-                          key={`x-${opt.value}`}
-                          value={opt.value}
-                          className="bg-white dark:bg-slate-800"
-                        >
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1 opacity-80">
-                    Y-AXIS METRIC
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={yMetricKey}
-                      onChange={(e) =>
-                        setYMetricKey(e.target.value as MetricKey)
-                      }
-                      className="w-full px-4 py-3 bg-white/50 dark:bg-black/20 border border-slate-200/60 dark:border-white/5 rounded-xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/20 text-slate-800 dark:text-slate-200 cursor-pointer backdrop-blur-sm"
-                    >
-                      {METRIC_OPTIONS.map((opt) => (
-                        <option
-                          key={`y-${opt.value}`}
-                          value={opt.value}
-                          className="bg-white dark:bg-slate-800"
-                        >
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Info Card */}
-            <div className="p-5 rounded-3xl border border-blue-100/50 dark:border-blue-500/10 bg-blue-50/50 dark:bg-blue-500/5 backdrop-blur-md">
-              <div className="flex gap-3">
-                <Info
-                  className="text-blue-500 dark:text-blue-400 shrink-0 mt-0.5"
-                  size={18}
-                />
-                <div className="space-y-3">
-                  <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-                    Metric Info
-                  </p>
-                  
-                  <div className="space-y-2">
-                    <div className="text-xs text-blue-800/80 dark:text-blue-200/80">
-                      <span className="font-semibold">{xMetric.label}:</span> {xMetric.description}
-                      {xMetric.direction && (
-                        <span className="ml-1 opacity-75">
-                          ({xMetric.direction === 'higher' ? 'Higher is better ⬆️' : 'Lower is better ⬇️'})
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="text-xs text-blue-800/80 dark:text-blue-200/80">
-                      <span className="font-semibold">{yMetric.label}:</span> {yMetric.description}
-                      {yMetric.direction && (
-                        <span className="ml-1 opacity-75">
-                          ({yMetric.direction === 'higher' ? 'Higher is better ⬆️' : 'Lower is better ⬇️'})
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="pt-2 border-t border-blue-200/30 dark:border-blue-500/20">
-                     <p className="text-[10px] text-blue-600/60 dark:text-blue-400/50">
-                        Running on :8000
-                     </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-9 space-y-8">
-            {/* Chart Area */}
-            <div className="p-1 rounded-3xl bg-gradient-to-br from-white/40 to-white/10 dark:from-white/5 dark:to-transparent backdrop-blur-3xl shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-white/5">
-               <div className="bg-white/50 dark:bg-slate-900/40 rounded-[22px] p-6 backdrop-blur-sm min-h-[500px] flex flex-col">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
-                         Performance Landscape
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                        Comparing {models.length} models on {xMetric.label} vs {yMetric.label}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 w-full min-h-0 relative">
-                    {isLoading ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-                        <div className="text-center">
-                            <Loader2 className="animate-spin mx-auto mb-2" />
-                            <p>Loading Models...</p>
-                        </div>
-                        </div>
-                    ) : (
-                        <ScatterPlot
-                        data={models}
-                        xMetric={xMetric}
-                        yMetric={yMetric}
-                        isDarkMode={isDarkMode}
-                        selectedId={selectedModelId}
-                        onSelect={setSelectedModelId}
-                        />
-                    )}
-                  </div>
-               </div>
-            </div>
-
-            {/* Transfer List Section */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between px-2">
-                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                        Benchmark Configuration
-                    </h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Select models for the next benchmark run
-                    </p>
-                </div>
-                
-                <div className="p-1 rounded-3xl bg-gradient-to-br from-white/40 to-white/10 dark:from-white/5 dark:to-transparent backdrop-blur-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-white/50 dark:border-white/5">
-                    <div className="bg-white/50 dark:bg-slate-900/40 rounded-[22px] p-6 backdrop-blur-sm">
-                        <TransferList 
-                          models={models}
-                          selectedModelIds={selectedModelIds}
-                          onChange={setSelectedModelIds}
-                        />
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+							<TransferListSection
+								models={models}
+								selectedModelIds={selectedModelIds}
+								setSelectedModelIds={setSelectedModelIds}
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+		</>
+	);
 }

@@ -1,6 +1,7 @@
-from safetensors.torch import load_file, safe_open
 from pathlib import Path
-import json
+
+from safetensors.torch import safe_open
+
 
 model_path = Path("assets/models/pop3-obsv2_delta_widen6obsbaseline_v-pred.safetensors")
 

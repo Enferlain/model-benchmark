@@ -1,10 +1,9 @@
-from typing import Optional
 from pathlib import Path
+
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
-from ..core import database as db
-from ..core.state import models_db, generation_state, ScanOptions
+from ..core.state import ScanOptions, generation_state, models_db
 from ..lib import inference
 from . import prompt_manager as data_loader
 
@@ -219,8 +218,8 @@ def generate_images_only(options: ScanOptions):
                         actual_seed = per_prompt_seeds[idx]
 
                         # Generate unique ID for this image
-                        import uuid
                         import json
+                        import uuid
                         from datetime import datetime
 
                         image_id = str(uuid.uuid4())[:8]  # Short UUID

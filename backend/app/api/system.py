@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Body
+from sqlmodel import desc, select
+
+from ..core import database as db
+from ..core import state
 from ..services import notes_manager
-from ..core import state, database as db
-from sqlmodel import select, desc
+
 
 router = APIRouter()
 
@@ -74,10 +77,9 @@ def browse_system(payload: dict = Body(...)):
     Opens a native file dialog on the server machine.
     Payload: { type: 'file' | 'folder', initial_dir: str }
     """
+    import queue
     import tkinter as tk
     from tkinter import filedialog
-    import threading
-    import queue
 
     target_type = payload.get("type", "folder")
 

@@ -1,7 +1,9 @@
-import requests
-import time
 import os
 import sys
+import time
+
+import requests
+
 
 BASE_URL = "http://localhost:8000"
 MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "models")
@@ -96,7 +98,7 @@ def test_download_error():
         "source": "Test"
     }
 
-    print(f"Requesting download from invalid URL...")
+    print("Requesting download from invalid URL...")
     resp = requests.post(f"{BASE_URL}/api/models/download", json=payload)
 
     if resp.status_code != 200:

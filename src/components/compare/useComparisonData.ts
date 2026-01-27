@@ -51,18 +51,32 @@ export function useComparisonData(
 
 		// Find intersection
 		// 1. Prompts
+		// Get all prompts that exist in ALL selected models
 		const promptsSets = outputLists.map(
 			(list) => new Set(list.map((o) => o.prompt)),
 		);
-		// Start with first set and filter
-		let intersectionPrompts = Array.from(promptsSets[0] || []);
+		let potentialPrompts = Array.from(promptsSets[0] || []);
 		for (let i = 1; i < promptsSets.length; i++) {
-			intersectionPrompts = intersectionPrompts.filter((p) =>
-				promptsSets[i].has(p),
-			);
+			potentialPrompts = potentialPrompts.filter((p) => promptsSets[i].has(p));
 		}
 
-		// 2. Seeds
+		// 2. Filter prompts by whether they have at least one COMMON seed across all models
+		const intersectionPrompts = potentialPrompts.filter((p) => {
+			const seedsPerModel = outputLists.map(
+				(list) =>
+					new Set(list.filter((o) => o.prompt === p).map((o) => o.seed)),
+			);
+			let commonSeedsForPrompt = Array.from(seedsPerModel[0] || []);
+			for (let i = 1; i < seedsPerModel.length; i++) {
+				commonSeedsForPrompt = commonSeedsForPrompt.filter((s) =>
+					seedsPerModel[i].has(s),
+				);
+				if (commonSeedsForPrompt.length === 0) return false;
+			}
+			return commonSeedsForPrompt.length > 0;
+		});
+
+		// 3. Seeds (Global intersection - as before, but maybe we should sort them?)
 		const seedsSets = outputLists.map(
 			(list) => new Set(list.map((o) => o.seed)),
 		);

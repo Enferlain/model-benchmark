@@ -261,7 +261,7 @@ export default function PromptEditor() {
 
 				const newItems = arrayMove(items, oldIndex, newIndex);
 
-				const order = newItems.map((p) => p.filename);
+				const order = (newItems as PromptData[]).map((p) => p.filename);
 				fetch(`${API_BASE}/prompts/reorder`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },

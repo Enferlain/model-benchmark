@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, patch
-from pathlib import Path
 import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 
 # Mock torch for imports
 sys.modules["torch"] = MagicMock()
@@ -9,10 +10,9 @@ sys.modules["safetensors.torch"] = MagicMock()
 sys.modules["blake3"] = MagicMock()
 
 # Import modules to test
-from app.services import model_manager, downloader
-from app.core import database as db
 from app.core.database import Model
-from app.core import state
+from app.services import downloader, model_manager
+
 
 @pytest.fixture
 def mock_session():

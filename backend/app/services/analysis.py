@@ -1,15 +1,16 @@
 import random
-from pathlib import Path
 from datetime import datetime
+
 from PIL import Image, UnidentifiedImageError
-from sqlmodel import select, desc
 
 from ..core import database as db
-from ..core.database import Model, BenchmarkRun, ModelResult as DBModelResult
-from ..core.state import models_db, ScanOptions
+from ..core.database import BenchmarkRun
+from ..core.database import ModelResult as DBModelResult
+from ..core.state import ScanOptions, models_db
 from ..lib.metrics import MetricsCalculator
-from . import prompt_manager as data_loader
 from . import model_manager
+from . import prompt_manager as data_loader
+
 
 # Initialize metrics calculator lazily
 metrics_calc = None
