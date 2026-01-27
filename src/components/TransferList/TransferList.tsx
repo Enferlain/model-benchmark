@@ -86,7 +86,9 @@ export function TransferList({ models, selectedModelIds, onChange }: TransferLis
 
       // 3. Source Filter
       if (filters.sources.size > 0) {
-        if (!filters.sources.has(m.source)) return false;
+        // Treat 'Unknown' or missing source as 'Local' for filtering consistency
+        const effectiveSource = (m.source === 'Unknown' || !m.source) ? 'Local' : m.source;
+        if (!filters.sources.has(effectiveSource)) return false;
       }
 
       // 4. Prediction Type Filter

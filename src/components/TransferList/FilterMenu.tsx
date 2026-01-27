@@ -172,15 +172,15 @@ export function FilterMenu({ filters, onChange, availableModelTypes }: FilterMen
                 {filters.sources.has('HuggingFace') && <Check size={12} />}
               </button>
               <button
-                onClick={() => toggleFilter('sources', 'Unknown')}
+                onClick={() => toggleFilter('sources', 'Local')}
                 className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
-                  filters.sources.has('Unknown')
+                  filters.sources.has('Local')
                     ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                     : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300'
                 }`}
               >
                 <span>Local</span>
-                {filters.sources.has('Unknown') && <Check size={12} />}
+                {filters.sources.has('Local') && <Check size={12} />}
               </button>
             </div>
           </div>
