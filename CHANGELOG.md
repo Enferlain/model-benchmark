@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-01-27
+
+### Fixed
+
+- **Drag and Drop Precision**: Significantly improved model transfer UX in the Dashboard.
+  - Switched to `pointerWithin` collision detection to prevent unintentional "auto-dropping" to nearby fields when dragging outside panels.
+  - Tied drop activation to valid targets only; panels no longer show "active" highlights when dragging an item over its own source container.
+  - Expanded droppable hit area to the entire panel (including borders and header), providing immediate visual feedback when the cursor enters a valid target.
+
+---
+
 ## [Unreleased] - 2026-01-26
 
 ### Added
@@ -29,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] - 2026-01
+## [unreleased] - 2026-01
 
 ### Added
 

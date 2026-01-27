@@ -1,90 +1,104 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { ModelOutput, PromptData } from '../types';
-
-import { fetchPrompts } from '../services/api';
+import type React from "react";
+import {
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useState,
+} from "react";
+import { fetchPrompts } from "../services/api";
+import type { ModelOutput, PromptData } from "../types";
 
 interface GalleryContextType {
-  // Cache: modelId -> outputs
-  outputCache: Record<string, ModelOutput[]>;
-  setOutputCache: React.Dispatch<React.SetStateAction<Record<string, ModelOutput[]>>>;
-  
-  // Prompts Data
-  allPrompts: PromptData[];
-  
-  // Selection State
-  selectedModel: string;
-  setSelectedModel: (id: string) => void;
-  
-  // Filter State
-  selectedPrompt: string;
-  setSelectedPrompt: (prompt: string) => void;
-  selectedSeed: string;
-  setSelectedSeed: (seed: string) => void;
+	// Cache: modelId -> outputs
+	outputCache: Record<string, ModelOutput[]>;
+	setOutputCache: React.Dispatch<
+		React.SetStateAction<Record<string, ModelOutput[]>>
+	>;
+
+	// Prompts Data
+	allPrompts: PromptData[];
+
+	// Selection State
+	selectedModel: string;
+	setSelectedModel: (id: string) => void;
+
+	// Filter State
+	selectedPrompt: string;
+	setSelectedPrompt: (prompt: string) => void;
+	selectedSeed: string;
+	setSelectedSeed: (seed: string) => void;
 }
 
 const GalleryContext = createContext<GalleryContextType | undefined>(undefined);
 
 export function GalleryProvider({ children }: { children: ReactNode }) {
-  // Initialize from localStorage or defaults
-  const [outputCache, setOutputCache] = useState<Record<string, ModelOutput[]>>({});
-  const [allPrompts, setAllPrompts] = useState<PromptData[]>([]);
-  
-  const [selectedModel, setSelectedModel] = useState<string>(() => 
-    localStorage.getItem('gallery_selectedModel') || ""
-  );
-  const [selectedPrompt, setSelectedPrompt] = useState<string>(() => 
-    localStorage.getItem('gallery_selectedPrompt') || "All"
-  );
-  const [selectedSeed, setSelectedSeed] = useState<string>(() => 
-    localStorage.getItem('gallery_selectedSeed') || "All"
-  );
+	// Initialize from localStorage or defaults
+	const [outputCache, setOutputCache] = useState<Record<string, ModelOutput[]>>(
+		{},
+	);
+	const [allPrompts, setAllPrompts] = useState<PromptData[]>([]);
 
-  // Persistence effects
-  useEffect(() => {
-    localStorage.setItem('gallery_selectedModel', selectedModel);
-  }, [selectedModel]);
+	const [selectedModel, setSelectedModel] = useState<string>(
+		() => localStorage.getItem("gallery_selectedModel") || "",
+	);
+	const [selectedPrompt, setSelectedPrompt] = useState<string>(
+		() => localStorage.getItem("gallery_selectedPrompt") || "All",
+	);
+	const [selectedSeed, setSelectedSeed] = useState<string>(
+		() => localStorage.getItem("gallery_selectedSeed") || "All",
+	);
 
-  useEffect(() => {
-    localStorage.setItem('gallery_selectedPrompt', selectedPrompt);
-  }, [selectedPrompt]);
+	// Persistence effects
+	useEffect(() => {
+		localStorage.setItem("gallery_selectedModel", selectedModel);
+	}, [selectedModel]);
 
-  useEffect(() => {
-    localStorage.setItem('gallery_selectedSeed', selectedSeed);
-  }, [selectedSeed]);
+	useEffect(() => {
+		localStorage.setItem("gallery_selectedPrompt", selectedPrompt);
+	}, [selectedPrompt]);
 
-  useEffect(() => {
-    // Fetch/cache prompts on startup
-    fetchPrompts().then(data => {
-        if (Array.isArray(data)) {
-            setAllPrompts(data);
-        } else {
-            console.error("Prompts is not array", data);
-            setAllPrompts([]);
-        }
-    }).catch(err => console.error("Failed to fetch prompts", err));
-  }, []);
+	useEffect(() => {
+		localStorage.setItem("gallery_selectedSeed", selectedSeed);
+	}, [selectedSeed]);
 
-  return (
-    <GalleryContext.Provider value={{
-      outputCache,
-      setOutputCache,
-      allPrompts,
-      selectedModel,
-      setSelectedModel,
-      selectedPrompt,
-      setSelectedPrompt,
-      selectedSeed,
-      setSelectedSeed
-    }}>
-      {children}
-    </GalleryContext.Provider>
-  );
+	useEffect(() => {
+		// Fetch/cache prompts on startup
+		fetchPrompts()
+			.then((data) => {
+				if (Array.isArray(data)) {
+					setAllPrompts(data);
+				} else {
+					console.error("Prompts is not array", data);
+					setAllPrompts([]);
+				}
+			})
+			.catch((err) => console.error("Failed to fetch prompts", err));
+	}, []);
+
+	return (
+		<GalleryContext.Provider
+			value={{
+				outputCache,
+				setOutputCache,
+				allPrompts,
+				selectedModel,
+				setSelectedModel,
+				selectedPrompt,
+				setSelectedPrompt,
+				selectedSeed,
+				setSelectedSeed,
+			}}
+		>
+			{children}
+		</GalleryContext.Provider>
+	);
 }
 
 export function useGalleryContext() {
-  const context = useContext(GalleryContext);
-  if (context === undefined) {
-    throw new Error('useGalleryContext must be used within a GalleryProvider');
-  }
-  return context;
+	const context = useContext(GalleryContext);
+	if (context === undefined) {
+		throw new Error("useGalleryContext must be used within a GalleryProvider");
+	}
+	return context;
 }

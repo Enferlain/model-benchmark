@@ -17,10 +17,6 @@ Working prototype with:
 
 ## High Priority / Quick Fixes
 
-- [ ] **Fix/Refine Prediction Type Filters** - Ensure logic correctly handles `v_prediction` vs `v_prediction` + `ztsnr` and `epsilon`
-- [ ] **Fix Location/Source Filters** - Ensure efficient filtering by model source (Civitai, HF, Local)
-- [ ] **Diversity metric label** - Rename "Diversity (⚠️ WIP)" once validated
-
 ---
 
 ## Features To Add
@@ -46,6 +42,7 @@ Working prototype with:
 - [ ] **Benchmark runs db details** - Show model count/list in history even if models deleted
 - [ ] **Benchmark runs actions** - Delete/Export benchmark runs
 - [ ] **Metrics dropdown** - Consistent metric selection UI across all pages
+- [ ] **Diversity metric label** - Rename "Diversity (⚠️ WIP)" once validated
 
 ### Backend & Core
 
