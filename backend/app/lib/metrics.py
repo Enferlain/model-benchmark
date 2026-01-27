@@ -79,7 +79,7 @@ class MetricsCalculator:
                 # 1. Parse and Tokenize with Weights (Get full list of tokens)
                 # Max length large enough to hold all tokens
                 if HAS_LPW_UTILS:
-                    token_ids_list, weights_list = lpw_utils.get_prompts_with_weights(
+                    token_ids_list, _ = lpw_utils.get_prompts_with_weights(
                         self.clip_processor.tokenizer, [prompt], max_length=77*5
                     )
                     token_ids = token_ids_list[0] # List of ints
