@@ -7,7 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 interface ArenaBattleProps {
 	prompt: string;
@@ -15,6 +15,7 @@ interface ArenaBattleProps {
 	imageB: string;
 	refImage?: string;
 	onVote: (vote: "A" | "B" | "Tie" | "BothBad") => void;
+	key?: React.Key;
 }
 
 export function ArenaBattle({
@@ -28,7 +29,10 @@ export function ArenaBattle({
 	const [showLightbox, setShowLightbox] = useState<string | null>(null);
 	const [aspectRatio, setAspectRatio] = useState<number>(0); // Initialize as 0 to wait for first load
 
-	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>, isPrimary = false) => {
+	const handleImageLoad = (
+		e: React.SyntheticEvent<HTMLImageElement>,
+		isPrimary = false,
+	) => {
 		const img = e.currentTarget;
 		if (isPrimary && img.naturalWidth && img.naturalHeight) {
 			const ratio = img.naturalWidth / img.naturalHeight;
@@ -42,7 +46,9 @@ export function ArenaBattle({
 	const arenaRef = useRef<HTMLDivElement>(null);
 	const imageRef = useRef<HTMLDivElement>(null);
 	const [containerHeight, setContainerHeight] = useState(0);
-	const [measuredImageHeight, setMeasuredImageHeight] = useState<number | null>(null);
+	const [measuredImageHeight, setMeasuredImageHeight] = useState<number | null>(
+		null,
+	);
 
 	// Use ResizeObserver to track the actual rendered height of the images
 	useLayoutEffect(() => {
@@ -70,17 +76,16 @@ export function ArenaBattle({
 		};
 
 		updateHeight();
-		window.addEventListener('resize', updateHeight);
-		return () => window.removeEventListener('resize', updateHeight);
+		window.addEventListener("resize", updateHeight);
+		return () => window.removeEventListener("resize", updateHeight);
 	}, []);
 
 	// Calculate precise pixel width of the images
 	// images scale to fit container height (minus padding and button area which is ~100px)
-	const availableHeight = Math.max(100, containerHeight - 120); 
+	const availableHeight = Math.max(100, containerHeight - 120);
 	const imgW = aspectRatio > 0 ? availableHeight * aspectRatio : 400;
 	// Since both use the same aspect ratio for now (simplified)
 	const imgW_B = imgW;
-
 
 	// Calculate container styles based on aspect ratio
 	const imageContainerStyle = useMemo(() => {
@@ -103,11 +108,14 @@ export function ArenaBattle({
 			</div>
 
 			{/* 2. Unified Battle Arena (Columns for vertical Image + Vote alignment) */}
-			<div ref={arenaRef} className="flex-1 flex items-stretch gap-[17px] relative min-h-0 px-2 overflow-hidden py-2">
+			<div
+				ref={arenaRef}
+				className="flex-1 flex items-stretch gap-[17px] relative min-h-0 px-2 overflow-hidden py-2"
+			>
 				{/* Model A Column */}
 				<div className="flex-1 flex justify-end min-w-0 z-10">
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
-					<div 
+					<div
 						className="flex flex-col items-center min-h-0 h-full max-h-full"
 						style={{ width: `${imgW}px` }}
 					>
@@ -142,7 +150,11 @@ export function ArenaBattle({
 								<VoteButton
 									onClick={() => onVote("A")}
 									color="indigo"
-									icon={<div className="font-black text-sm text-indigo-500 group-hover:text-white transition-colors">A</div>}
+									icon={
+										<div className="font-black text-sm text-indigo-500 group-hover:text-white transition-colors">
+											A
+										</div>
+									}
 									label="Vote A"
 								/>
 							</div>
@@ -152,27 +164,57 @@ export function ArenaBattle({
 
 				{/* Reference Image Column */}
 				<div
-					className={`transition-[flex,width] duration-500 ease-in-out flex justify-center min-w-0 ${
-						isRefExpanded ? "flex-1 z-20" : "w-14 min-w-[56px] flex-none z-10"
-					}`}
+					className="transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex justify-center min-w-0"
+					style={{
+						flex: isRefExpanded ? "1 1 0%" : "0 0 56px",
+						width: isRefExpanded ? "auto" : "56px",
+						zIndex: isRefExpanded ? 20 : 10,
+					}}
 				>
-					<div 
-						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500"
-						style={{ width: isRefExpanded ? `${imgW}px` : '100%' }}
+					<div
+						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+						style={{ width: isRefExpanded ? `${imgW}px` : "100%" }}
 					>
-						{/* Reference Holder */}
+						{/* Reference Holder - Unified Container */}
 						<div className="flex-1 flex items-center justify-center relative w-full min-h-0">
-							{/* Toggle Button for Shrunk State */}
-							<button
-								type="button"
-								onClick={() => setIsRefExpanded(true)}
-								className={`absolute w-full bg-white/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex flex-col items-center justify-center group transition-[opacity,transform] duration-500 ease-in-out ${
-									isRefExpanded ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
-								}`}
-								style={!isRefExpanded && measuredImageHeight ? { height: `${measuredImageHeight}px` } : { inset: 0 }}
-								title="Show Reference Image"
+							<div
+								className={`
+									relative w-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+									rounded-xl overflow-hidden group max-h-full border border-dashed
+									${
+										isRefExpanded
+											? "bg-transparent border-transparent cursor-default"
+											: "bg-white/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+									}
+								`}
+								role={isRefExpanded ? undefined : "button"}
+								tabIndex={isRefExpanded ? -1 : 0}
+								aria-label={isRefExpanded ? undefined : "Show Reference Image"}
+								style={
+									isRefExpanded
+										? { ...imageContainerStyle }
+										: {
+												height: measuredImageHeight
+													? `${measuredImageHeight}px`
+													: "400px",
+												width: "56px",
+											}
+								}
+								onClick={() => !isRefExpanded && setIsRefExpanded(true)}
+								onKeyDown={(e) => {
+									if (!isRefExpanded && (e.key === "Enter" || e.key === " ")) {
+										setIsRefExpanded(true);
+									}
+								}}
 							>
-								<div className="flex flex-col items-center gap-2">
+								{/* Shrunk Content Layer */}
+								<div
+									className={`
+										absolute inset-0 flex flex-col items-center justify-center gap-2
+										transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+										${isRefExpanded ? "opacity-0 scale-95 pointer-events-none" : "opacity-100 scale-100"}
+									`}
+								>
 									<div className="w-10 h-10 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden relative border border-slate-300 dark:border-slate-600 shrink-0">
 										{refImage ? (
 											<img
@@ -190,28 +232,31 @@ export function ArenaBattle({
 										REF
 									</span>
 								</div>
-							</button>
 
-							<div
-								className={`relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-transparent group max-h-full ${
-									isRefExpanded ? "opacity-100 scale-100 h-auto" : "opacity-0 pointer-events-none scale-95 absolute h-0"
-								}`}
-								style={imageContainerStyle}
-							>
-								{/* Shrink Button Overlay */}
-								<button
-									type="button"
-									onClick={(e) => {
-										e.stopPropagation();
-										setIsRefExpanded(false);
-									}}
-									className="absolute top-4 right-4 z-30 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full shadow-lg transition-all duration-300 active:scale-90 flex items-center justify-center opacity-0 group-hover:opacity-100"
-									title="Collapse Reference"
+								{/* Expanded Content Layer */}
+								<div
+									className={`
+										w-full h-full flex items-center justify-center
+										transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+										${isRefExpanded ? "opacity-100 scale-100" : "opacity-0 scale-105 pointer-events-none"}
+									`}
 								>
-									<Shrink size={18} />
-								</button>
+									{/* Shrink Button Overlay */}
+									<button
+										type="button"
+										onClick={(e) => {
+											e.stopPropagation();
+											setIsRefExpanded(false);
+										}}
+										className="absolute top-4 right-4 z-30 w-8 h-8 md:w-10 md:h-10 bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md text-white border border-white/20 rounded-full shadow-lg transition-all duration-300 active:scale-90 flex items-center justify-center opacity-0 group-hover:opacity-100 group/btn"
+										title="Collapse Reference"
+									>
+										<Shrink
+											size={18}
+											className="group-hover/btn:scale-110 transition-transform"
+										/>
+									</button>
 
-								<div className="w-full h-full flex items-center justify-center">
 									{refImage ? (
 										<button
 											type="button"
@@ -258,7 +303,7 @@ export function ArenaBattle({
 				{/* Model B Column */}
 				<div className="flex-1 flex justify-start min-w-0 z-10">
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
-					<div 
+					<div
 						className="flex flex-col items-center min-h-0 h-full max-h-full"
 						style={{ width: `${imgW_B}px` }}
 					>
@@ -292,7 +337,11 @@ export function ArenaBattle({
 								<VoteButton
 									onClick={() => onVote("B")}
 									color="indigo"
-									icon={<div className="font-black text-sm text-indigo-500 group-hover:text-white transition-colors">B</div>}
+									icon={
+										<div className="font-black text-sm text-indigo-500 group-hover:text-white transition-colors">
+											B
+										</div>
+									}
 									label="Vote B"
 								/>
 							</div>
@@ -316,7 +365,7 @@ export function ArenaBattle({
 							alt="Lightbox view"
 							className="max-w-[calc(100vw-4rem)] max-h-[calc(100vh-4rem)] rounded shadow-2xl animate-in zoom-in-95 duration-300 object-contain"
 						/>
-						<button 
+						<button
 							type="button"
 							onClick={() => setShowLightbox(null)}
 							className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors bg-white/10 p-2 rounded-full backdrop-blur-lg"
@@ -366,7 +415,9 @@ function VoteButton({
             `}
 		>
 			<div className="mb-0.5">{icon}</div>
-			<span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
+			<span className="text-[10px] font-black uppercase tracking-wider">
+				{label}
+			</span>
 		</button>
 	);
 }

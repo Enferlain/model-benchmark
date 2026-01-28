@@ -222,23 +222,26 @@ export default function Gallery() {
 				</div>
 			)}
 
-			{!loading && filteredOutputs.length === 0 && selectedModel && !activeError && (
-				<div className="text-center py-12 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-					<p className="text-lg">No images found matching current filters.</p>
-					{(selectedPrompt !== "All" || selectedSeed !== "All") && (
-						<button
-							type="button"
-							onClick={() => {
-								setSelectedPrompt("All");
-								setSelectedSeed("All");
-							}}
-							className="mt-4 px-4 py-2 text-indigo-600 dark:text-indigo-400 hover:underline"
-						>
-							Clear Filters
-						</button>
-					)}
-				</div>
-			)}
+			{!loading &&
+				filteredOutputs.length === 0 &&
+				selectedModel &&
+				!activeError && (
+					<div className="text-center py-12 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+						<p className="text-lg">No images found matching current filters.</p>
+						{(selectedPrompt !== "All" || selectedSeed !== "All") && (
+							<button
+								type="button"
+								onClick={() => {
+									setSelectedPrompt("All");
+									setSelectedSeed("All");
+								}}
+								className="mt-4 px-4 py-2 text-indigo-600 dark:text-indigo-400 hover:underline"
+							>
+								Clear Filters
+							</button>
+						)}
+					</div>
+				)}
 
 			{!loading &&
 				Object.keys(groupedOutputs).map((prompt, idx) => (

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreatePromptModal } from "../components/prompts/CreatePromptModal";
 import { PromptDetailEditor } from "../components/prompts/PromptDetailEditor";
 import { PromptList } from "../components/prompts/PromptList";
+import { useData } from "../context/DataContext";
 import {
 	createPrompt,
 	deletePrompt,
@@ -12,8 +13,6 @@ import {
 	shufflePrompts,
 	updatePromptText,
 } from "../services/api";
-import { useData } from "../context/DataContext";
-
 
 export default function PromptEditor() {
 	const {
@@ -51,7 +50,7 @@ export default function PromptEditor() {
 				// Update backend
 				try {
 					await updatePromptText("order", {
-						order: newPrompts.map((p) => p.id),
+						order: newPrompts.map((p: any) => p.id),
 					});
 					await loadPrompts();
 				} catch (error) {

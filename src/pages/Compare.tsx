@@ -4,9 +4,8 @@ import { GridView } from "../components/compare/views/GridView";
 import { ProximityView } from "../components/compare/views/ProximityView";
 import { SideBySideView } from "../components/compare/views/SideBySideView";
 import { SliderView } from "../components/compare/views/SliderView";
-import { fetchNote, saveNote } from "../services/api";
 import { useData } from "../context/DataContext";
-
+import { fetchNote, saveNote } from "../services/api";
 
 type ViewMode = "side-by-side" | "slider" | "proximity" | "grid";
 
@@ -234,7 +233,10 @@ export default function Compare() {
 					<div className="flex flex-wrap gap-4 items-end border-t border-slate-100 dark:border-slate-700 pt-4">
 						{/* Prompt Selector */}
 						<div className="flex flex-col gap-2 flex-[2] min-w-[300px]">
-							<label htmlFor="prompt-selector" className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+							<label
+								htmlFor="prompt-selector"
+								className="text-sm font-semibold text-slate-600 dark:text-slate-400"
+							>
 								Common Prompt
 							</label>
 							<select
@@ -264,7 +266,10 @@ export default function Compare() {
 
 						{/* Seed Selector */}
 						<div className="flex flex-col gap-2 flex-none w-[120px]">
-							<label htmlFor="seed-selector" className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+							<label
+								htmlFor="seed-selector"
+								className="text-sm font-semibold text-slate-600 dark:text-slate-400"
+							>
 								Common Seed
 							</label>
 							<select

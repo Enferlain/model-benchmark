@@ -2,9 +2,9 @@ import { Swords } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ArenaBattle } from "../components/arena/ArenaBattle";
 import { ArenaLeaderboard } from "../components/arena/ArenaLeaderboard";
+import { getImageUrl } from "../components/compare/utils";
 import { useData } from "../context/DataContext";
 import { fetchModelOutputs } from "../services/api";
-import { getImageUrl } from "../components/compare/utils";
 import type { ModelOutput } from "../types";
 
 type ArenaTab = "battle" | "leaderboard";
@@ -22,35 +22,47 @@ interface BattleState {
 
 const MOCK_BATTLE_SETS: BattleState[] = [
 	{
-		prompt: "Square Aspect Ratio: A serene mountain lake at sunrise, reflection in the water.",
-		imageA: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1024&h=1024",
-		imageB: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=1024&h=1024",
-		refImage: "https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&q=80&w=1024&h=1024",
+		prompt:
+			"Square Aspect Ratio: A serene mountain lake at sunrise, reflection in the water.",
+		imageA:
+			"https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=1024&h=1024",
+		imageB:
+			"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=1024&h=1024",
+		refImage:
+			"https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&q=80&w=1024&h=1024",
 		modelAId: "mock-square-a",
 		modelBId: "mock-square-b",
 		isLoading: false,
 		error: null,
 	},
 	{
-		prompt: "Landscape Aspect Ratio: A cinematic shot of a futuristic cyberpunk city with neon lights, 3:2 style.",
-		imageA: "https://images.unsplash.com/photo-1605142859862-978be7eba909?auto=format&fit=crop&q=80&w=1500&h=1000",
-		imageB: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?auto=format&fit=crop&q=80&w=1500&h=1000",
-		refImage: "https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?auto=format&fit=crop&q=80&w=1500&h=1000",
+		prompt:
+			"Landscape Aspect Ratio: A cinematic shot of a futuristic cyberpunk city with neon lights, 3:2 style.",
+		imageA:
+			"https://images.unsplash.com/photo-1605142859862-978be7eba909?auto=format&fit=crop&q=80&w=1500&h=1000",
+		imageB:
+			"https://images.unsplash.com/photo-1614728263952-84ea256f9679?auto=format&fit=crop&q=80&w=1500&h=1000",
+		refImage:
+			"https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?auto=format&fit=crop&q=80&w=1500&h=1000",
 		modelAId: "mock-landscape-a",
 		modelBId: "mock-landscape-b",
 		isLoading: false,
 		error: null,
 	},
 	{
-		prompt: "Portrait Aspect Ratio: A highly detailed fashion portrait of a model with dramatic lighting, 2:3 style.",
-		imageA: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000&h=1500",
-		imageB: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=1000&h=1500",
-		refImage: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=1000&h=1500",
+		prompt:
+			"Portrait Aspect Ratio: A highly detailed fashion portrait of a model with dramatic lighting, 2:3 style.",
+		imageA:
+			"https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000&h=1500",
+		imageB:
+			"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=1000&h=1500",
+		refImage:
+			"https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=1000&h=1500",
 		modelAId: "mock-portrait-a",
 		modelBId: "mock-portrait-b",
 		isLoading: false,
 		error: null,
-	}
+	},
 ];
 
 export default function Arena() {
@@ -119,8 +131,14 @@ export default function Arena() {
 
 			setBattle({
 				prompt: selection.prompt,
-				imageA: getImageUrl(swap ? outputB.url : selection.url, swap ? outputB.mtime : selection.mtime),
-				imageB: getImageUrl(swap ? selection.url : outputB.url, swap ? selection.mtime : outputB.mtime),
+				imageA: getImageUrl(
+					swap ? outputB.url : selection.url,
+					swap ? outputB.mtime : selection.mtime,
+				),
+				imageB: getImageUrl(
+					swap ? selection.url : outputB.url,
+					swap ? selection.mtime : outputB.mtime,
+				),
 				modelAId: swap ? modelB.id : modelA.id,
 				modelBId: swap ? modelA.id : modelB.id,
 				isLoading: false,
@@ -147,7 +165,9 @@ export default function Arena() {
 	}, [activeTab, battle.prompt, startNewBattle]);
 
 	const handleVote = (vote: "A" | "B" | "Tie" | "BothBad") => {
-		console.log(`Vote cast: ${vote} for models ${battle.modelAId} vs ${battle.modelBId}`);
+		console.log(
+			`Vote cast: ${vote} for models ${battle.modelAId} vs ${battle.modelBId}`,
+		);
 		if (isDemoMode) {
 			alert(`Demo vote recorded: ${vote}!`);
 		} else {
@@ -231,7 +251,9 @@ export default function Arena() {
 								<div className="flex-1 flex items-center justify-center">
 									<div className="flex flex-col items-center gap-4">
 										<div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-										<p className="text-slate-500 font-medium">Preparing Battle...</p>
+										<p className="text-slate-500 font-medium">
+											Preparing Battle...
+										</p>
 									</div>
 								</div>
 							) : (
@@ -240,7 +262,7 @@ export default function Arena() {
 										<div className="mb-4 bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-200 dark:border-red-800 text-center">
 											<p className="text-red-600 dark:text-red-400 font-medium flex items-center justify-center gap-2">
 												{battle.error}
-												<button 
+												<button
 													type="button"
 													onClick={startNewBattle}
 													className="underline hover:no-underline"

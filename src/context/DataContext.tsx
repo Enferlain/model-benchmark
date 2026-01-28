@@ -8,11 +8,16 @@ import {
 	useState,
 } from "react";
 import {
-	fetchBenchmarkRuns,
 	fetchModels as apiFetchModels,
+	fetchBenchmarkRuns,
 	fetchPrompts,
 } from "../services/api";
-import type { BenchmarkRun, ModelData, ModelOutput, PromptData } from "../types";
+import type {
+	BenchmarkRun,
+	ModelData,
+	ModelOutput,
+	PromptData,
+} from "../types";
 
 interface DataContextType {
 	// Models
@@ -134,11 +139,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 		setIsLoadingModels(true);
 		setIsLoadingPrompts(true);
 		setIsLoadingRuns(true);
-		
+
 		await Promise.allSettled([
 			refreshModels(),
 			refreshPrompts(),
-			refreshRuns()
+			refreshRuns(),
 		]);
 	}, [refreshModels, refreshPrompts, refreshRuns]);
 
@@ -175,7 +180,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 				errors: {
 					models: modelError,
 					prompts: promptError,
-					runs: runError
+					runs: runError,
 				},
 				refreshAll,
 				outputCache,

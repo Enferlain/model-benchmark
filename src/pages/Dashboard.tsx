@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useData } from "../context/DataContext";
 import { AddModelCard } from "../components/dashboard/AddModelCard";
 import { DatasetSelector } from "../components/dashboard/DatasetSelector";
 import { MetricInfoCard } from "../components/dashboard/MetricInfoCard";
@@ -13,25 +12,22 @@ import {
 import { ScatterPlot } from "../components/ScatterPlot";
 import type { Preset } from "../components/TransferList/PresetMenu";
 import { METRIC_OPTIONS } from "../constants";
+import { useData } from "../context/DataContext";
 import { useTheme } from "../context/ThemeContext";
 import { useDashboardStatus } from "../hooks/useDashboardStatus";
 import {
 	analyzeImages,
 	archiveModel,
+	type CoverageCheckResult,
 	checkCoverage,
 	checkParams,
 	generateImages,
-	type CoverageCheckResult,
 	type ParamCheckResult,
 } from "../services/api";
 import type { MetricKey, ModelData } from "../types";
 
 export default function Dashboard() {
-	const {
-		models,
-		refreshModels,
-		runs: benchmarkRuns,
-	} = useData();
+	const { models, refreshModels, runs: benchmarkRuns } = useData();
 	const { isDarkMode } = useTheme();
 	const [urlInput, setUrlInput] = useState("");
 
@@ -124,7 +120,10 @@ export default function Dashboard() {
 	}, [scanOptions]);
 
 	useEffect(() => {
-		localStorage.setItem("dashboard_activeSource", JSON.stringify(activeSource));
+		localStorage.setItem(
+			"dashboard_activeSource",
+			JSON.stringify(activeSource),
+		);
 	}, [activeSource]);
 
 	useEffect(() => {

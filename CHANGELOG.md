@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Achieved perfect **0px horizontal offset** between Vote buttons and image centers across all aspect ratios.
   - Standardized the center gap to a consistent **~17.5px** (within 1.5px tolerance) for Square, Landscape, and Portrait modes.
   - Fixed "floating" images in Square and Portrait modes by constraining units to exact image widths and pulling them flush against the divider.
+- **Arena Animation Synchronization**:
+  - Synchronized the reference image container's border and background transitions with its 500ms scaling animation.
+  - Replaced immediate layout toggles with smooth transparency transitions (`border-transparent`, `bg-transparent`) to eliminate visual "jumps" during expansion and contraction.
 
 ## [Unreleased] - 2026-01-27
 

@@ -16,9 +16,8 @@ import {
 import type React from "react";
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { useTheme } from "../context/ThemeContext";
-
 import { useData } from "../context/DataContext";
+import { useTheme } from "../context/ThemeContext";
 
 export const MainLayout: React.FC = () => {
 	const { models, isLoadingModels } = useData();
