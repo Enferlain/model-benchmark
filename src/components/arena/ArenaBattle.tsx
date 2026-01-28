@@ -110,10 +110,13 @@ export function ArenaBattle({
 			{/* 2. Unified Battle Arena (Columns for vertical Image + Vote alignment) */}
 			<div
 				ref={arenaRef}
-				className="flex-1 flex items-stretch gap-[17px] relative min-h-0 px-2 overflow-hidden py-2"
+				className="flex-1 flex items-stretch justify-center gap-[17px] relative min-h-0 px-2 overflow-hidden py-2"
 			>
 				{/* Model A Column */}
-				<div className="flex-1 flex justify-end min-w-0 z-10">
+				<div
+					className="flex-none flex justify-end min-w-0 z-10"
+					style={{ width: `${imgW}px` }}
+				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
 					<div
 						className="flex flex-col items-center min-h-0 h-full max-h-full"
@@ -166,8 +169,8 @@ export function ArenaBattle({
 				<div
 					className="transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex justify-center min-w-0"
 					style={{
-						flex: isRefExpanded ? "1 1 0%" : "0 0 56px",
-						width: isRefExpanded ? "auto" : "56px",
+						flex: "none",
+						width: isRefExpanded ? `${imgW}px` : "56px",
 						zIndex: isRefExpanded ? 20 : 10,
 					}}
 				>
@@ -304,7 +307,10 @@ export function ArenaBattle({
 				</div>
 
 				{/* Model B Column */}
-				<div className="flex-1 flex justify-start min-w-0 z-10">
+				<div
+					className="flex-none flex justify-start min-w-0 z-10"
+					style={{ width: `${imgW_B}px` }}
+				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
 					<div
 						className="flex flex-col items-center min-h-0 h-full max-h-full"
