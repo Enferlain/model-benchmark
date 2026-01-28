@@ -7,7 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 
 interface ArenaBattleProps {
 	prompt: string;
@@ -40,7 +40,25 @@ export function ArenaBattle({
 	};
 
 	const arenaRef = useRef<HTMLDivElement>(null);
+	const imageRef = useRef<HTMLDivElement>(null);
 	const [containerHeight, setContainerHeight] = useState(0);
+	const [measuredImageHeight, setMeasuredImageHeight] = useState<number | null>(null);
+
+	// Use ResizeObserver to track the actual rendered height of the images
+	useLayoutEffect(() => {
+		if (!imageRef.current) return;
+
+		const observer = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				if (entry.contentRect.height > 0) {
+					setMeasuredImageHeight(entry.contentRect.height);
+				}
+			}
+		});
+
+		observer.observe(imageRef.current);
+		return () => observer.disconnect();
+	}, []);
 
 	useEffect(() => {
 		const updateHeight = () => {
@@ -73,7 +91,7 @@ export function ArenaBattle({
 	}, [aspectRatio]);
 
 	return (
-		<div className="flex flex-col h-full w-full max-w-[1600px] mx-auto gap-4 transition-all duration-500 ease-in-out min-h-0">
+		<div className="flex flex-col h-full w-full max-w-[1600px] mx-auto gap-4 min-h-0">
 			{/* 1. Compact Prompt Area */}
 			<div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-2 px-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 text-center relative z-10 flex flex-col items-center gap-0.5 flex-none">
 				<h3 className="text-[10px] uppercase tracking-widest font-bold text-slate-400">
@@ -96,6 +114,7 @@ export function ArenaBattle({
 						{/* Image Holder */}
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
 							<div
+								ref={imageRef}
 								className="relative rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
 								style={imageContainerStyle}
 							>
@@ -133,20 +152,24 @@ export function ArenaBattle({
 
 				{/* Reference Image Column */}
 				<div
-					className={`transition-all duration-500 ease-in-out flex flex-col items-center min-w-0 ${
+					className={`transition-[flex,width] duration-500 ease-in-out flex justify-center min-w-0 ${
 						isRefExpanded ? "flex-1 z-20" : "w-14 min-w-[56px] flex-none z-10"
 					}`}
 				>
-					<div className="flex-1 flex flex-col items-center w-full min-h-0 h-full">
+					<div 
+						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500"
+						style={{ width: isRefExpanded ? `${imgW}px` : '100%' }}
+					>
 						{/* Reference Holder */}
 						<div className="flex-1 flex items-center justify-center relative w-full min-h-0">
 							{/* Toggle Button for Shrunk State */}
 							<button
 								type="button"
 								onClick={() => setIsRefExpanded(true)}
-								className={`absolute inset-0 w-full h-full bg-white/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex flex-col items-center justify-center group transition-all duration-500 ease-in-out ${
+								className={`absolute w-full bg-white/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex flex-col items-center justify-center group transition-[opacity,transform] duration-500 ease-in-out ${
 									isRefExpanded ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
 								}`}
+								style={!isRefExpanded && measuredImageHeight ? { height: `${measuredImageHeight}px` } : { inset: 0 }}
 								title="Show Reference Image"
 							>
 								<div className="flex flex-col items-center gap-2">
@@ -214,8 +237,8 @@ export function ArenaBattle({
 							</div>
 						</div>
 						{/* Tie/Bad Actions (Absolute positioning to prevent pushing images apart) */}
-						<div className="flex-none py-4 relative w-full h-20">
-							<div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-2 px-4">
+						<div className="flex-none py-4 px-2 flex justify-center w-full">
+							<div className="flex items-center gap-2">
 								<VoteButton
 									onClick={() => onVote("Tie")}
 									color="slate"
