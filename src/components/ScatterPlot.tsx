@@ -207,6 +207,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 					{headerExtra}
 				</div>
 				<button
+					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
 					className={`p-2 rounded-full transition-all z-[10000] cursor-pointer ${
 						isExpanded

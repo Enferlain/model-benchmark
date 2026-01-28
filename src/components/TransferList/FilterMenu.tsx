@@ -65,6 +65,7 @@ export function FilterMenu({
 	return (
 		<div className="relative" ref={menuRef}>
 			<button
+				type="button"
 				onClick={() => setIsOpen(!isOpen)}
 				className={`p-2 border rounded-lg transition-colors flex items-center gap-2 ${
 					isActive
@@ -89,6 +90,7 @@ export function FilterMenu({
 						</span>
 						{isActive && (
 							<button
+								type="button"
 								onClick={clearFilters}
 								className="text-[10px] text-red-500 hover:text-red-600 flex items-center gap-1"
 							>
@@ -100,12 +102,13 @@ export function FilterMenu({
 					<div className="p-2 space-y-2 max-h-[350px] overflow-y-auto custom-scrollbar">
 						{/* Model Types */}
 						<div className="space-y-0.5">
-							<label className="text-[10px] font-bold text-slate-400 px-2 uppercase opacity-70">
+							<span className="text-[10px] font-bold text-slate-400 px-2 uppercase opacity-70">
 								Type
-							</label>
+							</span>
 							{availableModelTypes.map((type) => (
 								<button
 									key={type}
+									type="button"
 									onClick={() => toggleFilter("modelTypes", type)}
 									className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
 										filters.modelTypes.has(type)
@@ -123,10 +126,11 @@ export function FilterMenu({
 
 						{/* Prediction Types */}
 						<div className="space-y-0.5">
-							<label className="text-[10px] font-bold text-slate-400 px-2 uppercase opacity-70">
+							<span className="text-[10px] font-bold text-slate-400 px-2 uppercase opacity-70">
 								Prediction
-							</label>
+							</span>
 							<button
+								type="button"
 								onClick={() => toggleFilter("predictionTypes", "epsilon")}
 								className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
 									filters.predictionTypes.has("epsilon")
@@ -138,6 +142,7 @@ export function FilterMenu({
 								{filters.predictionTypes.has("epsilon") && <Check size={12} />}
 							</button>
 							<button
+								type="button"
 								onClick={() => toggleFilter("predictionTypes", "v_prediction")}
 								className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
 									filters.predictionTypes.has("v_prediction")
@@ -151,6 +156,7 @@ export function FilterMenu({
 								)}
 							</button>
 							<button
+								type="button"
 								onClick={() =>
 									toggleFilter("predictionTypes", "v_prediction_ztsnr")
 								}
@@ -171,10 +177,11 @@ export function FilterMenu({
 
 						{/* Source */}
 						<div className="space-y-0.5">
-							<label className="text-[10px] font-bold text-slate-400 px-2 uppercase opacity-70">
+							<span className="text-[10px] font-bold text-slate-400 px-2 uppercase opacity-70">
 								Source
-							</label>
+							</span>
 							<button
+								type="button"
 								onClick={() => toggleFilter("sources", "Civitai")}
 								className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
 									filters.sources.has("Civitai")
@@ -186,6 +193,7 @@ export function FilterMenu({
 								{filters.sources.has("Civitai") && <Check size={12} />}
 							</button>
 							<button
+								type="button"
 								onClick={() => toggleFilter("sources", "HuggingFace")}
 								className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
 									filters.sources.has("HuggingFace")
@@ -197,6 +205,7 @@ export function FilterMenu({
 								{filters.sources.has("HuggingFace") && <Check size={12} />}
 							</button>
 							<button
+								type="button"
 								onClick={() => toggleFilter("sources", "Local")}
 								className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors ${
 									filters.sources.has("Local")

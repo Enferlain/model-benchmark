@@ -46,6 +46,7 @@ export const MainLayout: React.FC = () => {
 				<div className="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
 					<div className="flex items-center gap-3">
 						<button
+							type="button"
 							className="md:hidden p-2 text-slate-600 dark:text-slate-300"
 							onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
 						>
@@ -85,6 +86,7 @@ export const MainLayout: React.FC = () => {
 						</div>
 
 						<button
+							type="button"
 							onClick={toggleTheme}
 							className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-blue-200 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-transparent hover:border-slate-200 dark:hover:border-white/10 rounded-full transition-all duration-300 backdrop-blur-sm shadow-sm hover:shadow-md"
 							title={

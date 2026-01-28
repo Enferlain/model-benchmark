@@ -43,8 +43,10 @@ export default function PromptEditor() {
 			const { active, over } = event;
 
 			if (over && active.id !== over.id) {
-				const oldIndex = prompts.findIndex((p) => p.id === (active as any).id);
-				const newIndex = prompts.findIndex((p) => p.id === (over as any).id);
+				const oldIndex = prompts.findIndex(
+					(p) => p.id === active.id.toString(),
+				);
+				const newIndex = prompts.findIndex((p) => p.id === over.id.toString());
 
 				const newPrompts = arrayMove(prompts, oldIndex, newIndex);
 				// Update backend

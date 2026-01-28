@@ -1,5 +1,5 @@
 import { BarChart3 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ModelTable } from "../components/ModelTable";
 import { useData } from "../context/DataContext";
 import { deleteModel } from "../services/api";

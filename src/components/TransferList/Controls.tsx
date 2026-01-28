@@ -16,6 +16,7 @@ export function Controls({
 	return (
 		<div className="flex flex-col gap-2 justify-center px-2">
 			<button
+				type="button"
 				onClick={onMoveRight}
 				disabled={!canMoveRight}
 				className={`
@@ -32,6 +33,7 @@ export function Controls({
 			</button>
 
 			<button
+				type="button"
 				onClick={onMoveLeft}
 				disabled={!canMoveLeft}
 				className={`

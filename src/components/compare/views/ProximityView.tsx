@@ -416,7 +416,8 @@ export const ProximityView: React.FC<Props> = ({ groups }) => {
 				</div>
 
 				{finalItems.map((item, idx) => (
-					<div
+					<button
+						type="button"
 						key={`${item.modelName}-${item.seed}`}
 						onClick={() => setQuicklookIndex(idx)}
 						className="absolute w-32 aspect-[2/3] bg-white dark:bg-zinc-800 rounded-lg shadow-lg transition-all duration-300 ease-out origin-center group overflow-hidden cursor-pointer"
@@ -446,7 +447,7 @@ export const ProximityView: React.FC<Props> = ({ groups }) => {
 						>
 							{item.seed}
 						</div>
-					</div>
+					</button>
 				))}
 
 				{finalItems.length === 0 && (
@@ -469,6 +470,7 @@ export const ProximityView: React.FC<Props> = ({ groups }) => {
 					{(["cascade", "row", "column", "scatter", "bloom"] as const).map(
 						(mode) => (
 							<button
+								type="button"
 								key={mode}
 								onClick={() => setLayoutMode(mode)}
 								className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
@@ -542,6 +544,7 @@ export const ProximityView: React.FC<Props> = ({ groups }) => {
 
 					{/* Navigation */}
 					<button
+						type="button"
 						className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl flex items-center justify-center transition-colors disabled:opacity-30"
 						onClick={(e) => {
 							e.stopPropagation();
@@ -555,6 +558,7 @@ export const ProximityView: React.FC<Props> = ({ groups }) => {
 					</button>
 
 					<button
+						type="button"
 						className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 hover:bg-white/40 text-white text-2xl flex items-center justify-center transition-colors disabled:opacity-30"
 						onClick={(e) => {
 							e.stopPropagation();

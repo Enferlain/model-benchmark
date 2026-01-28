@@ -1,4 +1,3 @@
-import { Info, Loader2 } from "lucide-react";
 import type { CoverageCheckResult, ParamCheckResult } from "../../services/api";
 
 interface MismatchModalsProps {

@@ -41,6 +41,7 @@ export const GridView: React.FC<Props> = ({
 											Prompt
 										</span>
 										<button
+											type="button"
 											onClick={() => setFitToScreen(!fitToScreen)}
 											className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
 												fitToScreen
@@ -130,7 +131,8 @@ export const GridView: React.FC<Props> = ({
 												style={{ aspectRatio: "2/3" }}
 											>
 												{img ? (
-													<div
+													<button
+														type="button"
 														className="w-full h-full cursor-pointer hover:opacity-90 transition-opacity"
 														onClick={() => setExpandedImage(img)}
 													>
@@ -151,7 +153,7 @@ export const GridView: React.FC<Props> = ({
 														<div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 backdrop-blur text-[9px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition-opacity">
 															{img.seed}
 														</div>
-													</div>
+													</button>
 												) : (
 													<div className="flex items-center justify-center h-full text-zinc-400 text-xs text-center p-2">
 														No Data
@@ -169,7 +171,8 @@ export const GridView: React.FC<Props> = ({
 
 			{/* Lightbox for Grid */}
 			{expandedImage && (
-				<div
+				<button
+					type="button"
 					className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-8"
 					onClick={() => setExpandedImage(null)}
 				>
@@ -192,7 +195,7 @@ export const GridView: React.FC<Props> = ({
 							</p>
 						</div>
 					</div>
-				</div>
+				</button>
 			)}
 		</div>
 	);

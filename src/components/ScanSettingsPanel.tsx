@@ -102,6 +102,7 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 	return (
 		<div className="p-6 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-white/60 dark:border-white/5 bg-white/90 dark:bg-slate-800/80 backdrop-blur-md transition-shadow hover:shadow-2xl">
 			<button
+				type="button"
 				onClick={() => setIsExpanded(!isExpanded)}
 				className="w-full flex items-center justify-between mb-4"
 			>
@@ -119,9 +120,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 				<div className="space-y-4">
 					{/* Sampler */}
 					<div>
-						<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+						<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 							SAMPLER
-						</label>
+						</span>
 						<select
 							value={options.sampler}
 							onChange={(e) => updateOption("sampler", e.target.value)}
@@ -139,9 +140,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 					{/* Two column grid for numbers */}
 					<div className="grid grid-cols-2 gap-3">
 						<div>
-							<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+							<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 								STEPS
-							</label>
+							</span>
 							<input
 								type="number"
 								value={options.steps}
@@ -155,9 +156,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 							/>
 						</div>
 						<div>
-							<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+							<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 								CFG SCALE
-							</label>
+							</span>
 							<input
 								type="number"
 								value={options.guidance_scale}
@@ -178,9 +179,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 
 					<div className="grid grid-cols-2 gap-3">
 						<div>
-							<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+							<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 								SEED
-							</label>
+							</span>
 							<input
 								type="number"
 								value={options.seed}
@@ -192,9 +193,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 							/>
 						</div>
 						<div>
-							<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+							<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 								PROMPTS
-							</label>
+							</span>
 							<input
 								type="number"
 								value={options.num_prompts}
@@ -214,9 +215,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 
 					<div className="grid grid-cols-2 gap-3">
 						<div>
-							<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+							<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 								WIDTH
-							</label>
+							</span>
 							<input
 								type="number"
 								value={options.width}
@@ -231,9 +232,9 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 							/>
 						</div>
 						<div>
-							<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+							<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 								HEIGHT
-							</label>
+							</span>
 							<input
 								type="number"
 								value={options.height}
@@ -250,10 +251,10 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 					</div>
 
 					<div>
-						<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
+						<span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 ml-1">
 							IMAGES PER PROMPT{" "}
 							<span className="text-blue-500">(for LPIPS diversity)</span>
-						</label>
+						</span>
 						<input
 							type="number"
 							value={options.images_per_prompt}
@@ -312,6 +313,7 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 					<div className="grid grid-cols-2 gap-3">
 						{status.is_running ? (
 							<button
+								type="button"
 								onClick={handleCancel}
 								className="col-span-2 py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg shadow-red-500/20"
 							>
@@ -320,6 +322,7 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 						) : (
 							<>
 								<button
+									type="button"
 									onClick={handleGenerate}
 									disabled={isGenerating || isAnalyzing}
 									className="py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg shadow-green-500/20 disabled:opacity-50"
@@ -327,6 +330,7 @@ export const ScanSettingsPanel: React.FC<ScanSettingsPanelProps> = ({
 									<Play size={16} /> Generate
 								</button>
 								<button
+									type="button"
 									onClick={handleAnalyze}
 									disabled={isGenerating || isAnalyzing}
 									className="py-3 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/20 disabled:opacity-50"

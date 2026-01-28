@@ -12,7 +12,7 @@ import {
 	Table,
 	Trash2,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
 import { useData } from "../context/DataContext";
 import { deleteModel, scanModels } from "../services/api";

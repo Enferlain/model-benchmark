@@ -83,6 +83,7 @@ export function PresetMenu({ currentIds, onLoad }: PresetMenuProps) {
 	return (
 		<div className="relative" ref={menuRef}>
 			<button
+				type="button"
 				onClick={() => setIsOpen(!isOpen)}
 				className={`p-2 border rounded-lg transition-colors flex items-center gap-2 ${
 					isOpen
@@ -102,6 +103,7 @@ export function PresetMenu({ currentIds, onLoad }: PresetMenuProps) {
 						</span>
 						{!showSaveInput && (
 							<button
+								type="button"
 								onClick={() => setShowSaveInput(true)}
 								className="text-[10px] text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
 							>
@@ -123,12 +125,14 @@ export function PresetMenu({ currentIds, onLoad }: PresetMenuProps) {
 								/>
 								<div className="flex gap-2 justify-end">
 									<button
+										type="button"
 										onClick={() => setShowSaveInput(false)}
 										className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-1"
 									>
 										Cancel
 									</button>
 									<button
+										type="button"
 										onClick={handleSave}
 										disabled={!newPresetName.trim()}
 										className="text-[10px] bg-blue-500 hover:bg-blue-600 text-white rounded px-3 py-1 font-medium disabled:opacity-50"
@@ -145,26 +149,30 @@ export function PresetMenu({ currentIds, onLoad }: PresetMenuProps) {
 							</div>
 						) : (
 							presets.map((preset) => (
-								<button
+								<div
 									key={preset.id}
-									onClick={() => handleLoad(preset.modelIds)}
 									className="w-full group flex items-center justify-between px-2 py-2 rounded-lg text-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors text-left"
 								>
-									<div>
+									<button
+										type="button"
+										onClick={() => handleLoad(preset.modelIds)}
+										className="flex-1 text-left"
+									>
 										<div className="font-medium">{preset.name}</div>
 										<div className="text-[9px] text-slate-400 mt-0.5">
 											{preset.modelIds.length} models
 										</div>
-									</div>
+									</button>
 
-									<div
+									<button
+										type="button"
 										onClick={(e) => handleDelete(e, preset.id)}
 										className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 transition-all text-slate-400"
 										title="Delete Preset"
 									>
 										<Trash2 size={12} />
-									</div>
-								</button>
+									</button>
+								</div>
 							))
 						)}
 					</div>
