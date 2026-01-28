@@ -187,9 +187,6 @@ export function ArenaBattle({
 											: "bg-white/50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
 									}
 								`}
-								role={isRefExpanded ? undefined : "button"}
-								tabIndex={isRefExpanded ? -1 : 0}
-								aria-label={isRefExpanded ? undefined : "Show Reference Image"}
 								style={
 									isRefExpanded
 										? { ...imageContainerStyle }
@@ -200,15 +197,21 @@ export function ArenaBattle({
 												width: "56px",
 											}
 								}
-								onClick={() => !isRefExpanded && setIsRefExpanded(true)}
-								onKeyDown={(e) => {
-									if (!isRefExpanded && (e.key === "Enter" || e.key === " ")) {
-										setIsRefExpanded(true);
-									}
-								}}
 							>
 								{/* Shrunk Content Layer */}
-								<div
+								<button
+									type="button"
+									onClick={() => !isRefExpanded && setIsRefExpanded(true)}
+									onKeyDown={(e) => {
+										if (
+											!isRefExpanded &&
+											(e.key === "Enter" || e.key === " ")
+										) {
+											setIsRefExpanded(true);
+										}
+									}}
+									disabled={isRefExpanded}
+									aria-label="Show Reference Image"
 									className={`
 										absolute inset-0 flex flex-col items-center justify-center gap-2
 										transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
@@ -231,7 +234,7 @@ export function ArenaBattle({
 									<span className="text-[10px] font-black text-slate-400 group-hover:text-indigo-500 transition-colors uppercase vertical-text">
 										REF
 									</span>
-								</div>
+								</button>
 
 								{/* Expanded Content Layer */}
 								<div
