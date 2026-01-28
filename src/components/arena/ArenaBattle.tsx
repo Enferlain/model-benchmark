@@ -28,9 +28,9 @@ export function ArenaBattle({
 	const [showLightbox, setShowLightbox] = useState<string | null>(null);
 	const [aspectRatio, setAspectRatio] = useState<number>(0); // Initialize as 0 to wait for first load
 
-	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>, isPrimary = false) => {
 		const img = e.currentTarget;
-		if (img.naturalWidth && img.naturalHeight) {
+		if (isPrimary && img.naturalWidth && img.naturalHeight) {
 			const ratio = img.naturalWidth / img.naturalHeight;
 			// Only update if significantly different to avoid flicker
 			if (Math.abs(aspectRatio - ratio) > 0.01) {
@@ -126,7 +126,7 @@ export function ArenaBattle({
 								>
 									<img
 										src={imageA}
-										onLoad={handleImageLoad}
+										onLoad={(e) => handleImageLoad(e, true)}
 										alt="Model A Output"
 										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
 									/>
@@ -192,10 +192,9 @@ export function ArenaBattle({
 								</div>
 							</button>
 
-							{/* Expanded Reference Card */}
 							<div
-								className={`relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl border border-indigo-500/30 group h-fit max-h-full ${
-									isRefExpanded ? "opacity-100 scale-100" : "opacity-0 pointer-events-none scale-95 absolute"
+								className={`relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-transparent group max-h-full ${
+									isRefExpanded ? "opacity-100 scale-100 h-auto" : "opacity-0 pointer-events-none scale-95 absolute h-0"
 								}`}
 								style={imageContainerStyle}
 							>
@@ -222,9 +221,9 @@ export function ArenaBattle({
 										>
 											<img
 												src={refImage}
-												onLoad={handleImageLoad}
+												onLoad={(e) => handleImageLoad(e, false)}
 												alt="Reference preview"
-												className="w-full h-full object-contain"
+												className="max-w-full max-h-full object-contain"
 											/>
 										</button>
 									) : (
@@ -277,7 +276,7 @@ export function ArenaBattle({
 								>
 									<img
 										src={imageB}
-										onLoad={handleImageLoad}
+										onLoad={(e) => handleImageLoad(e, false)}
 										alt="Model B Output"
 										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
 									/>
