@@ -7,7 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 interface ArenaBattleProps {
 	prompt: string;
@@ -26,7 +26,7 @@ export function ArenaBattle({
 }: ArenaBattleProps) {
 	const [isRefExpanded, setIsRefExpanded] = useState(false);
 	const [showLightbox, setShowLightbox] = useState<string | null>(null);
-	const [aspectRatio, setAspectRatio] = useState<number>(1); // Default to square until loaded
+	const [aspectRatio, setAspectRatio] = useState<number>(0); // Initialize as 0 to wait for first load
 
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
 		const img = e.currentTarget;
@@ -39,10 +39,30 @@ export function ArenaBattle({
 		}
 	};
 
-	// Reset ratio when battle changes to prevent "stuck" aspect ratios
+	const arenaRef = useRef<HTMLDivElement>(null);
+	const [containerHeight, setContainerHeight] = useState(0);
+
 	useEffect(() => {
-		setAspectRatio(0);
-	}, [imageA, imageB, refImage]);
+		const updateHeight = () => {
+			if (arenaRef.current) {
+				// The height of the image area is roughly the arena height minus padding/Vote buttons
+				// We'll use the bounding rect of the arena container
+				setContainerHeight(arenaRef.current.offsetHeight);
+			}
+		};
+
+		updateHeight();
+		window.addEventListener('resize', updateHeight);
+		return () => window.removeEventListener('resize', updateHeight);
+	}, []);
+
+	// Calculate precise pixel width of the images
+	// images scale to fit container height (minus padding and button area which is ~100px)
+	const availableHeight = Math.max(100, containerHeight - 120); 
+	const imgW = aspectRatio > 0 ? availableHeight * aspectRatio : 400;
+	// Since both use the same aspect ratio for now (simplified)
+	const imgW_B = imgW;
+
 
 	// Calculate container styles based on aspect ratio
 	const imageContainerStyle = useMemo(() => {
@@ -64,166 +84,199 @@ export function ArenaBattle({
 				</p>
 			</div>
 
-			{/* 2. Battle Arena (Images) - Fair 1:1:1 Distribution with Perfect Hugging */}
-			<div className="flex-1 flex items-center justify-center gap-4 relative min-h-0 px-2 overflow-hidden">
-				{/* Model A Container */}
-				<div className="flex-1 flex h-full items-center justify-end min-w-0">
-					<div
-						className="relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
-						style={imageContainerStyle}
+			{/* 2. Unified Battle Arena (Columns for vertical Image + Vote alignment) */}
+			<div ref={arenaRef} className="flex-1 flex items-stretch gap-[17px] relative min-h-0 px-2 overflow-hidden py-2">
+				{/* Model A Column */}
+				<div className="flex-1 flex justify-end min-w-0 z-10">
+					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
+					<div 
+						className="flex flex-col items-center min-h-0 h-full max-h-full"
+						style={{ width: `${imgW}px` }}
 					>
-						<button
-							type="button"
-							onClick={() => setShowLightbox(imageA)}
-							className="w-full h-full p-0 border-none bg-transparent cursor-zoom-in flex items-center justify-center"
-							aria-label="Zoom Model A result"
-						>
-							<img
-								src={imageA}
-								onLoad={handleImageLoad}
-								alt="Model A Output"
-								className="w-full h-full object-contain hover:opacity-95 transition-opacity"
-							/>
-						</button>
-						<div className="absolute top-4 left-4 bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-							A
+						{/* Image Holder */}
+						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
+							<div
+								className="relative rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
+								style={imageContainerStyle}
+							>
+								<button
+									type="button"
+									onClick={() => setShowLightbox(imageA)}
+									className="w-full h-full p-0 border-none bg-transparent cursor-zoom-in flex items-center justify-center"
+									aria-label="Zoom Model A result"
+								>
+									<img
+										src={imageA}
+										onLoad={handleImageLoad}
+										alt="Model A Output"
+										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
+									/>
+								</button>
+								<div className="absolute top-4 left-4 bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+									A
+								</div>
+							</div>
+						</div>
+						{/* Vote A Button Area */}
+						<div className="flex-none py-4 px-2 flex justify-center">
+							<div className="w-fit transition-transform duration-500 ease-in-out">
+								<VoteButton
+									onClick={() => onVote("A")}
+									color="indigo"
+									icon={<div className="font-black text-sm text-indigo-500 group-hover:text-white transition-colors">A</div>}
+									label="Vote A"
+								/>
+							</div>
 						</div>
 					</div>
 				</div>
 
-				{/* Reference Container (Expandable) */}
+				{/* Reference Image Column */}
 				<div
-					className={`relative transition-all duration-500 ease-in-out flex items-center justify-center h-full min-w-0 ${
+					className={`transition-all duration-500 ease-in-out flex flex-col items-center min-w-0 ${
 						isRefExpanded ? "flex-1 z-20" : "w-14 min-w-[56px] flex-none z-10"
 					}`}
 				>
-					{/* Toggle Button for Shrunk State (Visible when shrunk) */}
-					<button
-						type="button"
-						onClick={() => setIsRefExpanded(true)}
-						className={`absolute inset-0 w-full h-full bg-white/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex flex-col items-center justify-center group transition-all duration-500 ease-in-out ${
-							isRefExpanded ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
-						}`}
-						title="Show Reference Image"
-					>
-						<div className="flex flex-col items-center gap-2">
-							<div className="w-10 h-10 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden relative border border-slate-300 dark:border-slate-600 shrink-0">
-								{refImage ? (
-									<img
-										src={refImage}
-										alt="Reference"
-										className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity"
-									/>
-								) : (
-									<div className="w-full h-full flex items-center justify-center text-slate-400">
-										<Search size={14} />
+					<div className="flex-1 flex flex-col items-center w-full min-h-0 h-full">
+						{/* Reference Holder */}
+						<div className="flex-1 flex items-center justify-center relative w-full min-h-0">
+							{/* Toggle Button for Shrunk State */}
+							<button
+								type="button"
+								onClick={() => setIsRefExpanded(true)}
+								className={`absolute inset-0 w-full h-full bg-white/50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex flex-col items-center justify-center group transition-all duration-500 ease-in-out ${
+									isRefExpanded ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
+								}`}
+								title="Show Reference Image"
+							>
+								<div className="flex flex-col items-center gap-2">
+									<div className="w-10 h-10 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden relative border border-slate-300 dark:border-slate-600 shrink-0">
+										{refImage ? (
+											<img
+												src={refImage}
+												alt="Reference"
+												className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity"
+											/>
+										) : (
+											<div className="w-full h-full flex items-center justify-center text-slate-400">
+												<Search size={14} />
+											</div>
+										)}
 									</div>
-								)}
-							</div>
-							<span className="text-[10px] font-black text-slate-400 group-hover:text-indigo-500 transition-colors uppercase vertical-text">
-								REF
-							</span>
-						</div>
-					</button>
+									<span className="text-[10px] font-black text-slate-400 group-hover:text-indigo-500 transition-colors uppercase vertical-text">
+										REF
+									</span>
+								</div>
+							</button>
 
-					{/* Expanded Reference Card (Visible when expanded) */}
-					<div
-						className={`relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl border border-indigo-500/30 group h-fit max-h-full ${
-							isRefExpanded ? "opacity-100 scale-100" : "opacity-0 pointer-events-none scale-95 absolute"
-						}`}
-						style={imageContainerStyle}
-					>
-						{/* Shrink Button Overlay */}
-						<button
-							type="button"
-							onClick={(e) => {
-								e.stopPropagation();
-								setIsRefExpanded(false);
-							}}
-							className="absolute top-4 right-4 z-30 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full shadow-lg transition-all duration-300 active:scale-90 flex items-center justify-center opacity-0 group-hover:opacity-100"
-							title="Collapse Reference"
-						>
-							<Shrink size={18} />
-						</button>
-
-						<div className="w-full h-full flex items-center justify-center">
-							{refImage ? (
+							{/* Expanded Reference Card */}
+							<div
+								className={`relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-xl border border-indigo-500/30 group h-fit max-h-full ${
+									isRefExpanded ? "opacity-100 scale-100" : "opacity-0 pointer-events-none scale-95 absolute"
+								}`}
+								style={imageContainerStyle}
+							>
+								{/* Shrink Button Overlay */}
 								<button
 									type="button"
-									onClick={() => setShowLightbox(refImage)}
+									onClick={(e) => {
+										e.stopPropagation();
+										setIsRefExpanded(false);
+									}}
+									className="absolute top-4 right-4 z-30 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md text-white border border-white/20 rounded-full shadow-lg transition-all duration-300 active:scale-90 flex items-center justify-center opacity-0 group-hover:opacity-100"
+									title="Collapse Reference"
+								>
+									<Shrink size={18} />
+								</button>
+
+								<div className="w-full h-full flex items-center justify-center">
+									{refImage ? (
+										<button
+											type="button"
+											onClick={() => setShowLightbox(refImage)}
+											className="w-full h-full p-0 border-none bg-transparent cursor-zoom-in flex items-center justify-center"
+											aria-label="Zoom reference image"
+										>
+											<img
+												src={refImage}
+												onLoad={handleImageLoad}
+												alt="Reference preview"
+												className="w-full h-full object-contain"
+											/>
+										</button>
+									) : (
+										<div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+											<AlertCircle size={32} className="mb-2 opacity-50" />
+											<span className="text-sm">No reference</span>
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
+						{/* Tie/Bad Actions (Absolute positioning to prevent pushing images apart) */}
+						<div className="flex-none py-4 relative w-full h-20">
+							<div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-2 px-4">
+								<VoteButton
+									onClick={() => onVote("Tie")}
+									color="slate"
+									icon={<Minus size={18} />}
+									label="Tie"
+								/>
+								<VoteButton
+									onClick={() => onVote("BothBad")}
+									color="red"
+									icon={<ThumbsDown size={18} />}
+									label="Bad"
+								/>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				{/* Model B Column */}
+				<div className="flex-1 flex justify-start min-w-0 z-10">
+					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
+					<div 
+						className="flex flex-col items-center min-h-0 h-full max-h-full"
+						style={{ width: `${imgW_B}px` }}
+					>
+						{/* Image Holder */}
+						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
+							<div
+								className="relative rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
+								style={imageContainerStyle}
+							>
+								<button
+									type="button"
+									onClick={() => setShowLightbox(imageB)}
 									className="w-full h-full p-0 border-none bg-transparent cursor-zoom-in flex items-center justify-center"
-									aria-label="Zoom reference image"
+									aria-label="Zoom Model B result"
 								>
 									<img
-										src={refImage}
+										src={imageB}
 										onLoad={handleImageLoad}
-										alt="Reference preview"
-										className="w-full h-full object-contain"
+										alt="Model B Output"
+										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
 									/>
 								</button>
-							) : (
-								<div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-4 text-center">
-									<AlertCircle size={32} className="mb-2 opacity-50" />
-									<span className="text-sm">No reference</span>
+								<div className="absolute top-4 right-4 bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+									B
 								</div>
-							)}
+							</div>
+						</div>
+						{/* Vote B Button Area */}
+						<div className="flex-none py-4 px-2 flex justify-center">
+							<div className="w-fit transition-transform duration-500 ease-in-out">
+								<VoteButton
+									onClick={() => onVote("B")}
+									color="indigo"
+									icon={<div className="font-black text-sm text-indigo-500 group-hover:text-white transition-colors">B</div>}
+									label="Vote B"
+								/>
+							</div>
 						</div>
 					</div>
 				</div>
-
-				{/* Model B Container */}
-				<div className="flex-1 flex h-full items-center justify-start min-w-0">
-					<div
-						className="relative transition-all duration-500 ease-in-out rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
-						style={imageContainerStyle}
-					>
-						<button
-							type="button"
-							onClick={() => setShowLightbox(imageB)}
-							className="w-full h-full p-0 border-none bg-transparent cursor-zoom-in flex items-center justify-center"
-							aria-label="Zoom Model B result"
-						>
-							<img
-								src={imageB}
-								onLoad={handleImageLoad}
-								alt="Model B Output"
-								className="w-full h-full object-contain hover:opacity-95 transition-opacity"
-							/>
-						</button>
-						<div className="absolute top-4 right-4 bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-							B
-						</div>
-					</div>
-				</div>
-			</div>
-
-			{/* 3. Compact Voting Controls */}
-			<div className="flex justify-center items-center gap-3 py-2 flex-none">
-				<VoteButton
-					onClick={() => onVote("A")}
-					color="indigo"
-					icon={<div className="font-black text-sm">A</div>}
-					label="Model A"
-				/>
-				<VoteButton
-					onClick={() => onVote("B")}
-					color="indigo"
-					icon={<div className="font-black text-sm">B</div>}
-					label="Model B"
-				/>
-				<div className="w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1" />
-				<VoteButton
-					onClick={() => onVote("Tie")}
-					color="slate"
-					icon={<Minus size={18} />}
-					label="Tie"
-				/>
-				<VoteButton
-					onClick={() => onVote("BothBad")}
-					color="red"
-					icon={<ThumbsDown size={18} />}
-					label="Bad"
-				/>
 			</div>
 
 			{/* Lightbox */}
@@ -287,11 +340,11 @@ function VoteButton({
 			onClick={onClick}
 			className={`
                 ${colors[color]}
-                flex flex-col items-center justify-center w-20 h-14 rounded-lg border-2 transition-all active:scale-95 shadow-sm
+                flex flex-col items-center justify-center w-20 h-14 rounded-lg border-2 transition-all active:scale-95 shadow-sm group
             `}
 		>
-			<div className="mb-1">{icon}</div>
-			<span className="text-xs font-bold uppercase tracking-wide">{label}</span>
+			<div className="mb-0.5">{icon}</div>
+			<span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
 		</button>
 	);
 }

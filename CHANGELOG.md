@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-01-28
+
+### Fixed
+
+- **Arena Alignment Precision**:
+  - Implemented dynamic pixel-width calculation for alignment units based on image aspect ratio and container height.
+  - Achieved perfect **0px horizontal offset** between Vote buttons and image centers across all aspect ratios.
+  - Standardized the center gap to a consistent **~17.5px** (within 1.5px tolerance) for Square, Landscape, and Portrait modes.
+  - Fixed "floating" images in Square and Portrait modes by constraining units to exact image widths and pulling them flush against the divider.
+
 ## [Unreleased] - 2026-01-27
 
 ### Fixed
