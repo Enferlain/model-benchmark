@@ -1,4 +1,7 @@
 from pathlib import Path
+import hashlib
+import json
+import os
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
@@ -106,11 +109,7 @@ def get_model_outputs(model_id: str):
 
             if prompt_idx != -1:
                 # Default fallback
-                prompt_text = (
-                    prompts[prompt_idx]
-                    if prompt_idx < len(prompts)
-                    else "Unknown prompt"
-                )
+                prompt_text = prompts[prompt_idx] if prompt_idx < len(prompts) else "Unknown prompt"
 
                 # Metadata check
                 try:
@@ -121,6 +120,8 @@ def get_model_outputs(model_id: str):
                         meta_prompt = img.info.get("prompt")
                         if meta_prompt:
                             prompt_text = meta_prompt
+
+                        image_id = img.info.get("id")
                 except Exception:
                     pass
 
@@ -135,6 +136,7 @@ def get_model_outputs(model_id: str):
 
                 images.append(
                     {
+                        "id": image_id or hashlib.sha256(str(img_path).encode()).hexdigest()[:8],
                         "filename": img_path.name,
                         "url": url,
                         "prompt": prompt_text,
@@ -201,9 +203,7 @@ def delete_model(model_id: str, delete_file: bool = False):
                         file_path.unlink()
                         print(f"Deleted file: {file_path}")
                     elif not is_safe:
-                        print(
-                            f"Skipping file deletion for external/unsafe path: {file_path}"
-                        )
+                        print(f"Skipping file deletion for external/unsafe path: {file_path}")
                         # If user ASKED to delete file but we can't, do we error?
                         # Probably yes, to warn them.
                         raise HTTPException(

@@ -10,7 +10,7 @@ from watchdog.events import FileSystemEventHandler
 # Startup/Shutdown Events
 from watchdog.observers import Observer
 
-from .api import generation, models, prompts, system
+from .api import arena, generation, models, prompts, system
 from .core import database as db
 from .services import model_manager
 
@@ -94,4 +94,5 @@ app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(prompts.router, prefix="/api", tags=["prompts"])
 app.include_router(generation.router, prefix="/api", tags=["generation"])
 app.include_router(system.router, prefix="/api", tags=["system"])
+app.include_router(arena.router, prefix="/api", tags=["arena"])
 # Reload trigger

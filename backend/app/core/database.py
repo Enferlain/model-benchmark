@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import JSON, Column
@@ -25,7 +25,7 @@ class Model(SQLModel, table=True):
     is_hidden: bool = Field(default=False)
     is_missing: bool = Field(default=False, description="True if model file is not found on disk")
     bt_score: float = Field(default=1000.0, description="Bradley-Terry strength score")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     results: list["ModelResult"] = Relationship(back_populates="model", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
@@ -61,7 +61,7 @@ class Prompt(SQLModel, table=True):
     category: str | None = Field(default=None, index=True)
     tags: list[str] = Field(default=[], sa_column=Column(JSON))
     meta: dict = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ArenaVote(SQLModel, table=True):
@@ -76,7 +76,18 @@ class ArenaVote(SQLModel, table=True):
     seed: int | None = Field(default=None)
     parameters: dict = Field(default={}, sa_column=Column(JSON))
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ImageOutput(SQLModel, table=True):
+    id: str = Field(primary_key=True, description="8-char UUID from PNG metadata")
+    model_hash: str = Field(foreign_key="model.hash", index=True)
+    prompt_id: str | None = Field(default=None, foreign_key="prompt.id", index=True)
+    prompt_text: str | None = Field(default=None, description="Fallback text")
+    seed: int | None = Field(default=None)
+    path: str = Field(index=True)
+    mtime: int = Field(default=0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # Engine

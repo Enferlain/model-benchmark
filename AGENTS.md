@@ -31,6 +31,7 @@ This document is a guide for AI Agents (and humans) working on this codebase. It
 - **Linting & Formatting**: **Ruff** (configured in `backend/pyproject.toml`)
 - **Type Checking**: **Ty**
 - **ORM**: SQLModel (SQLite)
+- **Migrations**: Alembic (configured in `backend/alembic/`)
 - **ML Engine**: PyTorch, Diffusers, Safetensors
 - **Image Processing**: Pillow, OpenCV
 - **Metrics**: LPIPS, CLIP, Aesthetica
@@ -90,9 +91,14 @@ model-benchmark-explorer/
     - Frontend fetches results from the database via `/api/models`.
 
 3.  **Model Identification**:
-    - Models are identified by **BLAKE3 Hash** (or SHA256 in future).
-    - Filenames are secondary.
+    - Models are identified by **SHA256 Hash** (Industry Standard).
+    - Older BLAKE3 hashes are deprecated.
     - Local cache (`model_cache.json`) speeds up startup.
+
+4.  **Database & Indexing**:
+    - **Alembic**: All schema changes MUST be done via Alembic migrations. The `init_db()` function is initialized but doesn't auto-create tables anymore.
+    - **Image Indexing**: Generated images have an 8-character UUID in their PNG metadata. The `ImageOutput` table indexes these for speed.
+    - **Stable Prompts**: Prompts are stored in a dedicated `Prompt` table. Images should link to `Prompt.id` for analytics consistency.
 
 ## 🤖 Agent Workflows
 
@@ -144,6 +150,11 @@ model-benchmark-explorer/
   2.  Create route in `backend/app/api/`.
   3.  Add service logic in `backend/app/services/`.
   4.  Add typed function in `src/services/api.ts`.
+- **Database Schema Change**:
+  1.  Modify models in `backend/app/core/database.py`.
+  2.  Run `alembic revision --autogenerate -m "description"`.
+  3.  Review the migration script (ensure `import sqlmodel` is present if needed).
+  4.  Apply with `alembic upgrade head`.
 
 ## ⚠️ Gotchas
 

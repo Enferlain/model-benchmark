@@ -1,3 +1,4 @@
+from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
@@ -5,7 +6,7 @@ from pathlib import Path
 from sqlmodel import desc, select
 
 from ..core import database as db
-from ..core.database import BenchmarkRun, Model
+from ..core.database import BenchmarkRun, ImageOutput, Model
 from ..core.database import ModelResult as DBModelResult
 from ..core.state import ModelResult, models_db
 from . import prompt_manager as data_loader
@@ -337,16 +338,16 @@ def sync_models_with_db(recheck_types: bool = False):
                     # Just update basic meta
                     if not model_record.meta:
                         model_record.meta = {}
-                    model_record.meta["mtime"] = file_mtime
-                    model_record.meta["size"] = file_size
-
                     model_record.meta["size"] = file_size
 
                 # Ensure it is marked as found
                 if model_record.is_missing:
                     model_record.is_missing = False
                     stats["updated"] += 1  # Recovered
+
                 session.add(model_record)
+                session.commit()  # Ensure model hash exists for FK
+                index_model_outputs(session, model_record)
 
                 # If we fell through here and didn't count as update or added, and not skipped, treat as unchanged?
                 # The logic above is slightly loose on counting "updated" vs "unchanged" when fallthrough happens without specific change detected.
@@ -419,3 +420,78 @@ def sync_models_with_db(recheck_types: bool = False):
 
     print(f"DB Sync complete. Loaded {len(models_db)} models. Stats: {stats}")
     return models_db, stats
+
+
+def index_model_outputs(session: db.Session, model: Model):
+    """
+    Scans the output directory for a model and indexes images in the ImageOutput table.
+    Uses mtime to skip already indexed images.
+    """
+    output_dir = data_loader.ASSETS_DIR / "outputs" / model.name
+    if not output_dir.exists():
+        return
+
+    print(f"Indexing outputs for {model.name}...")
+
+    # 1. Get existing indexed images for this model to check mtime
+    indexed_map = {img.path: img.mtime for img in session.exec(select(ImageOutput).where(ImageOutput.model_hash == model.hash)).all()}
+
+    from PIL import Image
+    from .prompt_manager import get_all_prompts_metadata
+
+    # Cache prompts for better lookup performance (though we usually have prompt_text in metadata)
+    # Actually, the filename has prompt_idx (pX), so we can use that.
+    prompts = [p["text"] for p in get_all_prompts_metadata()]
+
+    new_count = 0
+    updated_count = 0
+
+    for img_path in output_dir.glob("p*_i*_s*.png"):
+        mtime = int(img_path.stat().st_mtime)
+        path_str = str(img_path)
+
+        if path_str in indexed_map and indexed_map[path_str] >= mtime:
+            continue
+
+        try:
+            with Image.open(img_path) as img:
+                img.load()
+                image_id = img.info.get("id")
+                prompt_text = img.info.get("prompt")
+
+                # Parse filename for seed/idx if metadata is missing (legacy)
+                if not prompt_text or not image_id:
+                    parts = img_path.stem.split("_")
+                    prompt_idx = -1
+                    seed = None
+                    for part in parts:
+                        if part.startswith("p") and part[1:].isdigit():
+                            prompt_idx = int(part[1:])
+                        elif part.startswith("s") and part[1:].isdigit():
+                            seed = int(part[1:])
+
+                    if not prompt_text and prompt_idx != -1 and prompt_idx < len(prompts):
+                        prompt_text = prompts[prompt_idx]
+
+                    if not image_id:
+                        # Generate deterministic ID for legacy images
+                        image_id = hashlib.sha256(path_str.encode()).hexdigest()[:8]
+
+                # Upsert ImageOutput
+                record = session.get(ImageOutput, image_id)
+                if not record:
+                    record = ImageOutput(id=image_id, model_hash=model.hash, prompt_text=prompt_text, seed=seed, path=path_str, mtime=mtime)
+                    session.add(record)
+                    new_count += 1
+                else:
+                    record.mtime = mtime
+                    record.path = path_str  # Path might have changed due to rename
+                    record.prompt_text = prompt_text
+                    updated_count += 1
+
+        except Exception as e:
+            print(f"Failed to index {img_path.name}: {e}")
+
+    session.commit()
+    if new_count > 0 or updated_count > 0:
+        print(f"Indexed {model.name}: {new_count} new, {updated_count} updated.")

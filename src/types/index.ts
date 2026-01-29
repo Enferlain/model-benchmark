@@ -24,6 +24,7 @@ export interface ModelData {
 	is_missing?: boolean;
 	model_type?: string;
 	prediction_type?: string;
+	bt_score?: number;
 	path?: string;
 }
 
@@ -36,6 +37,7 @@ export interface MetricOption {
 }
 
 export interface ModelOutput {
+	id: string;
 	filename: string;
 	url: string;
 	prompt: string;

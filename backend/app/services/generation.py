@@ -6,6 +6,9 @@ from PIL.PngImagePlugin import PngInfo
 from ..core.state import ScanOptions, generation_state, models_db
 from ..lib import inference
 from . import prompt_manager as data_loader
+from ..core import database as db
+from ..core.database import Prompt
+from sqlmodel import select
 
 
 def check_cancelled():
@@ -58,9 +61,7 @@ def generate_images_only(options: ScanOptions):
                             prompt = img.info.get("prompt")
                             if prompt:
                                 prompt = prompt.strip()
-                                prompt_max_counts[prompt] = prompt_max_counts.get(
-                                    prompt, 0
-                                )
+                                prompt_max_counts[prompt] = prompt_max_counts.get(prompt, 0)
                                 # Count this image (we'll track per-model counts below)
                     except Exception:
                         pass
@@ -168,10 +169,7 @@ def generate_images_only(options: ScanOptions):
                 # Use DB prediction type if available!
                 if m.prediction_type == "v_prediction":
                     extra_args.append("--v_parameterization")
-                elif any(
-                    x in model_path.lower()
-                    for x in ["v-prediction", "v-pred", "v_pred", "_v2"]
-                ):
+                elif any(x in model_path.lower() for x in ["v-prediction", "v-pred", "v_pred", "_v2"]):
                     # Fallback heuristic
                     extra_args.append("--v_parameterization")
 
@@ -220,10 +218,38 @@ def generate_images_only(options: ScanOptions):
                         # Generate unique ID for this image
                         import json
                         import uuid
-                        from datetime import datetime
+                        from datetime import datetime, timezone
 
                         image_id = str(uuid.uuid4())[:8]  # Short UUID
-                        generation_time = datetime.utcnow().isoformat()
+                        generation_time = datetime.now(timezone.utc).isoformat()
+
+                        # Find or Create Stable Prompt Entity
+                        from datetime import timezone
+
+                        prompt_id = None
+                        with db.get_session() as session:
+                            prompt_text_clean = p_meta["text"].strip()
+                            existing_prompt = session.exec(select(Prompt).where(Prompt.text == prompt_text_clean)).first()
+
+                            if existing_prompt:
+                                prompt_id = existing_prompt.id
+                            else:
+                                # Create new prompt entity
+                                import hashlib
+
+                                # Deterministic ID based on text for consistency if needed,
+                                # but the spec said "Stable UUID". Let's use a hash-based UUID-like ID or actual UUID.
+                                # Using UUID4 for true uniqueness, but hash is better for deduplication across sessions.
+                                prompt_id = hashlib.sha256(prompt_text_clean.encode()).hexdigest()[:12]
+                                new_prompt = Prompt(
+                                    id=prompt_id,
+                                    text=prompt_text_clean,
+                                    filename=p_meta.get("filename"),
+                                    alias=p_meta.get("alias"),
+                                    created_at=datetime.now(timezone.utc),
+                                )
+                                session.add(new_prompt)
+                                session.commit()
 
                         # Build parameters dict
                         params = {
@@ -238,10 +264,9 @@ def generate_images_only(options: ScanOptions):
                         # Prepare Metadata
                         metadata = PngInfo()
                         metadata.add_text("model_name", m.name)
-                        metadata.add_text(
-                            "model_hash", m.hash
-                        )  # Critical for tracking identity
+                        metadata.add_text("model_hash", m.hash)  # Critical for tracking identity
                         metadata.add_text("prompt", p_meta["text"])
+                        metadata.add_text("prompt_id", prompt_id or "")
                         metadata.add_text("parameters", json.dumps(params))
                         metadata.add_text("prompt_set", "")  # Future: named prompt sets
                         metadata.add_text("id", image_id)
@@ -261,9 +286,7 @@ def generate_images_only(options: ScanOptions):
 
                         images_generated += 1
                         generation_state["progress"]["current"] = images_generated
-                        print(
-                            f"[{images_generated}/{total_images_needed}] Saved {save_path}"
-                        )
+                        print(f"[{images_generated}/{total_images_needed}] Saved {save_path}")
 
             except Exception as e:
                 print(f"Failed generation for {m.name}: {e}")

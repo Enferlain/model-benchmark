@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Database Schema Evolution (Alembic)**: Integrated Alembic for robust, versioned database migrations.
 - **Arena Infrastructure**: Added new `arenavote` and `prompt` tables to support detailed battle tracking and stable prompt entities.
 - **Bradley-Terry Support**: Introduced `bt_score` to the `Model` table, laying the groundwork for the new multi-dimensional ranking system.
+- **Image Indexing System**: Automated extraction of 8-character UUIDs from PNG metadata into the `ImageOutput` table for high-performance gallery lookups.
+- **BT Calculation Engine**: Implemented a statistically grounded Bradley-Terry ranking service (`bt_service.py`) using the MM algorithm to derive model strengths from arena votes.
+- **Arena Voting API**: New `/arena/vote` and `/arena/leaderboard` endpoints with support for ties and stable prompt entity mapping.
 
 ### Changed
 
