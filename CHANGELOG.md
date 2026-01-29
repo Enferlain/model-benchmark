@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Arena Animation Synchronization**:
   - Synchronized the reference image container's border and background transitions with its 500ms scaling animation.
   - Replaced immediate layout toggles with smooth transparency transitions (`border-transparent`, `bg-transparent`) to eliminate visual "jumps" during expansion and contraction.
+- **Arena Layout Consistency**:
+  - Fixed an issue where portrait (narrow) images would drift apart when the reference was expanded.
+  - Switched from distributive `flex-1` to calculated `flex-none` widths, ensuring images always "hug" the center divider regardless of aspect ratio.
+- **Project-wide Quality & Accessibility**:
+  - Resolved 100+ Biome linting errors across the codebase, primarily focusing on missing `type="button"` attributes and accessibility violations.
+  - Converted interactive static elements (`div`, `img`) to semantic `<button>` elements for better screen reader support and keyboard navigation.
+  - Fixed broken accessibility associations (labels without inputs) in `TransferList` and `ScanSettingsPanel`.
+  - Achieved clean `tsc` type-checking and high-performance frontend verification.
 
 ## [Unreleased] - 2026-01-27
 

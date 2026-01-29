@@ -7,7 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 interface ArenaBattleProps {
 	prompt: string;
@@ -27,25 +27,26 @@ export function ArenaBattle({
 }: ArenaBattleProps) {
 	const [isRefExpanded, setIsRefExpanded] = useState(false);
 	const [showLightbox, setShowLightbox] = useState<string | null>(null);
-	const [aspectRatio, setAspectRatio] = useState<number>(0); // Initialize as 0 to wait for first load
+	const [ratioA, setRatioA] = useState<number>(0);
+	const [ratioB, setRatioB] = useState<number>(0);
+	const [ratioRef, setRatioRef] = useState<number>(0);
 
 	const handleImageLoad = (
 		e: React.SyntheticEvent<HTMLImageElement>,
-		isPrimary = false,
+		type: "A" | "B" | "Ref",
 	) => {
 		const img = e.currentTarget;
-		if (isPrimary && img.naturalWidth && img.naturalHeight) {
+		if (img.naturalWidth && img.naturalHeight) {
 			const ratio = img.naturalWidth / img.naturalHeight;
-			// Only update if significantly different to avoid flicker
-			if (Math.abs(aspectRatio - ratio) > 0.01) {
-				setAspectRatio(ratio);
-			}
+			if (type === "A" && Math.abs(ratioA - ratio) > 0.01) setRatioA(ratio);
+			if (type === "B" && Math.abs(ratioB - ratio) > 0.01) setRatioB(ratio);
+			if (type === "Ref" && Math.abs(ratioRef - ratio) > 0.01) setRatioRef(ratio);
 		}
 	};
 
 	const arenaRef = useRef<HTMLDivElement>(null);
 	const imageRef = useRef<HTMLDivElement>(null);
-	const [containerHeight, setContainerHeight] = useState(0);
+	const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 	const [measuredImageHeight, setMeasuredImageHeight] = useState<number | null>(
 		null,
 	);
@@ -67,33 +68,56 @@ export function ArenaBattle({
 	}, []);
 
 	useEffect(() => {
-		const updateHeight = () => {
+		const updateSize = () => {
 			if (arenaRef.current) {
-				// The height of the image area is roughly the arena height minus padding/Vote buttons
-				// We'll use the bounding rect of the arena container
-				setContainerHeight(arenaRef.current.offsetHeight);
+				setContainerSize({
+					width: arenaRef.current.offsetWidth,
+					height: arenaRef.current.offsetHeight,
+				});
 			}
 		};
 
-		updateHeight();
-		window.addEventListener("resize", updateHeight);
-		return () => window.removeEventListener("resize", updateHeight);
+		updateSize();
+		window.addEventListener("resize", updateSize);
+		return () => window.removeEventListener("resize", updateSize);
 	}, []);
 
 	// Calculate precise pixel width of the images
-	// images scale to fit container height (minus padding and button area which is ~100px)
-	const availableHeight = Math.max(100, containerHeight - 120);
-	const imgW = aspectRatio > 0 ? availableHeight * aspectRatio : 400;
-	// Since both use the same aspect ratio for now (simplified)
-	const imgW_B = imgW;
+	// 1. Target widths based on available height (images scale to fit container height)
+	const availableHeight = Math.max(100, containerSize.height - 120);
+	
+	// Fallback to 1.0 (square) if ratio is not yet loaded
+	const effectiveRatioA = ratioA || 1.0;
+	const effectiveRatioB = ratioB || 1.0;
+	const effectiveRatioRef = ratioRef || 1.0;
 
-	// Calculate container styles based on aspect ratio
-	const imageContainerStyle = useMemo(() => {
-		if (aspectRatio === 0) return {};
+	const targetW_A = availableHeight * effectiveRatioA;
+	const targetW_B = availableHeight * effectiveRatioB;
+	// Reference is either the bar (56px) or expanded (ratio-based)
+	const targetW_Ref = isRefExpanded ? (availableHeight * effectiveRatioRef) : 56;
+
+	// 2. Width-based scaling (ensure total width fits in the container)
+	// Gaps are 17px between columns (2 gaps total). Padding is 40px total (20px each side).
+	const horizontalGaps = 34;
+	const padding = 40;
+	const availableWidth = Math.max(200, containerSize.width - horizontalGaps - padding);
+	
+	const totalTargetW = targetW_A + targetW_B + targetW_Ref;
+	
+	// If total width exceeds available width, scale everything down proportionally
+	const scale = totalTargetW > availableWidth ? availableWidth / totalTargetW : 1;
+
+	const imgW_A = targetW_A * scale;
+	const imgW_B = targetW_B * scale;
+	const imgW_Ref = targetW_Ref * scale;
+
+	// Helper to get image container style based on ratio
+	const getImageContainerStyle = (ratio: number) => {
+		if (ratio === 0) return {};
 		return {
-			aspectRatio: `${aspectRatio}`,
+			aspectRatio: `${ratio}`,
 		};
-	}, [aspectRatio]);
+	};
 
 	return (
 		<div className="flex flex-col h-full w-full max-w-[1600px] mx-auto gap-4 min-h-0">
@@ -115,19 +139,19 @@ export function ArenaBattle({
 				{/* Model A Column */}
 				<div
 					className="flex-none flex justify-end min-w-0 z-10"
-					style={{ width: `${imgW}px` }}
+					style={{ width: `${imgW_A}px` }}
 				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
 					<div
 						className="flex flex-col items-center min-h-0 h-full max-h-full"
-						style={{ width: `${imgW}px` }}
+						style={{ width: `${imgW_A}px` }}
 					>
 						{/* Image Holder */}
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
 							<div
 								ref={imageRef}
 								className="relative rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
-								style={imageContainerStyle}
+								style={getImageContainerStyle(ratioA)}
 							>
 								<button
 									type="button"
@@ -137,7 +161,7 @@ export function ArenaBattle({
 								>
 									<img
 										src={imageA}
-										onLoad={(e) => handleImageLoad(e, true)}
+										onLoad={(e) => handleImageLoad(e, "A")}
 										alt="Model A Output"
 										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
 									/>
@@ -170,13 +194,13 @@ export function ArenaBattle({
 					className="transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex justify-center min-w-0"
 					style={{
 						flex: "none",
-						width: isRefExpanded ? `${imgW}px` : "56px",
+						width: `${imgW_Ref}px`,
 						zIndex: isRefExpanded ? 20 : 10,
 					}}
 				>
 					<div
 						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
-						style={{ width: isRefExpanded ? `${imgW}px` : "100%" }}
+						style={{ width: `${imgW_Ref}px` }}
 					>
 						{/* Reference Holder - Unified Container */}
 						<div className="flex-1 flex items-center justify-center relative w-full min-h-0">
@@ -192,12 +216,12 @@ export function ArenaBattle({
 								`}
 								style={
 									isRefExpanded
-										? { ...imageContainerStyle }
+										? getImageContainerStyle(ratioRef)
 										: {
 												height: measuredImageHeight
 													? `${measuredImageHeight}px`
 													: "400px",
-												width: "56px",
+												width: `${imgW_Ref}px`,
 											}
 								}
 							>
@@ -272,7 +296,7 @@ export function ArenaBattle({
 										>
 											<img
 												src={refImage}
-												onLoad={(e) => handleImageLoad(e, false)}
+												onLoad={(e) => handleImageLoad(e, "Ref")}
 												alt="Reference preview"
 												className="max-w-full max-h-full object-contain"
 											/>
@@ -320,7 +344,7 @@ export function ArenaBattle({
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
 							<div
 								className="relative rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
-								style={imageContainerStyle}
+								style={getImageContainerStyle(ratioB)}
 							>
 								<button
 									type="button"
@@ -330,7 +354,7 @@ export function ArenaBattle({
 								>
 									<img
 										src={imageB}
-										onLoad={(e) => handleImageLoad(e, false)}
+										onLoad={(e) => handleImageLoad(e, "B")}
 										alt="Model B Output"
 										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
 									/>
