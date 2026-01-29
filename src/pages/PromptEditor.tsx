@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreatePromptModal } from "../components/prompts/CreatePromptModal";
 import { PromptDetailEditor } from "../components/prompts/PromptDetailEditor";
 import { PromptList } from "../components/prompts/PromptList";
-import { useData } from "../context/DataContext";
 import {
 	createPrompt,
 	deletePrompt,
@@ -13,6 +12,8 @@ import {
 	shufflePrompts,
 	updatePromptText,
 } from "../services/api";
+import { useData } from "../context/DataContext";
+
 
 export default function PromptEditor() {
 	const {
@@ -43,16 +44,14 @@ export default function PromptEditor() {
 			const { active, over } = event;
 
 			if (over && active.id !== over.id) {
-				const oldIndex = prompts.findIndex(
-					(p) => p.id === active.id.toString(),
-				);
-				const newIndex = prompts.findIndex((p) => p.id === over.id.toString());
+				const oldIndex = prompts.findIndex((p) => p.id === (active as any).id);
+				const newIndex = prompts.findIndex((p) => p.id === (over as any).id);
 
 				const newPrompts = arrayMove(prompts, oldIndex, newIndex);
 				// Update backend
 				try {
 					await updatePromptText("order", {
-						order: newPrompts.map((p: any) => p.id),
+						order: newPrompts.map((p) => p.id),
 					});
 					await loadPrompts();
 				} catch (error) {
@@ -158,10 +157,9 @@ export default function PromptEditor() {
 	}, [prompts, searchQuery]);
 
 	return (
-		<div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col">
-			<div className="flex-1 flex overflow-hidden">
-				<div className="w-80 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col overflow-hidden">
-					<PromptList
+		<div className="max-w-[1800px] mx-auto h-[calc(100vh-100px)] pt-6 px-6 flex gap-6">
+			<div className="w-80 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col overflow-hidden rounded-xl shadow-sm">
+				<PromptList
 						prompts={filteredPrompts}
 						selectedId={selectedId}
 						onSelect={setSelectedId}
@@ -171,12 +169,12 @@ export default function PromptEditor() {
 						onEnableAll={handleEnableAll}
 						onCreateClick={() => setIsCreateModalOpen(true)}
 						searchQuery={searchQuery}
-						onSearchChange={setSearchQuery}
-						isLoading={isLoading}
-					/>
-				</div>
+					onSearchChange={setSearchQuery}
+					isLoading={isLoading}
+				/>
+			</div>
 
-				<div className="flex-1 bg-white dark:bg-slate-800 overflow-y-auto">
+			<div className="flex-1 bg-white dark:bg-slate-800 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
 					{selectedPrompt ? (
 						<PromptDetailEditor
 							prompt={selectedPrompt}
@@ -199,7 +197,6 @@ export default function PromptEditor() {
 						</div>
 					)}
 				</div>
-			</div>
 
 			<CreatePromptModal
 				isOpen={isCreateModalOpen}

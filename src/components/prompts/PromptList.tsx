@@ -79,6 +79,8 @@ export const PromptList: React.FC<PromptListProps> = ({
 		});
 	}, [prompts, searchQuery]);
 
+	const allEnabled = filteredPrompts.length > 0 && filteredPrompts.every((p) => p.enabled);
+
 	return (
 		<div className="w-1/3 min-w-[320px] max-w-[450px] flex flex-col bg-white dark:bg-slate-800/50 rounded-2xl shadow-lg border border-slate-200 dark:border-white/5 overflow-hidden backdrop-blur-sm">
 			<div className="p-4 border-b border-slate-200 dark:border-white/5 flex gap-2">
@@ -116,17 +118,18 @@ export const PromptList: React.FC<PromptListProps> = ({
 				</button>
 				<button
 					type="button"
-					onClick={() => onEnableAll(true)}
+					onClick={() => onEnableAll(!allEnabled)}
 					className="p-1.5 px-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap"
 				>
-					<CheckSquare size={12} /> Enable All
-				</button>
-				<button
-					type="button"
-					onClick={() => onEnableAll(false)}
-					className="p-1.5 px-3 bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition-colors whitespace-nowrap"
-				>
-					<Square size={12} /> Disable All
+					{allEnabled ? (
+						<>
+							<Square size={12} /> Disable All
+						</>
+					) : (
+						<>
+							<CheckSquare size={12} /> Enable All
+						</>
+					)}
 				</button>
 			</div>
 

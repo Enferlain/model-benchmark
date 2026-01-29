@@ -23,16 +23,12 @@ def get_status():
 def get_runs():
     """Get list of past benchmark runs with their model results."""
     with db.get_session() as session:
-        runs = session.exec(
-            select(db.BenchmarkRun).order_by(desc(db.BenchmarkRun.timestamp))
-        ).all()
+        runs = session.exec(select(db.BenchmarkRun).order_by(desc(db.BenchmarkRun.timestamp))).all()
 
         result = []
         for run in runs:
             # Get results for this run
-            run_results = session.exec(
-                select(db.ModelResult).where(db.ModelResult.run_id == run.id)
-            ).all()
+            run_results = session.exec(select(db.ModelResult).where(db.ModelResult.run_id == run.id)).all()
 
             # Build model results with names
             models_data = []

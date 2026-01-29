@@ -18,6 +18,7 @@ cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
+alembic upgrade head # Run migrations
 
 # Frontend (from root)
 npm install
@@ -127,10 +128,11 @@ Open `http://localhost:5173` in your browser.
 ## Key Features
 
 - **Dashboard**: Visual scatter plot of model metrics with linked table selection
-- **Gallery**: Filter generated images by Prompt, Seed, and Model
+- **Arena**: Pairwise model comparison with **Bradley-Terry (BT)** ranking system
+- **Gallery**: Filter generated images by Prompt, Seed, and Model (with optimized UUID indexing)
 - **Compare**: Side-by-side image comparison with slider overlay
-- **Prompt Editor**: Full CRUD for test prompts with reference images
-- **Database**: View and search benchmark run history
+- **Prompt Editor**: Full CRUD for stable test prompts with reference images
+- **Database**: View and search benchmark run history and arena votes
 - **Model Comparison View**: Slider-based visual comparison between models
 
 ### Fairness Features
@@ -215,6 +217,13 @@ If an image is missing (e.g., `p001_i01` doesn't exist), the system:
 | `/api/models/download`        | POST   | Download model from URL |
 | `/api/models/download/status` | GET    | Download progress       |
 | `/api/models/{id}`            | DELETE | Remove model            |
+
+### Arena
+
+| Endpoint                 | Method | Description                     |
+| ------------------------ | ------ | ------------------------------- |
+| `/api/arena/vote`        | POST   | Cast vote and update BT ratings |
+| `/api/arena/leaderboard` | GET    | Get BT-ranked model leaderboard |
 
 ### Generation Options
 

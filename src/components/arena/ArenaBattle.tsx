@@ -47,6 +47,7 @@ export function ArenaBattle({
 	const arenaRef = useRef<HTMLDivElement>(null);
 	const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
+
 	useEffect(() => {
 		const updateSize = () => {
 			if (arenaRef.current) {
@@ -90,6 +91,9 @@ export function ArenaBattle({
 	const imgW_A = targetW_A * scale;
 	const imgW_B = targetW_B * scale;
 	const imgW_Ref = targetW_Ref * scale;
+
+	// The height of the images and the reference bar should match perfectly
+	const imgH = availableHeight * scale;
 
 	// Helper to get image container style based on ratio
 	const getImageContainerStyle = (ratio: number) => {
@@ -195,7 +199,7 @@ export function ArenaBattle({
 									isRefExpanded
 										? getImageContainerStyle(ratioRef)
 										: {
-												height: "100%",
+												height: `${imgH}px`,
 												width: "100%",
 											}
 								}
