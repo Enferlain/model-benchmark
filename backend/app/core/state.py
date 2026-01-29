@@ -11,8 +11,6 @@ class ModelRequest(BaseModel):
     api_token: str | None = None
 
 
-
-
 # Forward compatibility for API responses
 class ModelResult(BaseModel):
     id: str  # Kept for frontend compatibility (hash or filename-based)
@@ -24,6 +22,7 @@ class ModelResult(BaseModel):
     rating: float = 0.0
     vqa_score: float = 0.0
     lpips_loss: float = 0.0
+    bt_score: float = 1000.0
     metrics: dict[str, float] = {}
     url: str = ""
     path: str | None = None
@@ -63,9 +62,7 @@ class ScanOptions(BaseModel):
     width: int = 1024
     height: int = 1536
     common_only: bool = False  # If true, only analyze prompts common to all models
-    equalize_counts: bool = (
-        False  # If true, generate to match max image count per prompt across models
-    )
+    equalize_counts: bool = False  # If true, generate to match max image count per prompt across models
     selected_model_ids: list[str] | None = None  # If set, only process these models
 
 

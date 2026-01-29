@@ -12,28 +12,22 @@ DATABASE_URL = f"sqlite:///{DATABASE_FILE}"
 
 # Models
 class Model(SQLModel, table=True):
-    hash: str = Field(
-        primary_key=True, index=True, description="BLAKE3 hash of the model file"
-    )
+    hash: str = Field(primary_key=True, index=True, description="SHA256 hash of the model file")
     name: str = Field(index=True)
     filename: str
     path: str
     type: str = Field(default="unknown", description="e.g. sd15, sdxl")
     source: str = Field(default="Local", description="Civitai, HuggingFace, or Local")
-    prediction_type: str = Field(
-        default="epsilon", description="epsilon or v_prediction"
-    )
+    prediction_type: str = Field(default="epsilon", description="epsilon or v_prediction")
+    hash_type: str = Field(default="sha256", description="Algorithm (sha256, blake3)")
     compatibility: dict = Field(default={}, sa_column=Column(JSON))
     meta: dict = Field(default={}, sa_column=Column(JSON))
     is_hidden: bool = Field(default=False)
-    is_missing: bool = Field(
-        default=False, description="True if model file is not found on disk"
-    )
+    is_missing: bool = Field(default=False, description="True if model file is not found on disk")
+    bt_score: float = Field(default=1000.0, description="Bradley-Terry strength score")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    results: list["ModelResult"] = Relationship(
-        back_populates="model", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
-    )
+    results: list["ModelResult"] = Relationship(back_populates="model", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
 
 class BenchmarkRun(SQLModel, table=True):
@@ -42,6 +36,8 @@ class BenchmarkRun(SQLModel, table=True):
     parameters: dict = Field(default={}, sa_column=Column(JSON))
     prompts: list[str] = Field(default=[], sa_column=Column(JSON))
     prompt_set_id: str | None = Field(default=None, index=True)
+    # Future: link to Prompt entities
+    # prompt_ids: list[str] = Field(default=[], sa_column=Column(JSON))
 
     results: list["ModelResult"] = Relationship(back_populates="run")
 
@@ -58,6 +54,31 @@ class ModelResult(SQLModel, table=True):
     model: Model = Relationship(back_populates="results")
 
 
+class Prompt(SQLModel, table=True):
+    id: str = Field(primary_key=True, description="Stable UUID for the prompt")
+    text: str = Field(index=True)
+    filename: str | None = Field(default=None, index=True)
+    category: str | None = Field(default=None, index=True)
+    tags: list[str] = Field(default=[], sa_column=Column(JSON))
+    meta: dict = Field(default={}, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ArenaVote(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    model_a_hash: str = Field(foreign_key="model.hash", index=True)
+    model_b_hash: str = Field(foreign_key="model.hash", index=True)
+    winner_hash: str | None = Field(default=None, index=True)
+    vote_type: str = Field(description="model_a, model_b, tie, both_bad")
+
+    prompt_id: str | None = Field(default=None, foreign_key="prompt.id", index=True)
+    prompt_text: str | None = Field(default=None, description="Fallback if no prompt_id")
+    seed: int | None = Field(default=None)
+    parameters: dict = Field(default={}, sa_column=Column(JSON))
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 # Engine
 engine = create_engine(DATABASE_URL)
 
@@ -65,31 +86,9 @@ engine = create_engine(DATABASE_URL)
 def init_db():
     # Ensure assets dir exists
     Path("assets").mkdir(exist_ok=True)
-    SQLModel.metadata.create_all(engine)
-
-    # Ad-hoc migration for is_missing column
-    try:
-        from sqlalchemy import inspect, text
-
-        inspector = inspect(engine)
-        columns = [c["name"] for c in inspector.get_columns("model")]
-        if "is_missing" not in columns:
-            print("Migrating DB: Adding is_missing column to model table...")
-            with engine.connect() as conn:
-                conn.execute(
-                    text("ALTER TABLE model ADD COLUMN is_missing BOOLEAN DEFAULT 0")
-                )
-                conn.commit()
-
-        if "source" not in columns:
-            print("Migrating DB: Adding source column to model table...")
-            with engine.connect() as conn:
-                conn.execute(
-                    text("ALTER TABLE model ADD COLUMN source VARCHAR DEFAULT 'Local'")
-                )
-                conn.commit()
-    except Exception as e:
-        print(f"Migration warning: {e}")
+    # SQLModel.metadata.create_all(engine)
+    # Legacy migration logic removed in favor of Alembic
+    pass
 
 
 def get_session():

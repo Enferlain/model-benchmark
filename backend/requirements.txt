@@ -11,6 +11,7 @@ blak3
 python-multipart
 watchdog
 sqlmodel
+alembic
 
 # Global index for CUDA 13.0 wheels
 --extra-index-url https://download.pytorch.org/whl/cu130

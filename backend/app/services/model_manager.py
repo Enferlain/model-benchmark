@@ -76,9 +76,7 @@ def register_paths(paths: list[str]) -> dict:
     for p_str in valid_paths:
         path = Path(p_str)
         if path.is_file():
-            matched = next(
-                (m for m in models_db if Path(m.path).resolve() == path.resolve()), None
-            )
+            matched = next((m for m in models_db if Path(m.path).resolve() == path.resolve()), None)
             if not matched:
                 matched = next((m for m in models_db if m.filename == path.name), None)
             if matched:
@@ -110,19 +108,11 @@ def register_path(path_str: str) -> dict:
 
 
 def compute_model_hash(file_path: Path) -> str:
-    """Computes BLAKE3 hash of the file. Reads in chunks."""
-    try:
-        import blake3
-
-        hasher = blake3.blake3()
-    except ImportError:
-        hasher = hashlib.sha256()
+    """Computes SHA256 hash of the file (industry standard)."""
+    hasher = hashlib.sha256()
 
     with open(file_path, "rb") as f:
-        while True:
-            chunk = f.read(65536)
-            if not chunk:
-                break
+        while chunk := f.read(1048576):  # 1MB chunks
             hasher.update(chunk)
     return hasher.hexdigest()
 
@@ -149,15 +139,10 @@ def scan_model_type(path: Path) -> tuple[str, str, bool]:
                 # SDXL models have dual text encoders:
                 # 0: conditioner.embedders.0.transformer.* (CLIP G)
                 # 1: conditioner.embedders.1.model.* (CLIP L or OpenCLIP)
-                if any(
-                    k.startswith("conditioner.embedders.0.transformer") for k in keys
-                ):
+                if any(k.startswith("conditioner.embedders.0.transformer") for k in keys):
                     m_type = "sdxl"
                 # SD 1.x models use cond_stage_model.transformer.text_model
-                elif any(
-                    k.startswith("cond_stage_model.transformer.text_model")
-                    for k in keys
-                ):
+                elif any(k.startswith("cond_stage_model.transformer.text_model") for k in keys):
                     m_type = "sd1.5"
 
                 # --- Prediction Type / Config Detection (User Logic) ---
@@ -217,9 +202,7 @@ def sync_models_with_db(recheck_types: bool = False):
             file_size = stat.st_size
 
             # Try to find by path first to skip hashing if unchanged
-            existing_model = session.exec(
-                select(Model).where(Model.path == str(path))
-            ).first()
+            existing_model = session.exec(select(Model).where(Model.path == str(path))).first()
 
             calculated_hash = None
             is_new = False
@@ -227,10 +210,7 @@ def sync_models_with_db(recheck_types: bool = False):
 
             if existing_model:
                 saved_meta = existing_model.meta or {}
-                if (
-                    saved_meta.get("mtime") == file_mtime
-                    and saved_meta.get("size") == file_size
-                ):
+                if saved_meta.get("mtime") == file_mtime and saved_meta.get("size") == file_size:
                     # Trusted match on file level
                     calculated_hash = existing_model.hash
                     found_hashes.add(calculated_hash)
@@ -271,17 +251,13 @@ def sync_models_with_db(recheck_types: bool = False):
 
             if hash_dir.exists() and hash_dir != target_dir:
                 if not target_dir.exists():
-                    print(
-                        f"Renaming hash folder {hash_dir.name} to {target_folder_name}..."
-                    )
+                    print(f"Renaming hash folder {hash_dir.name} to {target_folder_name}...")
                     try:
                         hash_dir.rename(target_dir)
                     except Exception as e:
                         print(f"Failed to rename hash folder: {e}")
                 else:
-                    print(
-                        f"Target folder {target_folder_name} exists. Keeping existing."
-                    )
+                    print(f"Target folder {target_folder_name} exists. Keeping existing.")
 
             # Upsert
             model_record = session.get(Model, calculated_hash)
@@ -301,6 +277,7 @@ def sync_models_with_db(recheck_types: bool = False):
                     type=m_type,
                     source="Local",
                     prediction_type=pred_type,
+                    hash_type="sha256",
                     meta={"mtime": file_mtime, "size": file_size, "ztsnr": is_ztsnr},
                     is_missing=False,
                 )
@@ -355,9 +332,7 @@ def sync_models_with_db(recheck_types: bool = False):
                     new_meta["size"] = file_size
                     new_meta["ztsnr"] = is_ztsnr
                     model_record.meta = new_meta
-                    print(
-                        f"Updated metadata/type for {model_record.name}: {m_type}, {pred_type}, ztsnr={is_ztsnr}"
-                    )
+                    print(f"Updated metadata/type for {model_record.name}: {m_type}, {pred_type}, ztsnr={is_ztsnr}")
                 else:
                     # Just update basic meta
                     if not model_record.meta:
@@ -407,10 +382,7 @@ def sync_models_with_db(recheck_types: bool = False):
 
             # Get latest result
             latest_res = session.exec(
-                select(DBModelResult)
-                .join(BenchmarkRun)
-                .where(DBModelResult.model_hash == db_m.hash)
-                .order_by(desc(BenchmarkRun.timestamp))
+                select(DBModelResult).join(BenchmarkRun).where(DBModelResult.model_hash == db_m.hash).order_by(desc(BenchmarkRun.timestamp))
             ).first()
 
             # Use Name for URL/Folder
@@ -425,6 +397,7 @@ def sync_models_with_db(recheck_types: bool = False):
                 path=db_m.path,
                 prediction_type=db_m.prediction_type,
                 model_type=db_m.type,
+                bt_score=db_m.bt_score,
                 is_missing=db_m.is_missing,
             )
 

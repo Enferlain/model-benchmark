@@ -31,11 +31,8 @@ CACHE_FILE = ASSETS_DIR / "model_cache.json"
 
 
 def calculate_hash(filepath: Path) -> str:
-    """Calculate hash of file content. Uses blake3 if available, else sha256."""
-    if blake3:
-        hasher = blake3.blake3()
-    else:
-        hasher = hashlib.sha256()
+    """Calculate hash of file content using SHA256 (industry standard)."""
+    hasher = hashlib.sha256()
 
     with open(filepath, "rb") as f:
         while chunk := f.read(1048576):  # 1MB chunks
@@ -152,9 +149,7 @@ def get_available_models_from_disk():
                 "hash": model_hash,
                 "filename": filename,
                 "name": file.stem.replace("-", " ").title(),
-                "source": "Local"
-                if str(file).startswith(str(ASSETS_DIR))
-                else "External",
+                "source": "Local" if str(file).startswith(str(ASSETS_DIR)) else "External",
                 "url": str(file.name),
                 "path": str(file),
                 "accuracy": 0.0,
@@ -288,11 +283,7 @@ def get_all_prompts_metadata():
 
     # 1. Scan Paired Directory (Images + Text)
     if PAIRED_DIR.exists():
-        image_files = sorted(
-            list(PAIRED_DIR.glob("*.png"))
-            + list(PAIRED_DIR.glob("*.jpg"))
-            + list(PAIRED_DIR.glob("*.jpeg"))
-        )
+        image_files = sorted(list(PAIRED_DIR.glob("*.png")) + list(PAIRED_DIR.glob("*.jpg")) + list(PAIRED_DIR.glob("*.jpeg")))
 
         for img_path in image_files:
             txt_path = img_path.with_suffix(".txt")
@@ -378,11 +369,7 @@ def load_test_data() -> tuple[list[Image.Image], list[str]]:
 
     # Prefer paired directory
     if PAIRED_DIR.exists():
-        image_files = sorted(
-            list(PAIRED_DIR.glob("*.png"))
-            + list(PAIRED_DIR.glob("*.jpg"))
-            + list(PAIRED_DIR.glob("*.jpeg"))
-        )
+        image_files = sorted(list(PAIRED_DIR.glob("*.png")) + list(PAIRED_DIR.glob("*.jpg")) + list(PAIRED_DIR.glob("*.jpeg")))
         for img_path in image_files:
             if not is_prompt_enabled(img_path.name, config):
                 continue
@@ -419,11 +406,7 @@ def load_prompts_only() -> list[str]:
 
     # 1. Paired
     if PAIRED_DIR.exists():
-        image_files = (
-            list(PAIRED_DIR.glob("*.png"))
-            + list(PAIRED_DIR.glob("*.jpg"))
-            + list(PAIRED_DIR.glob("*.jpeg"))
-        )
+        image_files = list(PAIRED_DIR.glob("*.png")) + list(PAIRED_DIR.glob("*.jpg")) + list(PAIRED_DIR.glob("*.jpeg"))
         for img_path in image_files:
             if not is_prompt_enabled(img_path.name, config):
                 continue
@@ -472,9 +455,7 @@ def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = N
     else:
         # Create slug from text
         # Take first 30 chars, remove non-alphanumeric, replace spaces with underscores
-        slug = (
-            re.sub(r"[^a-zA-Z0-9\s]", "", text[:30]).strip().replace(" ", "_").lower()
-        )
+        slug = re.sub(r"[^a-zA-Z0-9\s]", "", text[:30]).strip().replace(" ", "_").lower()
         if not slug:
             slug = "untitled"
         base_name = f"{slug}_{int(time.time())}"
@@ -485,10 +466,7 @@ def save_new_prompt(text: str, image_bytes: bytes = None, filename_hint: str = N
         suffix = f"_{counter}" if counter > 0 else ""
         candidate = base_name + suffix
         # Check both dirs
-        if (
-            not (PAIRED_DIR / f"{candidate}.png").exists()
-            and not (PROMPTS_DIR / f"{candidate}.txt").exists()
-        ):
+        if not (PAIRED_DIR / f"{candidate}.png").exists() and not (PROMPTS_DIR / f"{candidate}.txt").exists():
             base_name = candidate
             break
         counter += 1

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-01-29
+
+### Added
+
+- **Database Schema Evolution (Alembic)**: Integrated Alembic for robust, versioned database migrations.
+- **Arena Infrastructure**: Added new `arenavote` and `prompt` tables to support detailed battle tracking and stable prompt entities.
+- **Bradley-Terry Support**: Introduced `bt_score` to the `Model` table, laying the groundwork for the new multi-dimensional ranking system.
+
+### Changed
+
+- **Industry-Standard Hashing (SHA256)**: Transitioned model hashing from BLAKE3 to SHA256 to align with HuggingFace, ComfyUI, and other common AI tooling.
+- **API Data Model**: Updated the backend API to expose `bt_score` and `hash_type`.
+- **Database Architecture**: Discontinued automatic SQLModel table creation in favor of explicit Alembic migrations for better stability and traceability.
+
 ## [Unreleased] - 2026-01-28
 
 ### Fixed
