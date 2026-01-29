@@ -7,7 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ArenaBattleProps {
 	prompt: string;
@@ -45,27 +45,7 @@ export function ArenaBattle({
 	};
 
 	const arenaRef = useRef<HTMLDivElement>(null);
-	const imageRef = useRef<HTMLDivElement>(null);
 	const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-	const [measuredImageHeight, setMeasuredImageHeight] = useState<number | null>(
-		null,
-	);
-
-	// Use ResizeObserver to track the actual rendered height of the images
-	useLayoutEffect(() => {
-		if (!imageRef.current) return;
-
-		const observer = new ResizeObserver((entries) => {
-			for (const entry of entries) {
-				if (entry.contentRect.height > 0) {
-					setMeasuredImageHeight(entry.contentRect.height);
-				}
-			}
-		});
-
-		observer.observe(imageRef.current);
-		return () => observer.disconnect();
-	}, []);
 
 	useEffect(() => {
 		const updateSize = () => {
@@ -138,18 +118,16 @@ export function ArenaBattle({
 			>
 				{/* Model A Column */}
 				<div
-					className="flex-none flex justify-end min-w-0 z-10"
+					className="flex-none flex justify-end min-w-0 z-10 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
 					style={{ width: `${imgW_A}px` }}
 				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
 					<div
-						className="flex flex-col items-center min-h-0 h-full max-h-full"
-						style={{ width: `${imgW_A}px` }}
+						className="flex flex-col items-center min-h-0 h-full max-h-full w-full"
 					>
 						{/* Image Holder */}
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
 							<div
-								ref={imageRef}
 								className="relative rounded-xl overflow-hidden bg-black/5 shadow-inner border border-slate-200 dark:border-slate-700 group h-fit max-h-full"
 								style={getImageContainerStyle(ratioA)}
 							>
@@ -199,8 +177,7 @@ export function ArenaBattle({
 					}}
 				>
 					<div
-						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
-						style={{ width: `${imgW_Ref}px` }}
+						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] w-full"
 					>
 						{/* Reference Holder - Unified Container */}
 						<div className="flex-1 flex items-center justify-center relative w-full min-h-0">
@@ -218,10 +195,8 @@ export function ArenaBattle({
 									isRefExpanded
 										? getImageContainerStyle(ratioRef)
 										: {
-												height: measuredImageHeight
-													? `${measuredImageHeight}px`
-													: "400px",
-												width: `${imgW_Ref}px`,
+												height: "100%",
+												width: "100%",
 											}
 								}
 							>
@@ -332,13 +307,12 @@ export function ArenaBattle({
 
 				{/* Model B Column */}
 				<div
-					className="flex-none flex justify-start min-w-0 z-10"
+					className="flex-none flex justify-start min-w-0 z-10 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
 					style={{ width: `${imgW_B}px` }}
 				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
 					<div
-						className="flex flex-col items-center min-h-0 h-full max-h-full"
-						style={{ width: `${imgW_B}px` }}
+						className="flex flex-col items-center min-h-0 h-full max-h-full w-full"
 					>
 						{/* Image Holder */}
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
