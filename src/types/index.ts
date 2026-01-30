@@ -26,6 +26,7 @@ export interface ModelData {
 	prediction_type?: string;
 	bt_score?: number;
 	path?: string;
+	image_count?: number;
 }
 
 export interface MetricOption {

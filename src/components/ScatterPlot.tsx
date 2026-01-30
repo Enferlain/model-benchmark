@@ -25,7 +25,13 @@ interface ScatterPlotProps {
 	headerExtra?: React.ReactNode;
 }
 
-const CustomTooltip = ({ active, payload, isDarkMode }: any) => {
+interface CustomTooltipProps {
+	active?: boolean;
+	payload?: { payload: ModelData; value: number }[];
+	isDarkMode?: boolean;
+}
+
+const CustomTooltip = ({ active, payload, isDarkMode }: CustomTooltipProps) => {
 	if (active && payload && payload.length) {
 		const data = payload[0].payload as ModelData;
 
@@ -90,7 +96,18 @@ const calculateDistance = (
 };
 
 // Custom Shape Renderer
-const RenderNode = (props: any) => {
+interface RenderNodeProps {
+	cx?: number;
+	cy?: number;
+	payload: ModelData;
+	selectedId: string | null;
+	hoveredId: string | null;
+	setHoveredId: (id: string | null) => void;
+	isDarkMode: boolean;
+	onSelect: (id: string) => void;
+}
+
+const RenderNode = (props: RenderNodeProps) => {
 	const {
 		cx,
 		cy,
@@ -118,9 +135,18 @@ const RenderNode = (props: any) => {
 				e.stopPropagation();
 				onSelect(payload.id);
 			}}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					onSelect(payload.id);
+				}
+			}}
 			onMouseEnter={() => setHoveredId(payload.id)}
 			onMouseLeave={() => setHoveredId(null)}
+			tabIndex={0}
+			role="button"
+			aria-label={`Model: ${payload.name}`}
 		>
+			<title>{payload.name}</title>
 			{/* Outer Glow for selection */}
 			{isSelected && <circle r={14} fill={color} fillOpacity={0.2} />}
 
@@ -169,6 +195,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 	const getX = (item: ModelData) => item[xMetric.value as MetricKey] as number;
 	const getY = (item: ModelData) => item[yMetric.value as MetricKey] as number;
 
+	// biome-ignore lint/suspicious/noExplicitAny: Recharts event types are complex and vary between versions
 	const handleChartClick = (e: any) => {
 		// If we clicked the background (no activePayload usually means background)
 		if (!e || !e.activePayload) {
@@ -320,7 +347,7 @@ export const ScatterPlot: React.FC<ScatterPlotProps> = ({
 							name="Models"
 							data={data}
 							animationDuration={500}
-							shape={(props: any) => (
+							shape={(props: RenderNodeProps) => (
 								<RenderNode
 									{...props}
 									selectedId={selectedId}

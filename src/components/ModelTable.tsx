@@ -33,9 +33,11 @@ const MetricInfoModal: React.FC<{
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 			{/* Backdrop */}
-			<div
-				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+			<button
+				type="button"
+				className="absolute inset-0 bg-black/50 backdrop-blur-sm w-full h-full border-none p-0 m-0"
 				onClick={onClose}
+				aria-label="Close modal"
 			/>
 			{/* Modal */}
 			<div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -44,8 +46,10 @@ const MetricInfoModal: React.FC<{
 						{metric.label}
 					</h3>
 					<button
+						type="button"
 						onClick={onClose}
 						className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+						aria-label="Close"
 					>
 						<X size={20} className="text-slate-500" />
 					</button>
@@ -69,15 +73,15 @@ const MetricInfoModal: React.FC<{
 					</p>
 					{metric.extendedDescription && (
 						<div className="prose prose-sm dark:prose-invert max-w-none">
-							{metric.extendedDescription.split("\n\n").map((paragraph, i) => (
+							{metric.extendedDescription.split("\n\n").map((paragraph) => (
 								<p
-									key={i}
+									key={paragraph.substring(0, 50)}
 									className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap text-sm leading-relaxed mb-3"
 								>
 									{paragraph.split("**").map((part, j) =>
 										j % 2 === 1 ? (
 											<strong
-												key={j}
+												key={part}
 												className="text-slate-800 dark:text-slate-100"
 											>
 												{part}
@@ -146,14 +150,16 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 		};
 	}, [menuState.isOpen]);
 
-	const getMetricValue = (model: ModelData, key: MetricKey): number => {
-		// Prefer metrics dict, fallback to direct properties for backwards compatibility
-		if (model.metrics && key in model.metrics) {
-			return model.metrics[key];
-		}
-		// Fallback to direct property access
-		return (model as any)[key] ?? 0;
-	};
+	const getMetricValue = useMemo(() => {
+		return (model: ModelData, key: MetricKey): number => {
+			// Prefer metrics dict, fallback to direct properties for backwards compatibility
+			if (model.metrics && key in model.metrics) {
+				return model.metrics[key];
+			}
+			// Fallback to direct property access
+			return (model as unknown as Record<string, number>)[key] ?? 0;
+		};
+	}, []);
 
 	const handleSort = (key: MetricKey) => {
 		if (sortKey === key) {
@@ -222,6 +228,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 									>
 										<div className="flex items-center justify-center gap-1">
 											<button
+												type="button"
 												onClick={(e) => {
 													e.stopPropagation();
 													setSelectedMetric(metric);
@@ -234,16 +241,19 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 													className="text-slate-400 hover:text-blue-500"
 												/>
 											</button>
-											<span
-												className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none"
+											<button
+												type="button"
+												className="hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none"
 												onClick={() => handleSort(metric.value)}
 												title={metric.description}
 											>
 												{metric.label.split(" ")[0]}
-											</span>
-											<div
-												className="flex flex-col -space-y-1 cursor-pointer"
+											</button>
+											<button
+												type="button"
+												className="flex flex-col -space-y-1 hover:bg-slate-200 dark:hover:bg-slate-700/50 p-0.5 rounded transition-colors"
 												onClick={() => handleSort(metric.value)}
+												aria-label={`Sort by ${metric.label}`}
 											>
 												<ChevronUp
 													size={12}
@@ -261,7 +271,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 															: "opacity-30"
 													}
 												/>
-											</div>
+											</button>
 										</div>
 									</th>
 								))}
@@ -337,6 +347,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 									))}
 									<td className="px-6 py-4 text-center">
 										<button
+											type="button"
 											onClick={(e) => handleActionClick(e, model)}
 											className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 dark:hover:text-slate-200 rounded-full transition-all"
 											title="Actions"
@@ -372,10 +383,12 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 			{menuState.isOpen && (
 				<div className="fixed inset-0 z-[60] flex items-start justify-start">
 					{/* Invisible Full Screen Closer */}
-					<div
-						className="absolute inset-0"
+					<button
+						type="button"
+						className="absolute inset-0 w-full h-full border-none p-0 m-0 bg-transparent"
 						onClick={() => setMenuState((prev) => ({ ...prev, isOpen: false }))}
-					></div>
+						aria-label="Close menu"
+					/>
 
 					{/* The Menu */}
 					<div
@@ -383,6 +396,7 @@ export const ModelTable: React.FC<ModelTableProps> = ({
 						style={{ top: menuState.y, left: menuState.x }}
 					>
 						<button
+							type="button"
 							onClick={() => {
 								setDeleteModal({
 									isOpen: true,

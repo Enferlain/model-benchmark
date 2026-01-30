@@ -1,12 +1,11 @@
 import type React from "react";
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { VirtuosoGrid } from "react-virtuoso";
 import { getImageUrl } from "../components/compare/utils";
 import { SkeletonGrid } from "../components/SkeletonGrid";
 import { useData } from "../context/DataContext";
 import { fetchModelOutputs } from "../services/api";
 import type { ModelOutput } from "../types";
-
 
 // Helper to convert asset path to thumbnail URL
 const getThumbnailUrl = (imagePath: string, size = 850) =>
@@ -132,16 +131,7 @@ export default function Gallery() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [lightboxOpen, closeLightbox, nextImage, prevImage]);
 
-	const groupedOutputs = filteredOutputs.reduce(
-		(acc, output) => {
-			if (!acc[output.prompt]) {
-				acc[output.prompt] = [];
-			}
-			acc[output.prompt].push(output);
-			return acc;
-		},
-		{} as Record<string, ModelOutput[]>,
-	);
+	// const groupedOutputs = filteredOutputs.reduce( ... ) - Commented out as currently unused
 
 	const activeError = errors.models || localError;
 
@@ -154,7 +144,10 @@ export default function Gallery() {
 
 				<div className="flex flex-wrap items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
 					<div className="flex flex-col gap-1">
-						<label htmlFor="model-select" className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+						<label
+							htmlFor="model-select"
+							className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+						>
 							Model
 						</label>
 						<select
@@ -173,10 +166,14 @@ export default function Gallery() {
 					</div>
 
 					<div className="flex flex-col gap-1">
-						<label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+						<label
+							htmlFor="prompt-select"
+							className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+						>
 							Prompt
 						</label>
 						<select
+							id="prompt-select"
 							className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[300px]"
 							value={selectedPrompt}
 							onChange={(e) => setSelectedPrompt(e.target.value)}
@@ -193,10 +190,14 @@ export default function Gallery() {
 					</div>
 
 					<div className="flex flex-col gap-1">
-						<label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+						<label
+							htmlFor="seed-select"
+							className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider"
+						>
 							Seed
 						</label>
 						<select
+							id="seed-select"
 							className="px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
 							value={selectedSeed}
 							onChange={(e) => setSelectedSeed(e.target.value)}
@@ -261,9 +262,10 @@ export default function Gallery() {
 							const globalIndex = index; // Simplified since it's a flat list now
 
 							return (
-								<div
+								<button
+									type="button"
 									key={output.filename}
-									className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
+									className="text-left bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
 									onClick={() => openLightbox(globalIndex)}
 								>
 									<div className="aspect-[2/3] relative overflow-hidden bg-slate-100 dark:bg-slate-900">
@@ -287,15 +289,21 @@ export default function Gallery() {
 													Prompt {output.prompt_idx}
 												</span>
 												<span>
-													Seed: <span className="font-mono text-slate-700 dark:text-slate-300">{output.seed}</span>
+													Seed:{" "}
+													<span className="font-mono text-slate-700 dark:text-slate-300">
+														{output.seed}
+													</span>
 												</span>
 											</div>
-											<span className="truncate max-w-[80px] opacity-70" title={output.filename}>
+											<span
+												className="truncate max-w-[80px] opacity-70"
+												title={output.filename}
+											>
 												{output.filename}
 											</span>
 										</div>
 									</div>
-								</div>
+								</button>
 							);
 						}}
 					/>
@@ -303,14 +311,22 @@ export default function Gallery() {
 			)}
 
 			{lightboxOpen && lightboxImages.length > 0 && (
-				<div
-					className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm"
+				<button
+					type="button"
+					className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-sm cursor-zoom-out"
 					onClick={closeLightbox}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") closeLightbox();
+					}}
+					aria-label="Close Lightbox"
+					title="Close Lightbox"
 				>
 					<button
 						type="button"
 						className="absolute top-4 right-4 text-white/70 hover:text-white p-2 z-50"
 						onClick={closeLightbox}
+						aria-label="Close"
+						title="Close"
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -322,9 +338,10 @@ export default function Gallery() {
 							strokeWidth="2"
 							strokeLinecap="round"
 							strokeLinejoin="round"
+							aria-hidden="true"
 						>
-							<line x1="18" y1="6" x2="6" y2="18"></line>
-							<line x1="6" y1="6" x2="18" y2="18"></line>
+							<line x1="18" y1="6" x2="6" y2="18" />
+							<line x1="6" y1="6" x2="18" y2="18" />
 						</svg>
 					</button>
 
@@ -332,6 +349,7 @@ export default function Gallery() {
 						type="button"
 						className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-4 z-50 hover:bg-white/10 rounded-full transition-colors"
 						onClick={prevImage}
+						aria-label="Previous Image"
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -343,8 +361,9 @@ export default function Gallery() {
 							strokeWidth="2"
 							strokeLinecap="round"
 							strokeLinejoin="round"
+							aria-hidden="true"
 						>
-							<polyline points="15 18 9 12 15 6"></polyline>
+							<polyline points="15 18 9 12 15 6" />
 						</svg>
 					</button>
 
@@ -352,6 +371,7 @@ export default function Gallery() {
 						type="button"
 						className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-4 z-50 hover:bg-white/10 rounded-full transition-colors"
 						onClick={nextImage}
+						aria-label="Next Image"
 					>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
@@ -363,14 +383,17 @@ export default function Gallery() {
 							strokeWidth="2"
 							strokeLinecap="round"
 							strokeLinejoin="round"
+							aria-hidden="true"
 						>
-							<polyline points="9 18 15 12 9 6"></polyline>
+							<polyline points="9 18 15 12 9 6" />
 						</svg>
 					</button>
 
 					<div
 						className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center"
 						onClick={(e) => e.stopPropagation()}
+						onKeyDown={(e) => e.stopPropagation()}
+						role="none"
 					>
 						<img
 							src={getImageUrl(
@@ -393,7 +416,7 @@ export default function Gallery() {
 							</p>
 						</div>
 					</div>
-				</div>
+				</button>
 			)}
 		</div>
 	);

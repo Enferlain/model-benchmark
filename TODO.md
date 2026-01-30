@@ -12,10 +12,17 @@ Working prototype with:
 - ✅ Metric info modals with detailed explanations
 - ✅ **New Transfer List Interface** (Library/Queue) with filters and presets
 - ✅ **Dedicated Analytics Page**
+- ✅ **Performance Overhaul** (Virtualization, Thumbnailing, Pre-fetching)
 
 ---
 
 ## High Priority / Quick Fixes
+
+- [ ] **Arena/benchmarks** - Generated images are tied to benchmark runs. Arena can be called on arbitrary references/categorical references based on the category, pulled from websites (like danbooru or e621 again depends on category or if there's any set) or from local image/prompt pairs, or from simply images post tagger implementation. Arena can also be called on benchmark runs, in which case the images generated from it will be used for rating. I'm not sure yet, we need more discussions
+- [ ] **Tab header consistency** - check if headers are uniform, gallery seems not to be
+- [ ] **Arena gaps** - Fix and make consistent the gaps between top bar, header, prompt bar, the images, and the buttons. Should be dynamic from the prompt down based on the arena battle contents.
+- [ ] **Generation** - Need to plug the queue into the generate and analyze buttons. Need validation/guidance for pressing, and updating the backend logic if needed for interaction with the new database
+- [ ] **Image full view modals** - In arena (and wherever else) make the zoomed model consistent with existing designs (like the one from comparison) same for gallery and prompts if needed.
 
 ---
 
@@ -23,6 +30,7 @@ Working prototype with:
 
 ### UI/UX & Dashboard
 
+- [ ] **Database editing** - Editable entries in ui that reflects in the backend/database. For example attaching prediction types to models and similar. Add a note option to the actions menu.
 - [x] **Image gallery viewer** - View generated images per model
 - [x] **Drag/upload images for prompts** - Drag or upload images from any place for a tagger to build a prompt
 - [x] **Prompt editor** - Edit/manage test prompts in UI
@@ -44,6 +52,7 @@ Working prototype with:
 - [ ] **Benchmark runs actions** - Delete/Export benchmark runs
 - [ ] **Metrics dropdown** - Consistent metric selection UI across all pages
 - [ ] **Diversity metric label** - Rename "Diversity (⚠️ WIP)" once validated
+- [ ] **Prompt tab is effectively a prompt library** - Maybe add useful features with that in mind, like categories and such, or multiple reference images maybe with source labels (website vs ai gen from what)
 
 ### 🔗 External Integration (Long Term Goal)
 
@@ -59,8 +68,10 @@ Working prototype with:
 - [ ] **Legacy: Internal Inference** - Complete/Maintain `sd-scripts` wrapper (to be deprecated by APIs) <!-- id: 21 -->
 - [x] **Cache metrics** - Don't recompute if images haven't changed
 - [ ] **LoRA support** - Test LoRA models (not just checkpoints)
-- [ ] **Unique identifiers for prompts** - Immutable IDs to prevent regeneration collisions
+- [x] **Unique identifiers for prompts** - Immutable IDs to prevent regeneration collisions
 - [ ] **Queue management** - Interrupt/Cancel specific items in download queue
+- [ ] **Prompt alias database** - Check if these are recorded in the database
+- [ ] **Prompt search improvements** - Multiple search terms, tags, etc.
 
 ### Data Management
 
@@ -68,9 +79,9 @@ Working prototype with:
 - [ ] **Prompt difficulty** - Tag prompts as easy/medium/hard
 - [ ] **Reference images** - Compare against ground truth
 - [x] **Model downloading** - Downloading models from HF and Civitai
-- [ ] **Support SHA256 Hashing** - Logic for standard SHA256 (HF/CivitAI compatibility)
+- [x] **Support SHA256 Hashing** - Logic for standard SHA256 (HF/CivitAI compatibility)
 - [ ] **Shared model hash lookup** - Map SHA256 → Metadata (Community `known_models.json`)
-- [ ] **Remote Arena Results** - Sync voting results to server
+- [ ] **Remote Arena Results** - Sync voting results/database to a remote server
 
 ---
 

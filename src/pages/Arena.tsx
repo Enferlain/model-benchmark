@@ -67,8 +67,10 @@ const MOCK_BATTLE_SETS: BattleState[] = [
 	{
 		prompt:
 			"phoebe (wuthering waves), 1girl, arm support, black bow, purple eyes, shirt lift, sitting, underboob, very long hair, white shirt, white skirt",
-		imageA: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1024&h=1536&auto=format&fit=crop",
-		imageB: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1024&h=1536&auto=format&fit=crop",
+		imageA:
+			"https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1024&h=1536&auto=format&fit=crop",
+		imageB:
+			"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1024&h=1536&auto=format&fit=crop",
 		refImage: "/assets/image_prompts/00dd01d80e7eb5a103584889cef7f776.jpg",
 		modelAId: "real-ref-1",
 		modelBId: "real-ref-1-alt",
@@ -78,8 +80,10 @@ const MOCK_BATTLE_SETS: BattleState[] = [
 	{
 		prompt:
 			"original, honnryou hanaru, 1girl, black hair, blue eyes, holding umbrella, long hair, street, white dress, white umbrella",
-		imageA: "https://images.unsplash.com/photo-1518005020251-58c9cbb07657?q=80&w=1536&h=1024&auto=format&fit=crop",
-		imageB: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=1536&h=1024&auto=format&fit=crop",
+		imageA:
+			"https://images.unsplash.com/photo-1518005020251-58c9cbb07657?q=80&w=1536&h=1024&auto=format&fit=crop",
+		imageB:
+			"https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=1536&h=1024&auto=format&fit=crop",
 		refImage: "/assets/image_prompts/00e1be4187dd98b2241942998c83d3be.jpg",
 		modelAId: "real-ref-2",
 		modelBId: "real-ref-2-alt",
@@ -89,8 +93,10 @@ const MOCK_BATTLE_SETS: BattleState[] = [
 	{
 		prompt:
 			"original, sheya tin, 1boy, baseball cap, beach, denim shorts, male focus, ocean, solo, t-shirt, toy car, volleyball net, white shirt",
-		imageA: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1536&h=1024&auto=format&fit=crop",
-		imageB: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1536&h=1024&auto=format&fit=crop",
+		imageA:
+			"https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1536&h=1024&auto=format&fit=crop",
+		imageB:
+			"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?q=80&w=1536&h=1024&auto=format&fit=crop",
 		refImage: "/assets/image_prompts/0e0917d1e4220068f30382a257f5da72.jpg",
 		modelAId: "real-ref-3",
 		modelBId: "real-ref-3-alt",
@@ -100,8 +106,10 @@ const MOCK_BATTLE_SETS: BattleState[] = [
 	{
 		prompt:
 			"seia (blue archive), 1girl, animal ears, fox ears, halo, highleg one-piece swimsuit, loli, night sky, pool, sitting, white swimsuit",
-		imageA: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1024&h=1024&auto=format&fit=crop",
-		imageB: "https://images.unsplash.com/photo-1512446816042-444d641267d4?q=80&w=1024&h=1024&auto=format&fit=crop",
+		imageA:
+			"https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1024&h=1024&auto=format&fit=crop",
+		imageB:
+			"https://images.unsplash.com/photo-1512446816042-444d641267d4?q=80&w=1024&h=1024&auto=format&fit=crop",
 		refImage: "/assets/image_prompts/03f73abeb4f35df3db91aae08fa05160.jpg",
 		modelAId: "real-ref-4",
 		modelBId: "real-ref-4-alt",
@@ -111,8 +119,10 @@ const MOCK_BATTLE_SETS: BattleState[] = [
 	{
 		prompt:
 			"hatsune miku, 1girl, classroom, flowers, holding bouquet, plaid skirt, sweater vest, very long hair, vocaloid, white shirt",
-		imageA: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1024&h=1536&auto=format&fit=crop",
-		imageB: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1024&h=1536&auto=format&fit=crop",
+		imageA:
+			"https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1024&h=1536&auto=format&fit=crop",
+		imageB:
+			"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1024&h=1536&auto=format&fit=crop",
 		refImage: "/assets/image_prompts/3aec7c8bf238231d1eee458f80308232.jpg",
 		modelAId: "real-ref-5",
 		modelBId: "real-ref-5-alt",
@@ -122,8 +132,10 @@ const MOCK_BATTLE_SETS: BattleState[] = [
 	{
 		prompt:
 			"phoebe (wuthering waves), 1girl, blonde hair, blue sash, cowboy shot, hair ornament, holding book, purple eyes, white hat, white shirt",
-		imageA: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1024&h=1024&auto=format&fit=crop",
-		imageB: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1024&h=1024&auto=format&fit=crop",
+		imageA:
+			"https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1024&h=1024&auto=format&fit=crop",
+		imageB:
+			"https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1024&h=1024&auto=format&fit=crop",
 		refImage: "/assets/image_prompts/3f60ff8973450b57550a4a67983a3318.png",
 		modelAId: "real-ref-6",
 		modelBId: "real-ref-6-alt",
@@ -152,83 +164,90 @@ export default function Arena() {
 	const [isDemoMode, setIsDemoMode] = useState(false);
 	const [demoIndex, setDemoIndex] = useState(0);
 
-	const prepareNextBattle = useCallback(async (currentDemoIndex: number) => {
-		try {
-			if (models.length < 2) {
+	const prepareNextBattle = useCallback(
+		async (currentDemoIndex: number) => {
+			try {
+				if (models.length < 2) {
+					const nextDemoIndex =
+						(currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
+					setNextBattle(MOCK_BATTLE_SETS[nextDemoIndex]);
+					return;
+				}
+
+				// 1. Pick two random models
+				const shuffledModels = [...models].sort(() => 0.5 - Math.random());
+				const modelA = shuffledModels[0];
+				const modelB = shuffledModels[1];
+
+				// 2. Fetch outputs for both
+				const [outputsA, outputsB] = await Promise.all([
+					fetchModelOutputs(modelA.id),
+					fetchModelOutputs(modelB.id),
+				]);
+
+				// 3. Find common prompt + seed combinations
+				const common = outputsA.filter((oa) =>
+					outputsB.some((ob) => ob.prompt === oa.prompt && ob.seed === oa.seed),
+				);
+
+				if (common.length === 0) {
+					const nextDemoIndex =
+						(currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
+					setNextBattle({
+						...MOCK_BATTLE_SETS[nextDemoIndex],
+						error: "No common images found. Preparing demo battle.",
+					});
+					return;
+				}
+
+				// 4. Pick a random common result
+				const selection = common[Math.floor(Math.random() * common.length)];
+				const outputB = outputsB.find(
+					(ob) => ob.prompt === selection.prompt && ob.seed === selection.seed,
+				) as ModelOutput;
+
+				// Randomize order (A/B)
+				const swap = Math.random() > 0.5;
+				const imageA = getImageUrl(
+					swap ? outputB.url : selection.url,
+					swap ? outputB.mtime : selection.mtime,
+				);
+				const imageB = getImageUrl(
+					swap ? selection.url : outputB.url,
+					swap ? selection.mtime : outputB.mtime,
+				);
+
+				// Pre-fetch images
+				const imgA = new Image();
+				imgA.src = imageA;
+				const imgB = new Image();
+				imgB.src = imageB;
+				if (selection.image_ref) {
+					const imgRef = new Image();
+					imgRef.src = getImageUrl(selection.image_ref);
+				}
+
+				setNextBattle({
+					prompt: selection.prompt,
+					imageA,
+					imageB,
+					refImage: selection.image_ref
+						? getImageUrl(selection.image_ref)
+						: undefined,
+					modelAId: swap ? modelB.id : modelA.id,
+					modelBId: swap ? modelA.id : modelB.id,
+					isLoading: false,
+					error: null,
+					demoIndex: currentDemoIndex, // Store index to avoid stale swaps
+				});
+			} catch (err) {
+				console.error("Failed to prepare next battle", err);
 				const nextDemoIndex = (currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
 				setNextBattle(MOCK_BATTLE_SETS[nextDemoIndex]);
-				return;
 			}
-
-			// 1. Pick two random models
-			const shuffledModels = [...models].sort(() => 0.5 - Math.random());
-			const modelA = shuffledModels[0];
-			const modelB = shuffledModels[1];
-
-			// 2. Fetch outputs for both
-			const [outputsA, outputsB] = await Promise.all([
-				fetchModelOutputs(modelA.id),
-				fetchModelOutputs(modelB.id),
-			]);
-
-			// 3. Find common prompt + seed combinations
-			const common = outputsA.filter((oa) =>
-				outputsB.some((ob) => ob.prompt === oa.prompt && ob.seed === oa.seed),
-			);
-
-			if (common.length === 0) {
-				const nextDemoIndex = (currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
-				setNextBattle({
-					...MOCK_BATTLE_SETS[nextDemoIndex],
-					error: "No common images found. Preparing demo battle.",
-				});
-				return;
-			}
-
-			// 4. Pick a random common result
-			const selection = common[Math.floor(Math.random() * common.length)];
-			const outputB = outputsB.find(
-				(ob) => ob.prompt === selection.prompt && ob.seed === selection.seed,
-			) as ModelOutput;
-
-			// Randomize order (A/B)
-			const swap = Math.random() > 0.5;
-			const imageA = getImageUrl(
-				swap ? outputB.url : selection.url,
-				swap ? outputB.mtime : selection.mtime,
-			);
-			const imageB = getImageUrl(
-				swap ? selection.url : outputB.url,
-				swap ? selection.mtime : outputB.mtime,
-			);
-
-			// Pre-fetch images
-			const imgA = new Image();
-			imgA.src = imageA;
-			const imgB = new Image();
-			imgB.src = imageB;
-			if (selection.image_ref) {
-				const imgRef = new Image();
-				imgRef.src = getImageUrl(selection.image_ref);
-			}
-
-			setNextBattle({
-				prompt: selection.prompt,
-				imageA,
-				imageB,
-				refImage: selection.image_ref ? getImageUrl(selection.image_ref) : undefined,
-				modelAId: swap ? modelB.id : modelA.id,
-				modelBId: swap ? modelA.id : modelB.id,
-				isLoading: false,
-				error: null,
-				demoIndex: currentDemoIndex, // Store index to avoid stale swaps
-			});
-		} catch (err) {
-			console.error("Failed to prepare next battle", err);
-			const nextDemoIndex = (currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
-			setNextBattle(MOCK_BATTLE_SETS[nextDemoIndex]);
-		}
-	}, [models]);
+		},
+		[models],
+	);
 
 	const startNewBattle = useCallback(async () => {
 		if (nextBattle) {
@@ -236,12 +255,12 @@ export default function Arena() {
 			setNextBattle(null);
 			setIsDemoMode(models.length < 2 || !!nextBattle.error);
 			// Start preparing the ONE AFTER focus
-			prepareNextBattle(demoIndex); 
+			prepareNextBattle(demoIndex);
 			return;
 		}
 
 		setBattle((prev) => ({ ...prev, isLoading: true, error: null }));
-		
+
 		// If no nextBattle (first load), do it synchronously
 		if (models.length < 2) {
 			setIsDemoMode(true);
@@ -269,13 +288,17 @@ export default function Arena() {
 				setIsDemoMode(true);
 			} else {
 				const selection = common[Math.floor(Math.random() * common.length)];
-				const outputB = outputsB.find(ob => ob.prompt === selection.prompt && ob.seed === selection.seed) as ModelOutput;
+				const outputB = outputsB.find(
+					(ob) => ob.prompt === selection.prompt && ob.seed === selection.seed,
+				) as ModelOutput;
 				const swap = Math.random() > 0.5;
 				setBattle({
 					prompt: selection.prompt,
 					imageA: getImageUrl(swap ? outputB.url : selection.url),
 					imageB: getImageUrl(swap ? selection.url : outputB.url),
-					refImage: selection.image_ref ? getImageUrl(selection.image_ref) : undefined,
+					refImage: selection.image_ref
+						? getImageUrl(selection.image_ref)
+						: undefined,
 					modelAId: swap ? modelB.id : modelA.id,
 					modelBId: swap ? modelA.id : modelB.id,
 					isLoading: false,
@@ -304,7 +327,7 @@ export default function Arena() {
 		console.log(
 			`Vote cast: ${vote} for models ${battle.modelAId} vs ${battle.modelBId}`,
 		);
-		
+
 		let nextDemoIdx = demoIndex;
 		if (isDemoMode) {
 			nextDemoIdx = (demoIndex + 1) % MOCK_BATTLE_SETS.length;

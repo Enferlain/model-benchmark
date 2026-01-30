@@ -40,13 +40,13 @@ export function ArenaBattle({
 			const ratio = img.naturalWidth / img.naturalHeight;
 			if (type === "A" && Math.abs(ratioA - ratio) > 0.01) setRatioA(ratio);
 			if (type === "B" && Math.abs(ratioB - ratio) > 0.01) setRatioB(ratio);
-			if (type === "Ref" && Math.abs(ratioRef - ratio) > 0.01) setRatioRef(ratio);
+			if (type === "Ref" && Math.abs(ratioRef - ratio) > 0.01)
+				setRatioRef(ratio);
 		}
 	};
 
 	const arenaRef = useRef<HTMLDivElement>(null);
 	const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-
 
 	useEffect(() => {
 		const updateSize = () => {
@@ -66,7 +66,7 @@ export function ArenaBattle({
 	// Calculate precise pixel width of the images
 	// 1. Target widths based on available height (images scale to fit container height)
 	const availableHeight = Math.max(100, containerSize.height - 120);
-	
+
 	// Fallback to 1.0 (square) if ratio is not yet loaded
 	const effectiveRatioA = ratioA || 1.0;
 	const effectiveRatioB = ratioB || 1.0;
@@ -75,18 +75,22 @@ export function ArenaBattle({
 	const targetW_A = availableHeight * effectiveRatioA;
 	const targetW_B = availableHeight * effectiveRatioB;
 	// Reference is either the bar (56px) or expanded (ratio-based)
-	const targetW_Ref = isRefExpanded ? (availableHeight * effectiveRatioRef) : 56;
+	const targetW_Ref = isRefExpanded ? availableHeight * effectiveRatioRef : 56;
 
 	// 2. Width-based scaling (ensure total width fits in the container)
 	// Gaps are 17px between columns (2 gaps total). Padding is 40px total (20px each side).
 	const horizontalGaps = 34;
 	const padding = 40;
-	const availableWidth = Math.max(200, containerSize.width - horizontalGaps - padding);
-	
+	const availableWidth = Math.max(
+		200,
+		containerSize.width - horizontalGaps - padding,
+	);
+
 	const totalTargetW = targetW_A + targetW_B + targetW_Ref;
-	
+
 	// If total width exceeds available width, scale everything down proportionally
-	const scale = totalTargetW > availableWidth ? availableWidth / totalTargetW : 1;
+	const scale =
+		totalTargetW > availableWidth ? availableWidth / totalTargetW : 1;
 
 	const imgW_A = targetW_A * scale;
 	const imgW_B = targetW_B * scale;
@@ -126,9 +130,7 @@ export function ArenaBattle({
 					style={{ width: `${imgW_A}px` }}
 				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
-					<div
-						className="flex flex-col items-center min-h-0 h-full max-h-full w-full"
-					>
+					<div className="flex flex-col items-center min-h-0 h-full max-h-full w-full">
 						{/* Image Holder */}
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
 							<div
@@ -182,9 +184,7 @@ export function ArenaBattle({
 						zIndex: isRefExpanded ? 20 : 10,
 					}}
 				>
-					<div
-						className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] w-full"
-					>
+					<div className="flex flex-col items-center min-h-0 h-full max-h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] w-full">
 						{/* Reference Holder - Unified Container */}
 						<div className="flex-1 flex items-center justify-center relative w-full min-h-0">
 							<div
@@ -321,9 +321,7 @@ export function ArenaBattle({
 					style={{ width: `${imgW_B}px` }}
 				>
 					{/* Vertical Stack: Both image and button centered in a unit pulled to the divider */}
-					<div
-						className="flex flex-col items-center min-h-0 h-full max-h-full w-full"
-					>
+					<div className="flex flex-col items-center min-h-0 h-full max-h-full w-full">
 						{/* Image Holder */}
 						<div className="flex-1 flex items-center justify-center min-h-0 w-full">
 							<div

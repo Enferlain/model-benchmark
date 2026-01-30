@@ -17,9 +17,11 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-			<div
-				className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+			<button
+				type="button"
+				className="absolute inset-0 bg-black/50 backdrop-blur-sm w-full h-full border-none p-0 m-0"
 				onClick={onClose}
+				aria-label="Close modal"
 			/>
 			<div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200">
 				<h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">

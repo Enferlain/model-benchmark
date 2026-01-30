@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreatePromptModal } from "../components/prompts/CreatePromptModal";
 import { PromptDetailEditor } from "../components/prompts/PromptDetailEditor";
 import { PromptList } from "../components/prompts/PromptList";
+import { useData } from "../context/DataContext";
 import {
 	createPrompt,
 	deletePrompt,
@@ -12,9 +13,7 @@ import {
 	shufflePrompts,
 	updatePromptText,
 } from "../services/api";
-import { useData } from "../context/DataContext";
 import type { PromptData } from "../types";
-
 
 export default function PromptEditor() {
 	const {
@@ -31,7 +30,7 @@ export default function PromptEditor() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
-	
+
 	// Create Modal State
 	const [newPromptText, setNewPromptText] = useState("");
 	const [newPromptImage, setNewPromptImage] = useState<File | null>(null);
@@ -168,7 +167,6 @@ export default function PromptEditor() {
 		},
 		[selectedId, loadPrompts],
 	);
-
 
 	const filteredPrompts = useMemo(() => {
 		if (!searchQuery) return prompts;

@@ -58,9 +58,10 @@ export function AddModelCard({
 				await fetchModels();
 				setTimeout(() => setRegisterResult(null), 3000);
 			}
-		} catch (e: any) {
+		} catch (e: unknown) {
 			console.error("Import error:", e);
-			setDownloadError(e.message || "Failed to import");
+			const error = e as Error;
+			setDownloadError(error.message || "Failed to import");
 		} finally {
 			setIsRegistering(false);
 		}
@@ -74,10 +75,14 @@ export function AddModelCard({
 			<div className="space-y-4">
 				{/* URL Download Section */}
 				<div>
-					<label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1 opacity-80">
+					<label
+						htmlFor="model-url"
+						className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 ml-1 opacity-80"
+					>
 						DOWNLOAD FROM URL
 					</label>
 					<input
+						id="model-url"
 						type="text"
 						value={urlInput}
 						onChange={(e) => {

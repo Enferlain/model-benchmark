@@ -11,7 +11,7 @@ export interface ScanOptions {
 	width?: number;
 	height?: number;
 	selected_model_ids?: string[];
-	[key: string]: any;
+	[key: string]: unknown;
 }
 
 export async function fetchModels() {

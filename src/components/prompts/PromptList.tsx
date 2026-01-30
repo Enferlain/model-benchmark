@@ -90,11 +90,13 @@ export const PromptList: React.FC<PromptListProps> = ({
 		});
 	}, [prompts, searchQuery]);
 
-	const allEnabled = filteredPrompts.length > 0 && filteredPrompts.every((p) => p.enabled);
+	const allEnabled =
+		filteredPrompts.length > 0 && filteredPrompts.every((p) => p.enabled);
 
-	const activePrompt = React.useMemo(() => 
-		activeId ? filteredPrompts.find((p) => p.id === activeId) : null,
-	[activeId, filteredPrompts]);
+	const activePrompt = React.useMemo(
+		() => (activeId ? filteredPrompts.find((p) => p.id === activeId) : null),
+		[activeId, filteredPrompts],
+	);
 
 	return (
 		<div className="w-1/3 min-w-[320px] max-w-[400px] flex flex-col bg-white dark:bg-slate-800/50 rounded-2xl shadow-lg border border-slate-200 dark:border-white/5 overflow-hidden h-full">
@@ -245,7 +247,8 @@ const SortableItem = React.memo(function SortableItem({
 	};
 
 	return (
-		<div
+		<button
+			type="button"
 			ref={setNodeRef}
 			style={style}
 			{...attributes}
@@ -256,9 +259,7 @@ const SortableItem = React.memo(function SortableItem({
 					onSelect(prompt.id);
 				}
 			}}
-			tabIndex={0}
-			role="button"
-			className={`cursor-grab active:cursor-grabbing ${!prompt.enabled ? "opacity-50 grayscale" : ""}`}
+			className={`w-full text-left cursor-grab active:cursor-grabbing ${!prompt.enabled ? "opacity-50 grayscale" : ""}`}
 		>
 			<PromptItemDisplay
 				prompt={prompt}
@@ -267,7 +268,7 @@ const SortableItem = React.memo(function SortableItem({
 				onToggle={onToggle}
 				onDelete={onDelete}
 			/>
-		</div>
+		</button>
 	);
 });
 
@@ -279,83 +280,80 @@ interface PromptItemDisplayProps {
 	onDelete?: (e: React.MouseEvent, id: string) => void;
 }
 
-const PromptItemDisplay = React.memo<PromptItemDisplayProps>(({
-	prompt,
-	idx,
-	isSelected,
-	onToggle,
-	onDelete,
-}) => {
-	return (
-		<div
-			className={`group p-3 rounded-xl transition-colors border border-transparent relative select-none ${
-				isSelected
-					? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 shadow-sm"
-					: "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/10"
-			}`}
-		>
-			<div className="absolute -top-1 -left-1 z-10 w-5 h-5 rounded-full bg-slate-800 dark:bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm">
-				{idx + 1}
-			</div>
+const PromptItemDisplay = React.memo<PromptItemDisplayProps>(
+	({ prompt, idx, isSelected, onToggle, onDelete }) => {
+		return (
+			<div
+				className={`group p-3 rounded-xl transition-colors border border-transparent relative select-none ${
+					isSelected
+						? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 shadow-sm"
+						: "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/10"
+				}`}
+			>
+				<div className="absolute -top-1 -left-1 z-10 w-5 h-5 rounded-full bg-slate-800 dark:bg-slate-700 text-white text-[9px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-800 shadow-sm">
+					{idx + 1}
+				</div>
 
-			<div className="flex gap-3">
-				<div className="w-16 h-16 shrink-0 bg-slate-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 flex items-center justify-center text-slate-300">
-					{prompt.image ? (
-						<img
-							src={getThumbnailUrl(prompt.image)}
-							alt="ref"
-							className="w-full h-full object-cover"
-							loading="lazy"
-							decoding="async"
-						/>
-					) : (
-						<FileText size={24} />
-					)}
-				</div>
-				<div className="flex-1 min-w-0 flex flex-col justify-center">
-					<div className="flex justify-between items-center mb-0.5">
-						<span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
-							{prompt.alias ? prompt.alias : prompt.id}
-						</span>
-						<div
-							className="flex items-center gap-1"
-							onMouseDown={(e) => e.stopPropagation()}
-						>
-							{onToggle && (
-								<button
-									type="button"
-									onClick={(e) => onToggle(e, prompt)}
-									className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${prompt.enabled ? "bg-green-500" : "bg-slate-300 dark:bg-slate-600"}`}
-									title={prompt.enabled ? "Enabled" : "Disabled"}
-									role="switch"
-									aria-checked={prompt.enabled}
-								>
-									<div
-										className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${prompt.enabled ? "translate-x-4" : "translate-x-0"}`}
-									/>
-								</button>
-							)}
-							{onDelete && (
-								<button
-									type="button"
-									onClick={(e) => onDelete(e, prompt.id)}
-									className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 rounded transition-all ml-1"
-								>
-									<Trash2 size={14} />
-								</button>
-							)}
+				<div className="flex gap-3">
+					<div className="w-16 h-16 shrink-0 bg-slate-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 flex items-center justify-center text-slate-300">
+						{prompt.image ? (
+							<img
+								src={getThumbnailUrl(prompt.image)}
+								alt="ref"
+								className="w-full h-full object-cover"
+								loading="lazy"
+								decoding="async"
+							/>
+						) : (
+							<FileText size={24} />
+						)}
+					</div>
+					<div className="flex-1 min-w-0 flex flex-col justify-center">
+						<div className="flex justify-between items-center mb-0.5">
+							<span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+								{prompt.alias ? prompt.alias : prompt.id}
+							</span>
+							<div
+								className="flex items-center gap-1"
+								onMouseDown={(e) => e.stopPropagation()}
+								role="none"
+							>
+								{onToggle && (
+									<button
+										type="button"
+										onClick={(e) => onToggle(e, prompt)}
+										className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${prompt.enabled ? "bg-green-500" : "bg-slate-300 dark:bg-slate-600"}`}
+										title={prompt.enabled ? "Enabled" : "Disabled"}
+										role="switch"
+										aria-checked={prompt.enabled}
+									>
+										<div
+											className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform ${prompt.enabled ? "translate-x-4" : "translate-x-0"}`}
+										/>
+									</button>
+								)}
+								{onDelete && (
+									<button
+										type="button"
+										onClick={(e) => onDelete(e, prompt.id)}
+										className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 rounded transition-all ml-1"
+									>
+										<Trash2 size={14} />
+									</button>
+								)}
+							</div>
 						</div>
+						<div className="text-[10px] font-mono text-slate-400 mb-1 truncate">
+							{prompt.filename}
+						</div>
+						<p
+							className={`text-xs line-clamp-1 leading-relaxed ${prompt.text ? "text-slate-600 dark:text-slate-400" : "text-slate-400/50 italic"}`}
+						>
+							{prompt.text || "(No text content)"}
+						</p>
 					</div>
-					<div className="text-[10px] font-mono text-slate-400 mb-1 truncate">
-						{prompt.filename}
-					</div>
-					<p
-						className={`text-xs line-clamp-1 leading-relaxed ${prompt.text ? "text-slate-600 dark:text-slate-400" : "text-slate-400/50 italic"}`}
-					>
-						{prompt.text || "(No text content)"}
-					</p>
 				</div>
 			</div>
-		</div>
-	);
-});
+		);
+	},
+);

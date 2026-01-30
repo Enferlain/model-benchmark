@@ -11,21 +11,22 @@ export interface ListItemProps {
 	isSelected?: boolean;
 	onClick?: () => void;
 	isDragging?: boolean;
-	dragHandleProps?: any;
+	dragHandleProps?: Record<string, unknown>;
 	style?: React.CSSProperties;
 	key?: React.Key;
 }
 
 // 1. Pure Visual Component (No dnd hooks)
 // We use forwardRef to allow dnd-kit to attach to the DOM element
-export const ListItem = forwardRef<HTMLDivElement, ListItemProps>(
+export const ListItem = forwardRef<HTMLButtonElement, ListItemProps>(
 	({ model, isSelected, onClick, isDragging, dragHandleProps, style }, ref) => {
 		return (
-			<div
+			<button
+				type="button"
 				ref={ref}
 				style={style}
 				className={`
-        group relative flex items-center gap-3 p-3 rounded-xl border transition-colors duration-200 select-none overflow-hidden max-w-full
+        group relative flex items-center gap-3 p-3 rounded-xl border transition-colors duration-200 select-none overflow-hidden w-full text-left
         ${
 					isSelected
 						? "bg-blue-50/80 border-blue-200 dark:bg-blue-500/20 dark:border-blue-500/30"
@@ -72,7 +73,7 @@ export const ListItem = forwardRef<HTMLDivElement, ListItemProps>(
 						<span className="truncate">{model.source}</span>
 					</div>
 				</div>
-			</div>
+			</button>
 		);
 	},
 );
