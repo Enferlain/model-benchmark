@@ -19,7 +19,7 @@ _Arena for voting on outputs_
 
 | Detailed Stats                                                          | Battle Mode                                                         |
 | :---------------------------------------------------------------------- | :------------------------------------------------------------------ |
-| <img src="assets/screenshots/analytics.png" width="450" /> | <img src="assets/screenshots/arena.gif" width="450" /> |
+| <img src="assets/screenshots/analytics.png" width="450" height="160"/> | <img src="assets/screenshots/arena.gif" width="450" height="180"/> |
 | _Check the numbers for a specific run or overall averages._             | _The Arena: pick the best image without knowing the model._         |
 
 ### Prompts & History
