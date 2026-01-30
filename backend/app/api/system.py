@@ -1,12 +1,42 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException, Response
 from sqlmodel import desc, select
 
 from ..core import database as db
 from ..core import state
-from ..services import notes_manager
+from ..services import image_service, notes_manager
 
 
 router = APIRouter()
+
+
+@router.get("/thumbnails/{rel_path:path}")
+def get_thumbnail(rel_path: str, w: int = 150, h: int = 150, q: int = 80):
+    """
+    Generate or retrieve a cached thumbnail.
+
+    Security: Validates that rel_path stays within ASSETS_DIR.
+    Caching: Returns immutable cache headers for browser "forever cache".
+    """
+    # Clamp dimensions to reasonable limits
+    width = max(16, min(w, 512))
+    height = max(16, min(h, 512))
+    quality = max(10, min(q, 100))
+
+    try:
+        thumb_bytes, media_type = image_service.get_thumbnail(rel_path, width=width, height=height, quality=quality)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Image not found") from None
+    except ValueError as e:
+        # Path traversal attempt or invalid path
+        raise HTTPException(status_code=400, detail=str(e)) from None
+
+    return Response(
+        content=thumb_bytes,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+        },
+    )
 
 
 @router.get("/status")

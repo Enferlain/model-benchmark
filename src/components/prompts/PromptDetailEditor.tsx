@@ -8,6 +8,10 @@ import {
 import type React from "react";
 import type { PromptData } from "../../types";
 
+// Helper to convert asset path to thumbnail URL
+const getThumbnailUrl = (imagePath: string, size = 850) =>
+	`/api/thumbnails/${imagePath.replace(/^\/assets\//, "")}?w=${size}&h=${size}`;
+
 interface PromptDetailEditorProps {
 	prompt: PromptData | undefined;
 	editText: string;
@@ -45,6 +49,7 @@ export const PromptDetailEditor: React.FC<PromptDetailEditorProps> = ({
 							</span>
 						</div>
 						<button
+							type="button"
 							onClick={onSave}
 							disabled={!isDirty || isSaving}
 							className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
@@ -68,11 +73,13 @@ export const PromptDetailEditor: React.FC<PromptDetailEditorProps> = ({
 								<h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
 									Reference Image
 								</h3>
-								<div className="rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-lg inline-block md:max-w-md lg:max-w-lg bg-black/5 dark:bg-black/20">
+								<div className="rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-lg inline-block max-w-full bg-black/5 dark:bg-black/20">
 									<img
-										src={prompt.image}
+										src={getThumbnailUrl(prompt.image)}
 										alt="Reference"
 										className="max-h-[400px] w-auto object-contain"
+										loading="lazy"
+										decoding="async"
 									/>
 								</div>
 							</div>

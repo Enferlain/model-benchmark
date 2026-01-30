@@ -13,6 +13,7 @@ import {
 	updatePromptText,
 } from "../services/api";
 import { useData } from "../context/DataContext";
+import type { PromptData } from "../types";
 
 
 export default function PromptEditor() {
@@ -21,11 +22,19 @@ export default function PromptEditor() {
 		isLoadingPrompts: isLoading,
 		refreshPrompts: loadPrompts,
 	} = useData();
+
 	const [selectedId, setSelectedId] = useState<string | null>(() => {
 		return localStorage.getItem("promptEditor_selectedId");
 	});
+	const [editText, setEditText] = useState("");
+	const [editAlias, setEditAlias] = useState("");
+	const [isSaving, setIsSaving] = useState(false);
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
+	
+	// Create Modal State
+	const [newPromptText, setNewPromptText] = useState("");
+	const [newPromptImage, setNewPromptImage] = useState<File | null>(null);
 
 	const selectedPrompt = useMemo(() => {
 		return prompts.find((p) => p.id === selectedId) || null;
@@ -39,13 +48,24 @@ export default function PromptEditor() {
 		}
 	}, [selectedId]);
 
+	// Sync local edit state with selected prompt
+	useEffect(() => {
+		if (selectedPrompt) {
+			setEditText(selectedPrompt.text || "");
+			setEditAlias(selectedPrompt.alias || "");
+		} else {
+			setEditText("");
+			setEditAlias("");
+		}
+	}, [selectedPrompt]);
+
 	const handleDragEnd = useCallback(
 		async (event: DragEndEvent) => {
 			const { active, over } = event;
 
 			if (over && active.id !== over.id) {
-				const oldIndex = prompts.findIndex((p) => p.id === (active as any).id);
-				const newIndex = prompts.findIndex((p) => p.id === (over as any).id);
+				const oldIndex = prompts.findIndex((p) => p.id === active.id);
+				const newIndex = prompts.findIndex((p) => p.id === over.id);
 
 				const newPrompts = arrayMove(prompts, oldIndex, newIndex);
 				// Update backend
@@ -63,24 +83,14 @@ export default function PromptEditor() {
 	);
 
 	const handleToggleEnable = useCallback(
-		async (id: string, enabled: boolean) => {
+		async (e: React.MouseEvent, prompt: PromptData) => {
+			e.stopPropagation();
+			const newEnabled = !prompt.enabled;
 			try {
-				await updatePromptText(id, { enabled });
+				await updatePromptText(prompt.id, { enabled: newEnabled });
 				await loadPrompts();
 			} catch (error) {
 				console.error("Error toggling prompt:", error);
-			}
-		},
-		[loadPrompts],
-	);
-
-	const handleUpdateText = useCallback(
-		async (id: string, text: string) => {
-			try {
-				await updatePromptText(id, text);
-				await loadPrompts();
-			} catch (error) {
-				console.error("Error updating prompt:", error);
 			}
 		},
 		[loadPrompts],
@@ -108,25 +118,46 @@ export default function PromptEditor() {
 	);
 
 	const handleCreatePrompt = useCallback(
-		async (text: string, image: File | null) => {
+		async (e: React.FormEvent) => {
+			e.preventDefault();
 			const formData = new FormData();
-			formData.append("text", text);
-			if (image) formData.append("image", image);
+			formData.append("text", newPromptText);
+			if (newPromptImage) formData.append("image", newPromptImage);
 
 			try {
 				const result = await createPrompt(formData);
 				await loadPrompts();
 				setSelectedId(result.id);
 				setIsCreateModalOpen(false);
+				// Reset modal fields
+				setNewPromptText("");
+				setNewPromptImage(null);
 			} catch (error) {
 				console.error("Error creating prompt:", error);
 			}
 		},
-		[loadPrompts],
+		[loadPrompts, newPromptText, newPromptImage],
 	);
 
+	const handleSave = useCallback(async () => {
+		if (!selectedId) return;
+		setIsSaving(true);
+		try {
+			await updatePromptText(selectedId, {
+				text: editText,
+				alias: editAlias,
+			});
+			await loadPrompts();
+		} catch (error) {
+			console.error("Error saving prompt:", error);
+		} finally {
+			setIsSaving(false);
+		}
+	}, [selectedId, editText, editAlias, loadPrompts]);
+
 	const handleDeletePrompt = useCallback(
-		async (id: string) => {
+		async (e: React.MouseEvent, id: string) => {
+			e.stopPropagation();
 			try {
 				await deletePrompt(id);
 				if (selectedId === id) setSelectedId(null);
@@ -138,17 +169,6 @@ export default function PromptEditor() {
 		[selectedId, loadPrompts],
 	);
 
-	const handleSetDefaultImage = useCallback(
-		async (id: string, imagePath: string) => {
-			try {
-				await updatePromptText(id, { default_image: imagePath });
-				await loadPrompts();
-			} catch (error) {
-				console.error("Error setting default image:", error);
-			}
-		},
-		[loadPrompts],
-	);
 
 	const filteredPrompts = useMemo(() => {
 		if (!searchQuery) return prompts;
@@ -158,50 +178,58 @@ export default function PromptEditor() {
 
 	return (
 		<div className="max-w-[1800px] mx-auto h-[calc(100vh-100px)] pt-6 px-6 flex gap-6">
-			<div className="w-80 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col overflow-hidden rounded-xl shadow-sm">
-				<PromptList
-						prompts={filteredPrompts}
-						selectedId={selectedId}
-						onSelect={setSelectedId}
-						onToggleEnable={handleToggleEnable}
-						onDragEnd={handleDragEnd}
-						onShuffle={handleShuffle}
-						onEnableAll={handleEnableAll}
-						onCreateClick={() => setIsCreateModalOpen(true)}
-						searchQuery={searchQuery}
-					onSearchChange={setSearchQuery}
-					isLoading={isLoading}
-				/>
-			</div>
+			<PromptList
+				prompts={filteredPrompts}
+				selectedId={selectedId}
+				onSelect={setSelectedId}
+				onToggle={handleToggleEnable}
+				onDragEnd={handleDragEnd}
+				onShuffle={handleShuffle}
+				onEnableAll={handleEnableAll}
+				onCreate={() => setIsCreateModalOpen(true)}
+				searchQuery={searchQuery}
+				onSearchChange={setSearchQuery}
+				isLoading={isLoading}
+				onDelete={handleDeletePrompt}
+			/>
 
-			<div className="flex-1 bg-white dark:bg-slate-800 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-					{selectedPrompt ? (
-						<PromptDetailEditor
-							prompt={selectedPrompt}
-							onUpdateText={handleUpdateText}
-							onDelete={handleDeletePrompt}
-							onSetDefaultImage={handleSetDefaultImage}
-						/>
-					) : (
-						<div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-							<div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-4">
-								<ImageIcon size={32} className="text-slate-300" />
-							</div>
-							<h3 className="text-lg font-medium text-slate-600 dark:text-slate-300">
-								No Prompt Selected
-							</h3>
-							<p className="max-w-xs mt-2">
-								Select a prompt from the list to edit its details or view its
-								associated benchmark images.
-							</p>
-						</div>
-					)}
+			{selectedPrompt ? (
+				<PromptDetailEditor
+					prompt={selectedPrompt}
+					editText={editText}
+					editAlias={editAlias}
+					isSaving={isSaving}
+					isDirty={
+						editText !== (selectedPrompt.text || "") ||
+						editAlias !== (selectedPrompt.alias || "")
+					}
+					onTextChange={setEditText}
+					onAliasChange={setEditAlias}
+					onSave={handleSave}
+				/>
+			) : (
+				<div className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col items-center justify-center text-slate-400 p-8 text-center">
+					<div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-4">
+						<ImageIcon size={32} className="text-slate-300" />
+					</div>
+					<h3 className="text-lg font-medium text-slate-600 dark:text-slate-300">
+						No Prompt Selected
+					</h3>
+					<p className="max-w-xs mt-2">
+						Select a prompt from the list to edit its details or view its
+						associated benchmark images.
+					</p>
 				</div>
+			)}
 
 			<CreatePromptModal
 				isOpen={isCreateModalOpen}
 				onClose={() => setIsCreateModalOpen(false)}
-				onConfirm={handleCreatePrompt}
+				onCreate={handleCreatePrompt}
+				newPromptText={newPromptText}
+				setNewPromptText={setNewPromptText}
+				newPromptImage={newPromptImage}
+				setNewPromptImage={setNewPromptImage}
 			/>
 		</div>
 	);

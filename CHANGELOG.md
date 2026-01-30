@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-01-30
+
+### Added
+
+- **Backend Thumbnailing Service**: Implemented `image_service.py` to provide on-the-fly, high-performance WebP resizing for all image assets.
+  - Support for custom resolution targets (256px for lists, 850px for samples).
+  - Persistent server-side caching in `.cache/thumbnails/`.
+  - Threaded generation to prevent blocking the main API thread.
+- **Frontend Virtualization**:
+  - Integrated `react-virtuoso` into `PromptList.tsx` for smooth handling of thousands of prompt entities.
+  - Implemented `VirtuosoGrid` in `Gallery.tsx` for high-performance image browsing.
+- **Arena Background Pre-fetching**: Developed a "look-ahead" mechanism that prepares the next battle's prompts and images in the background, enabling zero-latency voting transitions.
+
+### Fixed
+
+- **Prompt Tab Regressions**:
+  - Restored missing prompt text by synchronizing local editor state with global data context.
+  - Eliminated "ghost" layout containers causing double-bordering and overlapping shadows.
+  - Refined Sidebar aesthetics including numbering, padding, and high-fidelity 256px previews.
+- **Performance Integrity**: Standardized `decoding="async"` and `loading="lazy"` across all gallery and sidebar assets to offload the main thread.
+- **Gallery Quality**: Implemented Danbooru-style 850px "sample" previews for the grid, balancing high visual fidelity with rapid load times.
+
 ## [Unreleased] - 2026-01-29
 
 ### Added

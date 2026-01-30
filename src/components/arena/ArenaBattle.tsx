@@ -146,6 +146,8 @@ export function ArenaBattle({
 										onLoad={(e) => handleImageLoad(e, "A")}
 										alt="Model A Output"
 										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
+										decoding="async"
+										loading="lazy"
 									/>
 								</button>
 								<div className="absolute top-4 left-4 bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -230,6 +232,8 @@ export function ArenaBattle({
 												src={refImage}
 												alt="Reference"
 												className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity"
+												decoding="async"
+												loading="lazy"
 											/>
 										) : (
 											<div className="w-full h-full flex items-center justify-center text-slate-400">
@@ -278,6 +282,8 @@ export function ArenaBattle({
 												onLoad={(e) => handleImageLoad(e, "Ref")}
 												alt="Reference preview"
 												className="max-w-full max-h-full object-contain"
+												decoding="async"
+												loading="lazy"
 											/>
 										</button>
 									) : (
@@ -335,6 +341,8 @@ export function ArenaBattle({
 										onLoad={(e) => handleImageLoad(e, "B")}
 										alt="Model B Output"
 										className="max-w-full max-h-full object-contain hover:opacity-95 transition-opacity"
+										decoding="async"
+										loading="lazy"
 									/>
 								</button>
 								<div className="absolute top-4 right-4 bg-black/50 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-bold pointer-events-none z-10 opacity-0 group-hover:opacity-100 transition-opacity">

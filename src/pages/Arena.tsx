@@ -18,6 +18,7 @@ interface BattleState {
 	modelBId: string;
 	isLoading: boolean;
 	error: string | null;
+	demoIndex?: number;
 }
 
 const MOCK_BATTLE_SETS: BattleState[] = [
@@ -147,20 +148,18 @@ export default function Arena() {
 		error: null,
 	});
 
+	const [nextBattle, setNextBattle] = useState<BattleState | null>(null);
 	const [isDemoMode, setIsDemoMode] = useState(false);
 	const [demoIndex, setDemoIndex] = useState(0);
 
-	const startNewBattle = useCallback(async () => {
-		if (models.length < 2) {
-			setIsDemoMode(true);
-			setBattle(MOCK_BATTLE_SETS[demoIndex]);
-			return;
-		}
-
-		setIsDemoMode(false);
-		setBattle((prev) => ({ ...prev, isLoading: true, error: null }));
-
+	const prepareNextBattle = useCallback(async (currentDemoIndex: number) => {
 		try {
+			if (models.length < 2) {
+				const nextDemoIndex = (currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
+				setNextBattle(MOCK_BATTLE_SETS[nextDemoIndex]);
+				return;
+			}
+
 			// 1. Pick two random models
 			const shuffledModels = [...models].sort(() => 0.5 - Math.random());
 			const modelA = shuffledModels[0];
@@ -178,10 +177,10 @@ export default function Arena() {
 			);
 
 			if (common.length === 0) {
-				setIsDemoMode(true);
-				setBattle({
-					...MOCK_BATTLE_SETS[demoIndex],
-					error: "No common images found. Showing demo results.",
+				const nextDemoIndex = (currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
+				setNextBattle({
+					...MOCK_BATTLE_SETS[nextDemoIndex],
+					error: "No common images found. Preparing demo battle.",
 				});
 				return;
 			}
@@ -194,31 +193,102 @@ export default function Arena() {
 
 			// Randomize order (A/B)
 			const swap = Math.random() > 0.5;
+			const imageA = getImageUrl(
+				swap ? outputB.url : selection.url,
+				swap ? outputB.mtime : selection.mtime,
+			);
+			const imageB = getImageUrl(
+				swap ? selection.url : outputB.url,
+				swap ? selection.mtime : outputB.mtime,
+			);
 
-			setBattle({
+			// Pre-fetch images
+			const imgA = new Image();
+			imgA.src = imageA;
+			const imgB = new Image();
+			imgB.src = imageB;
+			if (selection.image_ref) {
+				const imgRef = new Image();
+				imgRef.src = getImageUrl(selection.image_ref);
+			}
+
+			setNextBattle({
 				prompt: selection.prompt,
-				imageA: getImageUrl(
-					swap ? outputB.url : selection.url,
-					swap ? outputB.mtime : selection.mtime,
-				),
-				imageB: getImageUrl(
-					swap ? selection.url : outputB.url,
-					swap ? selection.mtime : outputB.mtime,
-				),
+				imageA,
+				imageB,
+				refImage: selection.image_ref ? getImageUrl(selection.image_ref) : undefined,
 				modelAId: swap ? modelB.id : modelA.id,
 				modelBId: swap ? modelA.id : modelB.id,
 				isLoading: false,
 				error: null,
+				demoIndex: currentDemoIndex, // Store index to avoid stale swaps
 			});
 		} catch (err) {
-			console.error("Failed to start battle", err);
-			setIsDemoMode(true);
-			setBattle({
-				...MOCK_BATTLE_SETS[demoIndex],
-				error: "Failed to load actual data. Showing demo results.",
-			});
+			console.error("Failed to prepare next battle", err);
+			const nextDemoIndex = (currentDemoIndex + 1) % MOCK_BATTLE_SETS.length;
+			setNextBattle(MOCK_BATTLE_SETS[nextDemoIndex]);
 		}
-	}, [models, demoIndex]);
+	}, [models]);
+
+	const startNewBattle = useCallback(async () => {
+		if (nextBattle) {
+			setBattle(nextBattle);
+			setNextBattle(null);
+			setIsDemoMode(models.length < 2 || !!nextBattle.error);
+			// Start preparing the ONE AFTER focus
+			prepareNextBattle(demoIndex); 
+			return;
+		}
+
+		setBattle((prev) => ({ ...prev, isLoading: true, error: null }));
+		
+		// If no nextBattle (first load), do it synchronously
+		if (models.length < 2) {
+			setIsDemoMode(true);
+			setBattle(MOCK_BATTLE_SETS[demoIndex]);
+			prepareNextBattle(demoIndex);
+			return;
+		}
+
+		setIsDemoMode(false);
+		try {
+			// Initial load logic (essentially what prepareNextBattle does but sets 'battle' directly)
+			const shuffledModels = [...models].sort(() => 0.5 - Math.random());
+			const modelA = shuffledModels[0];
+			const modelB = shuffledModels[1];
+			const [outputsA, outputsB] = await Promise.all([
+				fetchModelOutputs(modelA.id),
+				fetchModelOutputs(modelB.id),
+			]);
+			const common = outputsA.filter((oa) =>
+				outputsB.some((ob) => ob.prompt === oa.prompt && ob.seed === oa.seed),
+			);
+
+			if (common.length === 0) {
+				setBattle(MOCK_BATTLE_SETS[demoIndex]);
+				setIsDemoMode(true);
+			} else {
+				const selection = common[Math.floor(Math.random() * common.length)];
+				const outputB = outputsB.find(ob => ob.prompt === selection.prompt && ob.seed === selection.seed) as ModelOutput;
+				const swap = Math.random() > 0.5;
+				setBattle({
+					prompt: selection.prompt,
+					imageA: getImageUrl(swap ? outputB.url : selection.url),
+					imageB: getImageUrl(swap ? selection.url : outputB.url),
+					refImage: selection.image_ref ? getImageUrl(selection.image_ref) : undefined,
+					modelAId: swap ? modelB.id : modelA.id,
+					modelBId: swap ? modelA.id : modelB.id,
+					isLoading: false,
+					error: null,
+				});
+			}
+			prepareNextBattle(demoIndex);
+		} catch (err) {
+			setBattle(MOCK_BATTLE_SETS[demoIndex]);
+			setIsDemoMode(true);
+			prepareNextBattle(demoIndex);
+		}
+	}, [models, nextBattle, demoIndex, prepareNextBattle]);
 
 	useEffect(() => {
 		localStorage.setItem("arena_activeTab", activeTab);
@@ -234,11 +304,13 @@ export default function Arena() {
 		console.log(
 			`Vote cast: ${vote} for models ${battle.modelAId} vs ${battle.modelBId}`,
 		);
+		
+		let nextDemoIdx = demoIndex;
 		if (isDemoMode) {
-			alert(`Demo vote recorded: ${vote}!`);
-		} else {
-			alert(`Vote recorded: ${vote}! Starting next battle...`);
+			nextDemoIdx = (demoIndex + 1) % MOCK_BATTLE_SETS.length;
+			setDemoIndex(nextDemoIdx);
 		}
+
 		startNewBattle();
 	};
 
