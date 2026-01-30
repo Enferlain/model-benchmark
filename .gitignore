@@ -44,4 +44,4 @@ backend/assets/prompts_config.json
 backend/venv/
 
 # Root assets (legacy)
-assets/
+backend/assets/
