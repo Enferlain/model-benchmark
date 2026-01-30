@@ -1,145 +1,79 @@
-# Model Benchmark Explorer WIP
+# Model Benchmark Explorer
 
-A tool for benchmarking and comparing SDXL models by generating images from test prompts and calculating quality metrics.
+Thingy to test and compare models. Generates images from a selection of prompts, runs automated metrics for performance, and runs them against each other for user ratings. Many more todos in progress.
 
-<img width="1893" height="962" alt="image" src="https://github.com/user-attachments/assets/84bd7ac2-f10f-4ef0-9b53-784e62af5b76" />
+<img src="assets/screenshots/arena.gif" width="800" />
 
-<img width="1354" height="679" alt="image" src="https://github.com/user-attachments/assets/ceb852b9-4a27-466d-8a37-3888ee347ad4" />
+_Arena for voting on outputs_
 
-<img width="1333" height="371" alt="image" src="https://github.com/user-attachments/assets/1ff081b3-21d8-4fb3-b633-05ffc83b3859" />
+## 🚀 Screenshots
 
-## Quick Start
+### Dashboard
 
-### 1. Install Dependencies
+| Scatter plot of metrics                                                  | Model management                                                         |
+| :----------------------------------------------------------------------- | :----------------------------------------------------------------------- |
+| <img src="assets/screenshots/dashboard1.png" width="450" height="160" /> | <img src="assets/screenshots/dashboard2.png" width="450" height="160" /> |
+| _A quick bird's-eye view of model metrics._                              | _Add new models to the queue._                                           |
+
+### Stats and arena
+
+| Detailed Stats                                                          | Battle Mode                                                         |
+| :---------------------------------------------------------------------- | :------------------------------------------------------------------ |
+| <img src="assets/screenshots/analytics.png" width="450" height="160" /> | <img src="assets/screenshots/arena.gif" width="450" height="160" /> |
+| _Check the numbers for a specific run or overall averages._             | _The Arena: pick the best image without knowing the model._         |
+
+### Prompts & History
+
+| Prompt Editor                                                              | Past Runs                                                              |
+| :------------------------------------------------------------------------- | :--------------------------------------------------------------------- |
+| <img src="assets/screenshots/prompteditor.png" width="450" height="160" /> | <img src="assets/screenshots/database.png" width="450" height="160" /> |
+| _Basically a prompt library._                                              | _Detailed database management._                                        |
+
+## 🛠️ Getting Started
+
+### 1. Grab dependencies
 
 ```bash
+# Frontend
+npm install
+
 # Backend
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-alembic upgrade head # Run migrations
-
-# Frontend (from root)
-npm install
+alembic upgrade head # Set up the database
 ```
 
-### 2. Assets Migration (Important!)
+### 2. Add some models
 
-**Note:** The `assets` directory has been moved from the project root to `backend/assets`.
-If you are upgrading from an older version, please move your existing `assets` folder into `backend/`.
+- Use the "Add Model" panel on the dashboard to add local models/folders or download directly from HuggingFace or CivitAI.
+- Manage your prompts in the **Prompt Editor** tab.
 
-### 3. Add Models
-
-You can add models in two ways:
-
-#### Option A: Manual Placement (Local)
-
-Place your `.safetensors` model files directly in:
-
-```
-backend/assets/models/
-```
-
-#### Option B: Download via UI (Hugging Face / CivitAI)
-
-The easiest way to add models is via the Dashboard UI:
-
-1.  Navigate to the **Dashboard**.
-2.  Locate the **"Add Model"** panel on the left sidebar.
-3.  Paste a **Direct Download Link** (e.g., from Hugging Face or CivitAI) into the "MODEL URL" input field.
-4.  Click **"Download Model"**.
-
-- Supported Sources: Hugging Face (resolve/main links), CivitAI (model download links).
-- **Note:** Only public models are supported. Authentication (API keys) for private or gated models is not currently implemented.
-- The system will automatically attempt to parse the model name from the URL, or you can use the API (Option C) for custom naming.
-- A progress bar will show the download status.
-
-#### Option C: Download via API (Advanced)
-
-For automated or headless setups, you can trigger downloads via the API:
-
-**Example (cURL):**
+### 3. Run ui and server
 
 ```bash
-curl -X POST "http://localhost:8000/api/models/download" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "url": "https://huggingface.co/author/repo/resolve/main/model.safetensors",
-           "name": "MyModel",
-           "source": "HuggingFace"
-         }'
-```
+# Terminal 1: Frontend
+npm run dev
 
-- **URL**: Direct download link to the model file.
-- **Name**: Desired filename (without extension).
-- **Source**: Metadata tag (e.g., "HuggingFace", "CivitAI").
-
-You can check the download status via:
-
-```bash
-curl "http://localhost:8000/api/models/download/status"
-```
-
-### 4. Manage Prompts
-
-The application features a full **Prompt Manager** tab.
-
-- **Interactive Queue**: Toggle prompts ON/OFF. Only enabled prompts are used for benchmarking.
-- **CRUD**: Create, Edit, Delete prompts directly in the UI.
-- **Reference Images**: Upload reference images for specific prompts (useful for Img2Img or visual comparison).
-- **Organization**: Search and index tracking.
-
-_Alternatively, you can still place files manually:_
-
-#### Option A: Paired Image+Prompt (Preferred)
-
-Place images and matching `.txt` files in:
-
-```
-backend/assets/image_prompts/
-├── example1.png     # Reference image
-├── example1.txt     # Prompt for that image
-```
-
-#### Option B: Separate Folders (Fallback)
-
-```
-backend/assets/images/     # Reference images (optional)
-backend/assets/prompts/    # Text files with prompts
-```
-
-### 5. Run
-
-```bash
-# Terminal 1: Backend
+# Terminal 2: Backend
 cd backend
 venv\Scripts\activate
 uvicorn main:app --reload --port 8000
-
-# Terminal 2: Frontend
-npm run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3000` and start exploring!
 
 ---
 
-## Key Features
+## ✨ Features
 
-- **Dashboard**: Visual scatter plot of model metrics with linked table selection
-- **Arena**: Pairwise model comparison with **Bradley-Terry (BT)** ranking system
-- **Gallery**: Filter generated images by Prompt, Seed, and Model (with optimized UUID indexing)
-- **Compare**: Side-by-side image comparison with slider overlay
-- **Prompt Editor**: Full CRUD for stable test prompts with reference images
-- **Database**: View and search benchmark run history and arena votes
-- **Model Comparison View**: Slider-based visual comparison between models
-
-### Fairness Features
-
-- **Parameter Mismatch Detection**: Warns when generation settings don't match existing images
-- **Prompt Coverage Check**: Ensures all models have equal image counts before analysis
-- **Equalize Mode**: Automatically generates missing images to match across models
+- **Smart Analytics**: Switch between **Global Averages** (how the model has done so far) and **Specific Runs**.
+- **Fair Comparisons**: The app catches if you're trying to compare images with different settings or if a model is missing some prompts.
+- **Arena Leaderboard**: See which models generate better outputs in a blind test.
+- **Deep Linking**: Click a run in the analytics tab and jump straight to it in the database for more details.
+- **Side-by-Side View**: Use different views to see exactly how two models differ on the same prompt.
+- **Scalable**: Virtualized lists mean you can scroll through thousands of images without lagging (hopefully).
 
 ---
 

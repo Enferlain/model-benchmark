@@ -20,6 +20,8 @@ export interface ModelData {
 	lpips_loss?: number;
 	ztsnr?: boolean;
 	metrics?: Record<MetricKey, number>;
+	metrics_avg?: Record<string, number>;
+	metrics_latest?: Record<string, number>;
 	url: string;
 	is_missing?: boolean;
 	model_type?: string;
@@ -27,6 +29,7 @@ export interface ModelData {
 	bt_score?: number;
 	path?: string;
 	image_count?: number;
+	run_count?: number;
 }
 
 export interface MetricOption {
@@ -66,7 +69,7 @@ export interface RunResult {
 export interface BenchmarkRun {
 	id: number;
 	timestamp: string;
-	parameters: Record<string, any>;
+	parameters: Record<string, unknown>;
 	prompts: string[];
 	prompt_set_id?: string;
 	results: RunResult[];

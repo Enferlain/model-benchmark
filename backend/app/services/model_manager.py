@@ -4,9 +4,10 @@ import json
 from pathlib import Path
 
 from sqlmodel import desc, select
+from sqlalchemy.orm import selectinload
 
 from ..core import database as db
-from ..core.database import BenchmarkRun, ImageOutput, Model
+from ..core.database import BenchmarkRun, ImageOutput, Model, ModelStats
 from ..core.database import ModelResult as DBModelResult
 from ..core.state import ModelResult, models_db
 from . import prompt_manager as data_loader
@@ -375,7 +376,7 @@ def sync_models_with_db(recheck_types: bool = False):
         # 2. Refresh In-Memory State for API
         new_models_list = []
 
-        all_db_models = session.exec(select(Model)).all()
+        all_db_models = session.exec(select(Model).options(selectinload(Model.stats))).all()
         for db_m in all_db_models:
             # Verify existence on disk (optional, but good for "Clean" list)
             # if not Path(db_m.path).exists():
@@ -406,11 +407,27 @@ def sync_models_with_db(recheck_types: bool = False):
             if db_m.meta and db_m.meta.get("ztsnr"):
                 api_m.ztsnr = True
 
-            if latest_res:
-                api_m.accuracy = latest_res.metrics.get("accuracy", 0.0)
-                api_m.diversity = latest_res.metrics.get("diversity", 0.0)
-                # Merge metrics
-                api_m.metrics.update(latest_res.metrics)
+            # Get stats if they exist
+            if db_m.stats:
+                api_m.metrics_avg = db_m.stats.metrics_avg or {}
+                api_m.metrics_latest = db_m.stats.metrics_latest or {}
+                api_m.run_count = db_m.stats.run_count
+                api_m.bt_score = db_m.stats.bt_score
+
+                # Backwards compatibility: use latest or avg as primary metrics
+                if api_m.metrics_latest:
+                    api_m.accuracy = api_m.metrics_latest.get("accuracy", 0.0)
+                    api_m.diversity = api_m.metrics_latest.get("diversity", 0.0)
+                    api_m.vqa_score = api_m.metrics_latest.get("vqa_score", 0.0)
+                    api_m.lpips_loss = api_m.metrics_latest.get("lpips_loss", 0.0)
+                    api_m.metrics.update(api_m.metrics_latest)
+                elif api_m.metrics_avg:
+                    api_m.accuracy = api_m.metrics_avg.get("accuracy", 0.0)
+                    api_m.diversity = api_m.metrics_avg.get("diversity", 0.0)
+                    api_m.metrics.update(api_m.metrics_avg)
+
+            # Get latest image count from most recent run specifically if not in stats (though it should be)
+            if not api_m.image_count and latest_res:
                 api_m.image_count = latest_res.image_count
 
             new_models_list.append(api_m)

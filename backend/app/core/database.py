@@ -28,6 +28,7 @@ class Model(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     results: list["ModelResult"] = Relationship(back_populates="model", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    stats: "ModelStats" = Relationship(back_populates="model", sa_relationship_kwargs={"uselist": False, "cascade": "all, delete-orphan"})
 
 
 class BenchmarkRun(SQLModel, table=True):
@@ -77,6 +78,24 @@ class ArenaVote(SQLModel, table=True):
     parameters: dict = Field(default={}, sa_column=Column(JSON))
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ModelStats(SQLModel, table=True):
+    model_hash: str = Field(primary_key=True, foreign_key="model.hash")
+
+    # Cached metrics
+    metrics_latest: dict = Field(default={}, sa_column=Column(JSON))
+    metrics_avg: dict = Field(default={}, sa_column=Column(JSON))
+
+    run_count: int = Field(default=0)
+
+    # Arena/BT integration
+    bt_score: float = Field(default=1000.0)
+    total_votes: int = Field(default=0)
+
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    model: Model = Relationship(back_populates="stats")
 
 
 class ImageOutput(SQLModel, table=True):

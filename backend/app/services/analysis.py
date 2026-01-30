@@ -10,6 +10,7 @@ from ..core.state import ScanOptions, models_db
 from ..lib.metrics import MetricsCalculator
 from . import model_manager
 from . import prompt_manager as data_loader
+from . import stats_service
 
 
 # Initialize metrics calculator lazily
@@ -138,16 +139,12 @@ def analyze_models_only(options: ScanOptions):
             if flat_images:
                 try:
                     mc = get_metrics_calc()
-                    raw_metrics = mc.calculate_metrics(
-                        flat_images, flat_prompts, grouped_images
-                    )
+                    raw_metrics = mc.calculate_metrics(flat_images, flat_prompts, grouped_images)
 
                     metrics["accuracy"] = round(raw_metrics["clip_score"], 3)
                     metrics["diversity"] = round(raw_metrics["diversity_score"], 3)
                     metrics["vqa_score"] = round(random.uniform(0.7, 0.9), 2)
-                    metrics["lpips_loss"] = round(
-                        raw_metrics.get("lpips_diversity", 0.0), 3
-                    )
+                    metrics["lpips_loss"] = round(raw_metrics.get("lpips_diversity", 0.0), 3)
                 except Exception as e:
                     print(f"Error metrics {m.name}: {e}")
 
@@ -171,9 +168,7 @@ def analyze_models_only(options: ScanOptions):
         session.add(run)
         session.commit()
         session.refresh(run)
-        print(
-            f"Created Benchmark Run ID: {run.id} with {len(used_prompts_list)} prompts"
-        )
+        print(f"Created Benchmark Run ID: {run.id} with {len(used_prompts_list)} prompts")
 
         # Now save all model results with the run ID
         for result_data in model_analysis_results:
@@ -187,6 +182,10 @@ def analyze_models_only(options: ScanOptions):
 
         session.commit()
         print("Analysis complete. Results saved.")
+
+        # Update model stats for all analyzed models
+        for result_data in model_analysis_results:
+            stats_service.update_model_stats(session, result_data["model_hash"])
 
     # Sync to refresh in-memory state for API
     return model_manager.sync_models_with_db()

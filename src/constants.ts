@@ -50,8 +50,23 @@ export const INITIAL_MODELS: ModelData[] = [
 
 export const METRIC_OPTIONS: MetricOption[] = [
 	{
+		value: "rating",
+		label: "Rating",
+		description: "Community score / 5.0",
+		direction: "higher",
+		extendedDescription: `**User Rating** is the community-provided score from the model's source platform.
+
+**How it works:**
+Scraped or fetched from Civitai/HuggingFace model pages.
+
+**What it means for the model:**
+- **Higher is better** (scale of 1-5)
+- Reflects user satisfaction and popularity
+- May not correlate with technical quality`,
+	},
+	{
 		value: "accuracy",
-		label: "Accuracy (Prompt Adherence)",
+		label: "Accuracy",
 		description: "How closely the image matches the prompt",
 		direction: "higher",
 		extendedDescription: `**CLIP Score** measures how well the generated image aligns with the text prompt.
@@ -71,7 +86,7 @@ Uses OpenAI's CLIP model to encode both the image and text prompt into embedding
 	},
 	{
 		value: "diversity",
-		label: "Diversity (⚠️ WIP)",
+		label: "Diversity",
 		description:
 			"⚠️ Currently measures cross-prompt variety, not true intra-prompt diversity",
 		direction: "higher",
@@ -94,23 +109,8 @@ Measures semantic difference between images generated from DIFFERENT prompts. Th
 - LPIPS or MS-SSIM computation within groups`,
 	},
 	{
-		value: "rating",
-		label: "User Rating",
-		description: "Community score / 5.0",
-		direction: "higher",
-		extendedDescription: `**User Rating** is the community-provided score from the model's source platform.
-
-**How it works:**
-Scraped or fetched from Civitai/HuggingFace model pages.
-
-**What it means for the model:**
-- **Higher is better** (scale of 1-5)
-- Reflects user satisfaction and popularity
-- May not correlate with technical quality`,
-	},
-	{
 		value: "vqa_score",
-		label: "VQA Score",
+		label: "VQA",
 		description: "Visual Question Answering faithfulness",
 		direction: "higher",
 		extendedDescription: `**VQA Score** (Visual Question Answering) evaluates if the image contains what the prompt asked for.
@@ -131,7 +131,7 @@ Currently uses a placeholder/mock value. Full implementation would:
 	},
 	{
 		value: "lpips_loss",
-		label: "LPIPS Diversity",
+		label: "LPIPS",
 		description:
 			"Intra-prompt variety (higher = more varied outputs for same prompt)",
 		direction: "higher",

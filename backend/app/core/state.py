@@ -23,7 +23,10 @@ class ModelResult(BaseModel):
     vqa_score: float = 0.0
     lpips_loss: float = 0.0
     bt_score: float = 1000.0
+    run_count: int = 0
     metrics: dict[str, float] = {}
+    metrics_avg: dict[str, float] = {}
+    metrics_latest: dict[str, float] = {}
     url: str = ""
     path: str | None = None
     image_count: int = 0

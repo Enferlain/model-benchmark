@@ -9,16 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Backend Thumbnailing Service**: Implemented `image_service.py` to provide on-the-fly, high-performance WebP resizing for all image assets.
-  - Support for custom resolution targets (256px for lists, 850px for samples).
-  - Persistent server-side caching in `.cache/thumbnails/`.
-  - Threaded generation to prevent blocking the main API thread.
-- **Frontend Virtualization**:
-  - Integrated `react-virtuoso` into `PromptList.tsx` for smooth handling of thousands of prompt entities.
-  - Implemented `VirtuosoGrid` in `Gallery.tsx` for high-performance image browsing.
-- **Arena Background Pre-fetching**: Developed a "look-ahead" mechanism that prepares the next battle's prompts and images in the background, enabling zero-latency voting transitions.
+- **Model Statistics System**: Implemented a comprehensive caching and aggregation layer for model performance.
+  - Added `ModelStats` table to store rolling averages and latest benchmark results.
+  - Developed `stats_service.py` for automatic metrics synchronization and Bradley-Terry score integration.
+  - Optimized backend lookups using `selectinload` for high-performance model/stats retrieval.
+- **Model History & Deep Linking**:
+  - Implemented expandable historical dropdowns in the model list for rapid performance auditing.
+  - Added support for **Deep Linking** (`/database?tab=runs&runId=...`) enabling direct navigation to specific benchmark results from the analytics view.
+  - Added intelligent slicing (limit to 5 runs) with a "View All" footer for clean UI management.
+- **Frontend Dual-Metric Display**: Enhanced `ModelTable` to show both "Latest" (primary) and "Average" (subtext) scores simultaneously.
+
+### Changed
+
+- **UX Refinement**: Entire rows in the Analytics table are now clickable for expansion, providing a more intuitive interaction pattern.
+- **Analytics Tab Redesign**:
+  - Implemented "Global Average" vs "Shared Run" view modes to provide contextually fair comparisons.
+  - Added comprehensive filtering (Architecture, Source) and real-time search to the Analytics toolbar.
+- **ModelTable UI/UX Overhaul**:
+  - **Header Redesign**: Permanent `[Info -> Label -> Sort]` layout with vertical column separators and concise labels ("Rating", "Accuracy", etc.).
+  - **Metric Prioritization**: Moved "User Rating" to the first column for immediate sentiment context.
+  - **Interactive Polish**: Made action buttons permanently visible, improved menu alignment (right-aligned), and added styled "Run Count" badges.
+  - **Visual Cleanup**: Standardized score weights (removed bolding) and implemented smart truncation for long metric titles.
 
 ### Fixed
+
+- **API Integrity**: Resolved a critical `ValueError` in the backend API by synchronizing the `ModelResult` state model with new metric fields (`run_count`, `vqa_score`, `lpips_loss`).
+- **Code Quality**: Cleaned up dozens of Biome/TypeScript linting errors, fixed duplicate field definitions in `state.py`, and removed unused legacy interfaces in `Database.tsx`.
 
 - **Prompt Tab Regressions**:
   - Restored missing prompt text by synchronizing local editor state with global data context.

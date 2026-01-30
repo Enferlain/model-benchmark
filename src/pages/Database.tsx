@@ -13,6 +13,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
 import { useData } from "../context/DataContext";
 import { deleteModel, scanModels } from "../services/api";
@@ -23,15 +24,6 @@ interface ModelResultData {
 	model_name: string;
 	metrics: Record<string, number>;
 	image_count: number;
-}
-
-interface BenchmarkRun {
-	id: number;
-	timestamp: string;
-	parameters: any;
-	prompts: string[];
-	prompt_set_id: string | null;
-	results: ModelResultData[];
 }
 
 type SortField = "name" | "model_type" | "prediction_type";
@@ -49,6 +41,30 @@ export default function Database() {
 			(localStorage.getItem("database_activeTab") as "models" | "runs") ||
 			"models",
 	);
+
+	const [searchParams] = useSearchParams();
+
+	// Handle deep links from analytics/model table
+	useEffect(() => {
+		const tabParam = searchParams.get("tab");
+		const runIdParam = searchParams.get("runId");
+
+		if (tabParam === "runs") {
+			setActiveTab("runs");
+		}
+
+		if (runIdParam) {
+			const runId = parseInt(runIdParam);
+			if (!Number.isNaN(runId)) {
+				setExpandedRunIds(new Set([runId]));
+				// Optional: scroll to the run if it's a long list
+				setTimeout(() => {
+					const el = document.getElementById(`run-${runId}`);
+					el?.scrollIntoView({ behavior: "smooth", block: "center" });
+				}, 100);
+			}
+		}
+	}, [searchParams]);
 
 	// Expanded runs state
 	const [expandedRunIds, setExpandedRunIds] = useState<Set<number>>(new Set());
@@ -460,6 +476,7 @@ export default function Database() {
 											return (
 												<React.Fragment key={run.id}>
 													<tr
+														id={`run-${run.id}`}
 														className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
 														onClick={() => toggleRunExpanded(run.id)}
 													>
