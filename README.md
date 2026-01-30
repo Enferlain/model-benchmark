@@ -12,21 +12,21 @@ _Arena for voting on outputs_
 
 | Scatter plot of metrics                                                  | Model management                                                         |
 | :----------------------------------------------------------------------- | :----------------------------------------------------------------------- |
-| <img src="assets/screenshots/dashboard1.png" width="450" height="160" /> | <img src="assets/screenshots/dashboard2.png" width="450" height="160" /> |
+| <img src="assets/screenshots/dashboard1.png" width="450" /> | <img src="assets/screenshots/dashboard2.png" width="450" /> |
 | _A quick bird's-eye view of model metrics._                              | _Add new models to the queue._                                           |
 
 ### Stats and arena
 
 | Detailed Stats                                                          | Battle Mode                                                         |
 | :---------------------------------------------------------------------- | :------------------------------------------------------------------ |
-| <img src="assets/screenshots/analytics.png" width="450" height="160" /> | <img src="assets/screenshots/arena.gif" width="450" height="160" /> |
+| <img src="assets/screenshots/analytics.png" width="450" /> | <img src="assets/screenshots/arena.gif" width="450" /> |
 | _Check the numbers for a specific run or overall averages._             | _The Arena: pick the best image without knowing the model._         |
 
 ### Prompts & History
 
 | Prompt Editor                                                              | Past Runs                                                              |
 | :------------------------------------------------------------------------- | :--------------------------------------------------------------------- |
-| <img src="assets/screenshots/prompteditor.png" width="450" height="160" /> | <img src="assets/screenshots/database.png" width="450" height="160" /> |
+| <img src="assets/screenshots/prompteditor.png" width="450" /> | <img src="assets/screenshots/database.png" width="450" /> |
 | _Basically a prompt library._                                              | _Detailed database management._                                        |
 
 ## 🛠️ Getting Started
