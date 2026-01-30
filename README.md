@@ -2,11 +2,16 @@
 
 A tool for benchmarking and comparing SDXL models by generating images from test prompts and calculating quality metrics.
 
-<img width="1893" height="962" alt="image" src="https://github.com/user-attachments/assets/84bd7ac2-f10f-4ef0-9b53-784e62af5b76" />
+<img width="1876" height="978" alt="dash1" src="https://github.com/user-attachments/assets/2dd7751c-2a9d-4049-9fc6-d3adfee46789" />  
 
-<img width="1354" height="679" alt="image" src="https://github.com/user-attachments/assets/ceb852b9-4a27-466d-8a37-3888ee347ad4" />
+<img width="1867" height="979" alt="dash2" src="https://github.com/user-attachments/assets/c821c5d0-cc87-44a9-a45d-7e8d00570915" />  
 
-<img width="1333" height="371" alt="image" src="https://github.com/user-attachments/assets/1ff081b3-21d8-4fb3-b633-05ffc83b3859" />
+<img width="1909" height="991" alt="analysis" src="https://github.com/user-attachments/assets/c156bfd3-e5e2-40b2-ae1b-c083d26a2d76" />  
+
+<img width="1920" height="992" alt="promptlib" src="https://github.com/user-attachments/assets/701570f1-2ead-4a5d-90c2-4b5541bf2530" />  
+
+<img width="1908" height="990" alt="arena" src="https://github.com/user-attachments/assets/829f1362-7876-42f3-bb31-50a4b2ba5cbf" />  
+
 
 ## Quick Start
 
